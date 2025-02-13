@@ -49,7 +49,7 @@ class RatingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Rating
-        fields = ('id', 'user', 'video', 'value', 'timestamp', 'created_at', 'updated_at')
+        fields = ('id', 'user', 'video', 'value', 'created_at', 'updated_at')
         read_only_fields = ('timestamp', 'created_at', 'updated_at')
 
 class CommentSerializer(serializers.ModelSerializer):
