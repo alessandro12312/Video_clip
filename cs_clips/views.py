@@ -1,28 +1,48 @@
-from rest_framework import generics, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.contrib.auth.models import User
-from .models import VideoUpload
-from .serializers import UserSerializer, VideoUploadSerializer
+# Controllers for the API endpoints
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.contrib.auth import get_user_model
+from .models import Video, Rating, Comment
+from .serializers import UserSerializer, VideoSerializer, UserRegistrationSerializer, RatingSerializer, CommentSerializer
 
-class RegisterUserView(APIView):
-    permission_classes = [permissions.AllowAny]
+User = get_user_model()
 
-    def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response({"message": "Registrazione avvenuta con successo", "user": UserSerializer(user).data}, status=201)
-        return Response(serializer.errors, status=400)
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
 
-class VideoUploadView(generics.ListCreateAPIView):
-    serializer_class = VideoUploadSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser)
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        return super().get_permissions()
 
-    def get_queryset(self):
-        return VideoUpload.objects.filter(user=self.request.user)
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserRegistrationSerializer
+        return UserSerializer
+
+
+class VideoViewSet(viewsets.ModelViewSet):
+    queryset = Video.objects.all()
+    serializer_class = VideoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(uploader=self.request.user)
+
+class RatingViewSet(viewsets.ModelViewSet):
+    queryset = Rating.objects.all()
+    serializer_class = RatingSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

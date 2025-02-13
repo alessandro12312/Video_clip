@@ -1,7 +1,14 @@
-from django.urls import path
-from .views import RegisterUserView, VideoUploadView
+# urls con le View
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import UserViewSet, VideoViewSet, RatingViewSet, CommentViewSet
+
+router = DefaultRouter()
+router.register(r'users', UserViewSet)
+router.register(r'videos', VideoViewSet)
+router.register(r'ratings', RatingViewSet)
+router.register(r'comments', CommentViewSet)
 
 urlpatterns = [
-    path('api/register/', RegisterUserView.as_view(), name='api_register'),
-    path('api/videos/', VideoUploadView.as_view(), name='api_video_upload'),
+    path('', include(router.urls)),
 ]
