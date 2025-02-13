@@ -34,9 +34,9 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ('id', 'title', 'file', 'uploader', 'upload_timestamp', 
+        fields = ('id', 'title', 'file', 'uploader', 
                  'average_rating', 'created_at', 'updated_at')
-        read_only_fields = ('upload_timestamp', 'created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at')
 
     def get_average_rating(self, obj):
         ratings = obj.ratings.all()
@@ -49,7 +49,7 @@ class RatingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Rating
-        fields = ('id', 'user', 'video', 'value', 'timestamp', 'created_at', 'updated_at')
+        fields = ('id', 'user', 'video', 'value', 'created_at', 'updated_at')
         read_only_fields = ('timestamp', 'created_at', 'updated_at')
 
 class CommentSerializer(serializers.ModelSerializer):
