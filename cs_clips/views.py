@@ -1,3 +1,4 @@
+# Controllers for the API endpoints
 from rest_framework import generics, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth.models import User
@@ -13,6 +14,9 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
 
 class VideoUploadView(generics.ListCreateAPIView):
     serializer_class = VideoUploadSerializer
