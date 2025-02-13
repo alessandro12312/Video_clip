@@ -59,3 +59,5 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ('id', 'user', 'video', 'content', 'created_at', 'updated_at')
         read_only_fields = ('created_at', 'updated_at')
+
+#TODO add the error response serializer
