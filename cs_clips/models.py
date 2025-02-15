@@ -31,6 +31,7 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
 
+
 # Video model
 class Video(models.Model):
     title = models.CharField(max_length=100)
@@ -41,6 +42,7 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
 
 # Rating model
 class Rating(models.Model):
@@ -55,6 +57,7 @@ class Rating(models.Model):
 
     def __str__(self):
         return f"{self.user.username} rated {self.video.title}: {self.value}"
+
 
 # Comment model
 class Comment(models.Model):
