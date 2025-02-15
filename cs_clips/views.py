@@ -1,6 +1,7 @@
 # Controllers for the API endpoints
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from cs_clips.permissions import RoleBasedPermission
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -11,6 +12,8 @@ from .serializers import (
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.contrib.auth.models import Group
+
 
 User = get_user_model()
 
@@ -42,7 +45,7 @@ def handle_exception_with_serializer(exc):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def get_permissions(self):
         return [AllowAny()] if self.action == 'create' else super().get_permissions()
@@ -50,13 +53,20 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         return UserRegistrationSerializer if self.action == 'create' else UserSerializer
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        # Assegna automaticamente l'utente al gruppo 'toconfirm'
+        group, created = Group.objects.get_or_create(name='toconfirm')
+        user.groups.add(group)
+
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
+    
 
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
         serializer.save(uploader=self.request.user)
@@ -74,7 +84,7 @@ class VideoViewSet(viewsets.ModelViewSet):
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -85,7 +95,7 @@ class RatingViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
