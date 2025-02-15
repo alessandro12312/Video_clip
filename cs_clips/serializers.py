@@ -12,6 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'nickname', 'created_at', 'updated_at')
         read_only_fields = ('created_at', 'updated_at')
 
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -27,6 +28,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
 
 class VideoSerializer(serializers.ModelSerializer):
     uploader = serializers.ReadOnlyField(source='uploader.username')
@@ -44,6 +46,7 @@ class VideoSerializer(serializers.ModelSerializer):
             return None
         return sum(r.value for r in ratings) / len(ratings)
 
+
 class RatingSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
 
@@ -51,6 +54,7 @@ class RatingSerializer(serializers.ModelSerializer):
         model = Rating
         fields = ('id', 'user', 'video', 'value', 'created_at', 'updated_at')
         read_only_fields = ('timestamp', 'created_at', 'updated_at')
+
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
@@ -60,15 +64,9 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ('id', 'user', 'video', 'content', 'created_at', 'updated_at')
         read_only_fields = ('created_at', 'updated_at')
 
-#Skikky vedi come vuoi usarlo
 
+# Error response serializer
 class ErrorResponseSerializer(serializers.Serializer):
-    detail = serializers.CharField(help_text="Descrizione dell'errore")
     code = serializers.CharField(help_text="Codice di errore", required=False)
-    errors = serializers.DictField(
-        child=serializers.ListField(
-            child=serializers.CharField()
-        ),
-        required=False,
-        help_text="Dettagli specifici sugli errori di validazione"
-    )
+    detail = serializers.CharField(help_text="Descrizione dell'errore")
+    
