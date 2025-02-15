@@ -58,11 +58,11 @@ WSGI_APPLICATION = 'project_clip.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'cs_clips'),
-        'USER': os.getenv('POSTGRES_USER', 'root'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'stickStick'),
+        'NAME': os.getenv('POSTGRES_DB'),
+        'USER': os.getenv('POSTGRES_USER'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
         'HOST': '127.0.0.1',  # Cambiato da postgres_db a 127.0.0.1
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        'PORT': os.getenv('POSTGRES_PORT'),
     }
 }
 
