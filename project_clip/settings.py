@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 # Security settings
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "your-secret-key-here")
@@ -55,8 +57,12 @@ WSGI_APPLICATION = 'project_clip.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / "db.sqlite3",
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('POSTGRES_DB', 'cs_clips'),
+        'USER': os.getenv('POSTGRES_USER', 'root'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'stickStick'),
+        'HOST': '127.0.0.1',  # Cambiato da postgres_db a 127.0.0.1
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
 
