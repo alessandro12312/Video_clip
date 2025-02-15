@@ -67,10 +67,6 @@ class CommentSerializer(serializers.ModelSerializer):
 
 # Error response serializer
 class ErrorResponseSerializer(serializers.Serializer):
-    errors = serializers.ListField(
-        child=serializers.DictField(
-            child=serializers.CharField()
-        ),
-        required=False,
-        help_text="Lista di errori dettagliati"
-    )
+    code = serializers.CharField(help_text="Codice di errore", required=False)
+    detail = serializers.CharField(help_text="Descrizione dell'errore")
+    

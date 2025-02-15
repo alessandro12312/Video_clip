@@ -1,6 +1,7 @@
 # Controllers for the API endpoints
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
 from .models import Video, Rating, Comment
@@ -13,15 +14,27 @@ from rest_framework.response import Response
 
 User = get_user_model()
 
+
 # Common error handling mixin
 def handle_exception_with_serializer(exc):
+    if isinstance(exc, ValidationError):
+        if isinstance(exc.detail, dict):
+            # Prende il primo errore per chiarezza
+            field, errors = next(iter(exc.detail.items()))
+            detail_message = f"Campo mancante: '{field}' - {', '.join([str(e) for e in errors])}"
+        elif isinstance(exc.detail, list):
+            # Per errori non legati a campi specifici
+            detail_message = '; '.join([str(error) for error in exc.detail])
+        else:
+            detail_message = str(exc)
+        code = "ValidationError"
+    else:
+        detail_message = str(exc)
+        code = exc.__class__.__name__
+
     error_serializer = ErrorResponseSerializer({
-        'errors': [
-            {
-                'type': exc.__class__.__name__,  # Nome dell'eccezione
-                'message': str(exc)              # Messaggio di errore
-            }
-        ]
+        'code': code,
+        'detail': detail_message
     })
     return Response(error_serializer.data, status=status.HTTP_400_BAD_REQUEST)
 
