@@ -60,4 +60,15 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ('id', 'user', 'video', 'content', 'created_at', 'updated_at')
         read_only_fields = ('created_at', 'updated_at')
 
-#TODO add the error response serializer
+#Skikky vedi come vuoi usarlo
+
+class ErrorResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField(help_text="Descrizione dell'errore")
+    code = serializers.CharField(help_text="Codice di errore", required=False)
+    errors = serializers.DictField(
+        child=serializers.ListField(
+            child=serializers.CharField()
+        ),
+        required=False,
+        help_text="Dettagli specifici sugli errori di validazione"
+    )
