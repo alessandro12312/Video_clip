@@ -1,4 +1,4 @@
--Installare python 
+-Installare python https://www.python.org/downloads/windows/
 
 -Creare l'ambiente virtuale py : #Va creato solo una volta#
   python -m venv .venv 
