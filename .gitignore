@@ -143,5 +143,5 @@ db/*
 !db/.gitkeep
 
 # upload folder
-videos/*
-!videos/.gitkeep
+media/videos/*
+!media/videos/.gitkeep

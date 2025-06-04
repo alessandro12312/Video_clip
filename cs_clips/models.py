@@ -1,4 +1,5 @@
 # Entities for the database
+import os
 from django.db import models
 from django.contrib.auth.models import User, AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -30,6 +31,18 @@ class User(AbstractUser):
         return self.username
 
 
+# Contest model
+class Contest(models.Model):
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_closed = models.BooleanField(default=False)  # principalmente per test
+    closed_at = models.DateTimeField(null=True, blank=True) # principalmente per test
+
+    def __str__(self):
+        return f"Contest {self.name} ({self.start_date} - {self.end_date})"
+
+    
 # Video model
 class Video(models.Model):
     title = models.CharField(max_length=100)
@@ -37,10 +50,21 @@ class Video(models.Model):
     uploader = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_videos')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
 
     def __str__(self):
         return self.title
 
+    def delete(self, *args, **kwargs):
+        """
+        Cancella il file fisico associato nella cartella media/videos/
+        quando il video viene eliminato dal database.
+        """
+        # Prima cancella il file, poi il record
+        if self.file and os.path.isfile(self.file.path):
+            os.remove(self.file.path)
+        super().delete(*args, **kwargs)
+        
 
 # Rating model
 class Rating(models.Model):
@@ -67,4 +91,3 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} commented on {self.video.title}"
-    
