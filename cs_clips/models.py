@@ -1,15 +1,13 @@
-# Entitys for the database
+# Entities for the database
 from django.db import models
 from django.contrib.auth.models import User, AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 # User model
 class User(AbstractUser):
-    nickname = models.CharField(max_length=50, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Aggiungiamo related_name per risolvere i conflitti
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',

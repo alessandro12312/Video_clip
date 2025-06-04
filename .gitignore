@@ -138,6 +138,10 @@ GitHub.sublime-settings
 !.vscode/extensions.json
 .history
 
-#db
+# db
 db/*
-!db/.gitkeep 
+!db/.gitkeep
+
+# upload folder
+videos/*
+!videos/.gitkeep
