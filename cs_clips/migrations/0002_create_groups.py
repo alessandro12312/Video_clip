@@ -11,7 +11,7 @@ def create_default_groups(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cs_clips', '0001_initial'),  # Cambia con la tua initial migration
+        ('cs_clips', '0001_initial'),
     ]
 
     operations = [
