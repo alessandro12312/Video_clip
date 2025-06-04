@@ -5,7 +5,8 @@ from cs_clips.permissions import RoleBasedPermission
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.db import models
-from .models import Video, Rating, Comment
+from django.db.models import Avg
+from .models import Video, Rating, Comment, Contest
 from .serializers import (
     ErrorResponseSerializer, UserSerializer, VideoSerializer,
     UserRegistrationSerializer, RatingSerializer, CommentSerializer
@@ -13,6 +14,9 @@ from .serializers import (
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
+from rest_framework.views import APIView
+from .utils.getDateUtil import get_or_create_current_contest
+from django.utils import timezone
 
 
 User = get_user_model()
@@ -69,7 +73,8 @@ class VideoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
-        serializer.save(uploader=self.request.user)
+        contest = get_or_create_current_contest()
+        serializer.save(uploader=self.request.user, contest=contest)
 
     @action(detail=False, methods=['get'], url_path='top-rated')
     def top_rated(self, request):
@@ -80,6 +85,7 @@ class VideoViewSet(viewsets.ModelViewSet):
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
+
 
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
@@ -102,3 +108,72 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
+    
+
+class EndContestView(APIView):
+    """
+    Endpoint per chiudere il contest attivo e decretare il vincitore.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        today = timezone.now().date()
+        contest = Contest.objects.filter(
+            start_date__lte=today,
+            end_date__gte=today,
+            is_closed=False
+        ).first()
+        if not contest:
+            return Response({"detail": "Nessun contest attivo da chiudere."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Trova il video vincitore (media voto più alta)
+        video = (
+            Video.objects
+            .filter(contest=contest)
+            .annotate(avg_rating=Avg('ratings__value'))
+            .order_by('-avg_rating', '-created_at')
+            .first()
+        )
+        contest.is_closed = True
+        closed_at_now = contest.closed_at = timezone.now()
+        contest.save()
+
+        winner_data = VideoSerializer(video).data if video else None
+
+        return Response({
+            "contest": {
+                "id": contest.id,
+                "name": contest.name,
+                "start_date": contest.start_date,
+                "end_date": closed_at_now,
+            },
+            "winner": winner_data
+        }, status=status.HTTP_200_OK)
+
+
+class ContestWinnersView(APIView):
+    """
+    Endpoint che restituisce una lista dei video vincitori
+    dei contest passati (chiusi).
+    Il vincitore è il video con la media voto più alta.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        winners = []
+        # Prendi solo contest passati (finito prima di oggi)
+        contests = Contest.objects.filter(end_date__lt=timezone.now().date())
+        for contest in contests:
+            # Trova i video di questo contest e calcola la media voto
+            video = (
+                Video.objects
+                .filter(contest=contest)
+                .annotate(avg_rating=Avg('ratings__value'))
+                .order_by('-avg_rating', '-created_at')  # in caso di pari merito prende il più recente
+                .first()
+            )
+            if video:
+                winners.append(video)
+        # Serializza la lista dei vincitori
+        data = VideoSerializer(winners, many=True).data
+        return Response(data)
