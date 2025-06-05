@@ -2,7 +2,7 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cs_clips.permissions import RoleBasedPermission
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied, NotFound, APIException
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Avg
@@ -23,28 +23,63 @@ from django.utils import timezone
 User = get_user_model()
 
 
-# Common error handling mixin
+# error handling
 def handle_exception_with_serializer(exc):
-    if isinstance(exc, ValidationError):
-        if isinstance(exc.detail, dict):
-            # Prende il primo errore per chiarezza
-            field, errors = next(iter(exc.detail.items()))
-            detail_message = f"Campo mancante: '{field}' - {', '.join([str(e) for e in errors])}"
-        elif isinstance(exc.detail, list):
-            # Per errori non legati a campi specifici
-            detail_message = '; '.join([str(error) for error in exc.detail])
-        else:
-            detail_message = str(exc)
-        code = "ValidationError"
-    else:
-        detail_message = str(exc)
-        code = exc.__class__.__name__
+    """
+    Gestisce le eccezioni restituendo una risposta serializzata,
+    mappando le eccezioni DRF sui codici di stato HTTP standard.
+    """
 
+    # Default values
+    code = exc.__class__.__name__
+    detail_message = str(exc)
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR  # Default per errori generici
+
+    # 400 Bad Request (errori di validazione input)
+    if isinstance(exc, ValidationError):
+        # Se l'errore riguarda un campo specifico
+        if hasattr(exc, "detail") and isinstance(exc.detail, dict):
+            field, errors = next(iter(exc.detail.items()))
+            detail_message = f"Campo '{field}': {', '.join([str(e) for e in errors])}"
+        # Se è una lista di errori
+        elif hasattr(exc, "detail") and isinstance(exc.detail, list):
+            detail_message = '; '.join([str(error) for error in exc.detail])
+        status_code = status.HTTP_400_BAD_REQUEST
+        code = "ValidationError"
+
+    # 401 Unauthorized (token mancante/scaduto o non autenticato)
+    elif isinstance(exc, NotAuthenticated):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        code = "NotAuthenticated"
+
+    # 403 Forbidden (permessi non sufficienti)
+    elif isinstance(exc, PermissionDenied):
+        status_code = status.HTTP_403_FORBIDDEN
+        code = "PermissionDenied"
+
+    # 404 Not Found (risorsa non trovata)
+    elif isinstance(exc, NotFound):
+        status_code = status.HTTP_404_NOT_FOUND
+        code = "NotFound"
+
+    # 409 Conflict (conflitti, es. duplicati, unique-together ecc)
+    elif hasattr(exc, "status_code") and exc.status_code == status.HTTP_409_CONFLICT:
+        status_code = status.HTTP_409_CONFLICT
+        code = "Conflict"
+
+    # 500 Internal Server Error (altro errore generico)
+    elif isinstance(exc, APIException):
+        # Se APIException ma non gestita sopra, fallback su 500
+        # Alcune APIException personalizzate possono avere .status_code
+        status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Prepara la risposta strutturata
     error_serializer = ErrorResponseSerializer({
         'code': code,
         'detail': detail_message
     })
-    return Response(error_serializer.data, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(error_serializer.data, status=status_code)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -127,6 +162,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         return handle_exception_with_serializer(exc)
     
 
+#TODO rivedi authorization, forse solo per admin
 class EndContestView(APIView):
     """
     Endpoint per chiudere il contest attivo e decretare il vincitore (con spareggio ponderato).
@@ -183,7 +219,9 @@ class EndContestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
+#TODO modifica in base alla media ponderata
+#TODO rivedi authorization
+#TODO broken
 class ContestWinnersView(APIView):
     """
     Endpoint che restituisce una lista dei video vincitori

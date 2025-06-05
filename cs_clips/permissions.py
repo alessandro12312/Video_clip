@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
+#TODO controlla bene i gruppi e i permessi come funzionano in Django
 class RoleBasedPermission(BasePermission):
     """
     Permission basata sui ruoli:

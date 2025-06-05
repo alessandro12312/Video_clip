@@ -18,6 +18,9 @@ class User(AbstractUser):
         related_query_name='custom_user'
     )
 
+    #TODO gruppo obbligatorio
+    #TODO email obbligatorio
+    #TODO set last_access
     user_permissions = models.ManyToManyField(
         'auth.Permission',
         verbose_name='user permissions',
@@ -52,7 +55,7 @@ class Video(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
     views = models.IntegerField(default=0)
-    #TODO aggiungi un campo tag per diversificare i video e i contest
+    #TODO aggiungi un campo tag per diversificare i video e i contest,maybe next release
 
     def __str__(self):
         return self.title
