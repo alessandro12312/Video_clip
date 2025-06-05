@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from rest_framework.views import APIView
 from .utils.getDateUtil import get_or_create_current_contest
+from .utils.desempate import desempate_ponderato
 from django.utils import timezone
 
 
@@ -72,6 +73,22 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 
+    # ogni volta che viene chiamato GET /api/videos/<id>/   incrementa il contatore delle visualizzazioni
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Sovrascrive il recupero di un singolo video per aumentare il contatore delle visualizzazioni.
+        """
+        instance = self.get_object()
+        user = request.user 
+        # Aggiorna le views SOLO se l'utente è autenticato e NON è il proprietario
+        if user.is_authenticated and instance.uploader != user:
+            instance.views = models.F('views') + 1
+            instance.save(update_fields=['views'])
+            # Refresh from db per vedere il valore aggiornato subito
+            instance.refresh_from_db()  
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         contest = get_or_create_current_contest()
         serializer.save(uploader=self.request.user, contest=contest)
@@ -112,7 +129,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 class EndContestView(APIView):
     """
-    Endpoint per chiudere il contest attivo e decretare il vincitore.
+    Endpoint per chiudere il contest attivo e decretare il vincitore (con spareggio ponderato).
     """
     permission_classes = [IsAuthenticated]
 
@@ -126,19 +143,33 @@ class EndContestView(APIView):
         if not contest:
             return Response({"detail": "Nessun contest attivo da chiudere."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Trova il video vincitore (media voto più alta)
-        video = (
+        videos = (
             Video.objects
             .filter(contest=contest)
             .annotate(avg_rating=Avg('ratings__value'))
-            .order_by('-avg_rating', '-created_at')
-            .first()
         )
+        if not videos.exists():
+            return Response({"detail": "Nessun video presente per questo contest."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Trova la media voto massima
+        max_rating = max([v.avg_rating for v in videos if v.avg_rating is not None])
+        # Prendi tutti i video a pari merito
+        top_videos = [v for v in videos if v.avg_rating == max_rating]
+
+        if len(top_videos) == 1:
+            winner = top_videos[0]
+        else:
+            # Spareggio avanzato
+            winner = desempate_ponderato(top_videos)
+
         contest.is_closed = True
         closed_at_now = contest.closed_at = timezone.now()
         contest.save()
 
-        winner_data = VideoSerializer(video).data if video else None
+        winner_data = VideoSerializer(winner).data if winner else None
+
+        # Se c'è stato spareggio, mostra anche la lista dei finalisti
+        finalists_data = [VideoSerializer(v).data for v in top_videos] if len(top_videos) > 1 else None
 
         return Response({
             "contest": {
@@ -147,8 +178,10 @@ class EndContestView(APIView):
                 "start_date": contest.start_date,
                 "end_date": closed_at_now,
             },
-            "winner": winner_data
+            "winner": winner_data,
+            "finalists": finalists_data
         }, status=status.HTTP_200_OK)
+
 
 
 class ContestWinnersView(APIView):
