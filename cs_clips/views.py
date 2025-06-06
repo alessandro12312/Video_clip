@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from cs_clips.permissions import RoleBasedPermission
 from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied, NotFound, APIException
 from django.contrib.auth import get_user_model
-from django.db import models
+from django.db import models, IntegrityError
 from django.db.models import Avg
 from .models import Video, Rating, Comment, Contest
 from .serializers import (
@@ -18,9 +18,27 @@ from rest_framework.views import APIView
 from .utils.getDateUtil import get_or_create_current_contest
 from .utils.desempate import desempate_ponderato
 from django.utils import timezone
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import Http404
 
 
 User = get_user_model()
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+
+        # Aggiorna last_access
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
+        return data
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 # error handling
@@ -29,6 +47,8 @@ def handle_exception_with_serializer(exc):
     Gestisce le eccezioni restituendo una risposta serializzata,
     mappando le eccezioni DRF sui codici di stato HTTP standard.
     """
+
+    print(f"Tipo eccezione: {type(exc)} - Dettaglio: {exc}")
 
     # Default values
     code = exc.__class__.__name__
@@ -57,13 +77,13 @@ def handle_exception_with_serializer(exc):
         status_code = status.HTTP_403_FORBIDDEN
         code = "PermissionDenied"
 
-    # 404 Not Found (risorsa non trovata)
-    elif isinstance(exc, NotFound):
+    # 404 Not Found
+    elif isinstance(exc, NotFound) or isinstance(exc, Http404) or isinstance(exc, ObjectDoesNotExist):
         status_code = status.HTTP_404_NOT_FOUND
         code = "NotFound"
 
-    # 409 Conflict (conflitti, es. duplicati, unique-together ecc)
-    elif hasattr(exc, "status_code") and exc.status_code == status.HTTP_409_CONFLICT:
+    # 409 Conflict
+    elif isinstance(exc, IntegrityError) or getattr(exc, "status_code", None) == status.HTTP_409_CONFLICT:
         status_code = status.HTTP_409_CONFLICT
         code = "Conflict"
 
@@ -72,6 +92,8 @@ def handle_exception_with_serializer(exc):
         # Se APIException ma non gestita sopra, fallback su 500
         # Alcune APIException personalizzate possono avere .status_code
         status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        code = getattr(exc, "default_code", code)
+        detail_message = getattr(exc, "detail", detail_message)
 
     # Prepara la risposta strutturata
     error_serializer = ErrorResponseSerializer({
@@ -104,25 +126,9 @@ class UserViewSet(viewsets.ModelViewSet):
     
 
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all()
+    queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
-
-    # ogni volta che viene chiamato GET /api/videos/<id>/   incrementa il contatore delle visualizzazioni
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Sovrascrive il recupero di un singolo video per aumentare il contatore delle visualizzazioni.
-        """
-        instance = self.get_object()
-        user = request.user 
-        # Aggiorna le views SOLO se l'utente è autenticato e NON è il proprietario
-        if user.is_authenticated and instance.uploader != user:
-            instance.views = models.F('views') + 1
-            instance.save(update_fields=['views'])
-            # Refresh from db per vedere il valore aggiornato subito
-            instance.refresh_from_db()  
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
     def perform_create(self, serializer):
         contest = get_or_create_current_contest()
@@ -134,6 +140,19 @@ class VideoViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(videos)
         serializer = self.get_serializer(page or videos, many=True)
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], url_path='views')
+    def views(self, request, pk=None):
+        """
+        Endpoint per incrementare le visualizzazioni di un video.
+        Deve essere chiamato dal frontend ogni volta che il video viene effettivamente visualizzato.
+        5/10 secondi controllo da frontend
+        """
+        video = self.get_object()
+        video.views = models.F('views') + 1
+        video.save(update_fields=['views'])
+        video.refresh_from_db()  # aggiorna il valore da DB
+        return Response({'views': video.views}, status=status.HTTP_200_OK)
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
@@ -198,6 +217,8 @@ class EndContestView(APIView):
             # Spareggio avanzato
             winner = desempate_ponderato(top_videos)
 
+        # Salva vincitore e chiudi il contest
+        contest.winner = winner
         contest.is_closed = True
         closed_at_now = contest.closed_at = timezone.now()
         contest.save()
@@ -212,39 +233,32 @@ class EndContestView(APIView):
                 "id": contest.id,
                 "name": contest.name,
                 "start_date": contest.start_date,
-                "end_date": closed_at_now,
+                "end_date": contest.end_date,
+                "closed_at": closed_at_now,
+                "winner_id": contest.winner.id if contest.winner else None
             },
             "winner": winner_data,
             "finalists": finalists_data
         }, status=status.HTTP_200_OK)
 
 
-#TODO modifica in base alla media ponderata
+#TODO da paginare prima o poi
 #TODO rivedi authorization
-#TODO broken
 class ContestWinnersView(APIView):
     """
     Endpoint che restituisce una lista dei video vincitori
-    dei contest passati (chiusi).
-    Il vincitore è il video con la media voto più alta.
+    dei contest passati (chiusi), ordinati dal contest più recente.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        winners = []
-        # Prendi solo contest passati (finito prima di oggi)
-        contests = Contest.objects.filter(end_date__lt=timezone.now().date())
-        for contest in contests:
-            # Trova i video di questo contest e calcola la media voto
-            video = (
-                Video.objects
-                .filter(contest=contest)
-                .annotate(avg_rating=Avg('ratings__value'))
-                .order_by('-avg_rating', '-created_at')  # in caso di pari merito prende il più recente
-                .first()
-            )
-            if video:
-                winners.append(video)
-        # Serializza la lista dei vincitori
+        # Prendi tutti i contest chiusi, con winner non null,
+        # ordinati dal più recente
+        contests = Contest.objects.filter(is_closed=True, winner__isnull=False).order_by('-closed_at')
+        
+        # Estraggo solo i video vincitori
+        winners = [contest.winner for contest in contests if contest.winner is not None]
+
+        # Serializzo la lista dei vincitori
         data = VideoSerializer(winners, many=True).data
         return Response(data)

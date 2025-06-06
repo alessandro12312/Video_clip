@@ -34,7 +34,7 @@ def get_or_create_current_contest():
     first_day_month = start_of_week.replace(day=1)
     first_day_weekday = first_day_month.weekday()
     delta_days = (start_of_week - first_day_month).days
-    week_number = ((delta_days + first_day_weekday) // 7) + 1
+    week_number = ((delta_days + first_day_weekday) // 7) # + 1
 
     base_nome = f"{anno}{mese_nome}{week_number}contest"
 
