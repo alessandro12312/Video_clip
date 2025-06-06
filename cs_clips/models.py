@@ -13,7 +13,7 @@ class User(AbstractUser):
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
-        blank=True,
+        blank=False,
         help_text='The groups this user belongs to.',
         related_name='custom_user_set',
         related_query_name='custom_user'
@@ -22,7 +22,7 @@ class User(AbstractUser):
     user_permissions = models.ManyToManyField(
         'auth.Permission',
         verbose_name='user permissions',
-        blank=False,
+        blank=True,
         help_text='Specific permissions for this user.',
         related_name='custom_user_permissions_set',
         related_query_name='custom_user_permission'
