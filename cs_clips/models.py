@@ -6,13 +6,14 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 # User model
 class User(AbstractUser):
+    email = models.EmailField('email address', unique=True, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
-        blank=True,
+        blank=False,
         help_text='The groups this user belongs to.',
         related_name='custom_user_set',
         related_query_name='custom_user'
@@ -36,6 +37,7 @@ class Contest(models.Model):
     name = models.CharField(max_length=100)
     start_date = models.DateField()
     end_date = models.DateField()
+    winner = models.ForeignKey('Video', null=True, blank=True, on_delete=models.SET_NULL, related_name='won_contests')
     is_closed = models.BooleanField(default=False)  # principalmente per test
     closed_at = models.DateTimeField(null=True, blank=True) # principalmente per test
 
@@ -51,6 +53,8 @@ class Video(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
+    views = models.IntegerField(default=0)
+    #TODO aggiungi un campo tag per diversificare i video e i contest, maybe next release
 
     def __str__(self):
         return self.title
