@@ -54,7 +54,8 @@ class Video(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
     views = models.IntegerField(default=0)
-    #TODO aggiungi un campo tag per diversificare i video e i contest, maybe next release
+    tags = models.CharField(max_length=200, blank=True, help_text="Comma-separated tags to classify the video")
+
 
     def __str__(self):
         return self.title
