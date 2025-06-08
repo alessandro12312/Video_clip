@@ -39,6 +39,7 @@ class VideoSerializer(serializers.ModelSerializer):
                  'average_rating', 'views', 'created_at', 'updated_at','tags')
         read_only_fields = ('created_at', 'updated_at')
 
+
     def get_average_rating(self, obj):
         ratings = obj.ratings.all()
         if not ratings:
