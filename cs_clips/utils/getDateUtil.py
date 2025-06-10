@@ -10,14 +10,15 @@ MESI_ITALIANO = [
     "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"
 ]
 
-def get_or_create_current_contest():
+def get_or_create_current_contest(tag):
     """
     Restituisce il contest settimanale attivo, o lo crea se non esiste o è stato già chiuso.
     La settimana inizia di lunedì e finisce di domenica.
-    Il nome è generato come: contest + anno + mese (in lettere) + numero della settimana del mese.
+    Il nome è generato come: anno, mese, numero della settimana del mese, tag.
+    Esempio: 2025giugno2clutch
     Se c'è più di un contest per la stessa settimana (chiusura anticipata),
     aggiunge un suffisso progressivo 
-    (es: 2025giugno2contest(2)).
+    (es: 2025giugno2clutch).
     """
     today = timezone.now().date()
     # Calcola il lunedì della settimana corrente
@@ -36,12 +37,13 @@ def get_or_create_current_contest():
     delta_days = (start_of_week - first_day_month).days
     week_number = ((delta_days + first_day_weekday) // 7) # + 1
 
-    base_nome = f"{anno}{mese_nome}{week_number}contest"
+    base_nome = f"{anno}{mese_nome}{week_number}{tag}"
 
     # Cerchiamo tutti i contest della stessa settimana
     contest_settimanali = Contest.objects.filter(
         start_date=start_of_week,
-        end_date=end_of_week
+        end_date=end_of_week,
+        tag=tag
     ).order_by('id')
 
     # Prendiamo l'ultimo contest (se c'è)
@@ -59,6 +61,7 @@ def get_or_create_current_contest():
     contest = Contest.objects.create(
         start_date=start_of_week,
         end_date=end_of_week,
-        name=nome_contest
+        name=nome_contest,
+        tag=tag
     )
     return contest

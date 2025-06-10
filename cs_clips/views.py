@@ -131,8 +131,11 @@ class VideoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
+        tag = self.request.data.get('tag')
+        if not tag:
+            raise ValidationError({"tag": "Questo campo è obbligatorio."})
         contest = get_or_create_current_contest()
-        serializer.save(uploader=self.request.user, contest=contest)
+        serializer.save(uploader=self.request.user, contest=contest, tag=tag)
 
     @action(detail=False, methods=['get'], url_path='top-rated')
     def top_rated(self, request):
