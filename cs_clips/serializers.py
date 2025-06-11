@@ -1,10 +1,12 @@
 # DTOs for the API
+from moviepy import VideoFileClip
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Contest, Video, Rating, Comment
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
-from moviepy.editor import VideoFileClip
+
+
 
 
 User = get_user_model()
