@@ -134,7 +134,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         tag = self.request.data.get('tag')
         if not tag:
             raise ValidationError({"tag": "Questo campo è obbligatorio."})
-        contest = get_or_create_current_contest()
+        contest = get_or_create_current_contest(tag)
         serializer.save(uploader=self.request.user, contest=contest, tag=tag)
 
     @action(detail=False, methods=['get'], url_path='top-rated')

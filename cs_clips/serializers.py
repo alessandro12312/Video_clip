@@ -7,9 +7,8 @@ from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 
 
-
-
 User = get_user_model()
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -61,23 +60,23 @@ class VideoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
             """
             Override del metodo create per impostare automaticamente la durata del video.
+            Prima salva il modello (così il file è già nella cartella /media/videos),
+            poi calcola la durata e aggiorna il campo duration.
             """
-            video_file = validated_data.get('file')
-            # Salva temporaneamente il file se non è già su disco
-            temp_path = default_storage.save(video_file.name, video_file)
-            absolute_path = default_storage.path(temp_path)
+            # Salva prima il modello (così Django salva il file correttamente)
+            instance = super().create(validated_data)
+
+            # 2. Calcola la durata usando il path reale del file già salvato
             try:
-                # Calcola la durata in secondi
+                absolute_path = instance.file.path  # Path del file in /media/videos/...
                 with VideoFileClip(absolute_path) as clip:
-                    duration = int(clip.duration)  # Intero, in secondi
-                validated_data['duration'] = duration
+                    instance.duration = int(clip.duration)
+                    instance.save(update_fields=["duration"])
             except Exception as e:
+                # In caso di errore, elimina il record per non lasciare dati "rotti"
+                instance.delete()
                 raise serializers.ValidationError({'file': f"Impossibile calcolare la durata del video: {str(e)}"})
-            finally:
-                # Cancella il file temporaneo solo se non usi default_storage con Media
-                # os.remove(absolute_path) # Solo se necessario
-                pass
-            return super().create(validated_data)
+            return instance
 
 
 class RatingSerializer(serializers.ModelSerializer):

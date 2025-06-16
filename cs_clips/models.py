@@ -44,7 +44,8 @@ class Contest(models.Model):
         max_length=20,
         choices=Tag.choices,
         null=False, blank=False,
-        help_text="Tag che identifica la categoria del contest"
+        help_text="Tag che identifica la categoria del contest",
+        default=Tag.FUNNY   # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
     start_date = models.DateField()
     end_date = models.DateField()
@@ -72,10 +73,12 @@ class Video(models.Model):
         max_length=20,
         choices=Contest.Tag.choices,
         null=False, blank=False,
-        help_text="Tag del video, deve corrispondere al contest"
+        help_text="Tag del video, deve corrispondere al contest",
+        default=Contest.Tag.FUNNY  # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
     duration = models.PositiveIntegerField(
-        help_text="Durata del video in secondi"
+        help_text="Durata del video in secondi",
+        default=0   # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
 
     def __str__(self):
@@ -115,7 +118,8 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     timestamp_second = models.PositiveIntegerField(
-        help_text="Secondo del video a cui si riferisce il commento (>=1, <= durata video))"
+        help_text="Secondo del video a cui si riferisce il commento (>=1, <= durata video))",
+        default=0 # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
 
     def __str__(self):
