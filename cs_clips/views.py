@@ -15,6 +15,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 from .utils.getDateUtil import get_or_create_current_contest
 from .utils.desempate import desempate_ponderato
 from django.utils import timezone
@@ -245,11 +246,10 @@ class EndContestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-#TODO da paginare prima o poi
 #TODO rivedi authorization
 class ContestWinnersView(APIView):
     """
-    Endpoint che restituisce una lista dei video vincitori
+    Restituisce una lista paginata dei video vincitori
     dei contest passati (chiusi), ordinati dal contest più recente.
     """
     permission_classes = [IsAuthenticated]
@@ -262,6 +262,10 @@ class ContestWinnersView(APIView):
         # Estraggo solo i video vincitori
         winners = [contest.winner for contest in contests if contest.winner is not None]
 
+        # Applica la paginazione con il page_size globale
+        paginator = PageNumberPagination()
+        result_page = paginator.paginate_queryset(winners, request)
+
         # Serializzo la lista dei vincitori
-        data = VideoSerializer(winners, many=True).data
-        return Response(data)
+        serializer = VideoSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)

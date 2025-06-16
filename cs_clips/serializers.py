@@ -60,20 +60,20 @@ class VideoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
             """
             Override del metodo create per impostare automaticamente la durata del video.
-            Prima salva il modello (così il file è già nella cartella /media/videos),
+            Prima salva il modello,
             poi calcola la durata e aggiorna il campo duration.
             """
-            # Salva prima il modello (così Django salva il file correttamente)
+            # Salva il modello
             instance = super().create(validated_data)
 
-            # 2. Calcola la durata usando il path reale del file già salvato
+            # Calcola la durata usando il path reale del file già salvato
             try:
                 absolute_path = instance.file.path  # Path del file in /media/videos/...
                 with VideoFileClip(absolute_path) as clip:
                     instance.duration = int(clip.duration)
                     instance.save(update_fields=["duration"])
             except Exception as e:
-                # In caso di errore, elimina il record per non lasciare dati "rotti"
+                # In caso di errore, elimina il record per non lasciare dati inconsistenti
                 instance.delete()
                 raise serializers.ValidationError({'file': f"Impossibile calcolare la durata del video: {str(e)}"})
             return instance
@@ -98,13 +98,13 @@ class CommentSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         """
-        Valida che timestamp_second sia >= 1 e non superi la durata del video.
+        Valida che timestamp_second sia >= 0 e non superi la durata del video.
         """
         timestamp = data.get('timestamp_second')
         video = data.get('video')
-        if timestamp < 1:
+        if timestamp < 0:
             raise serializers.ValidationError({
-                "timestamp_second": "Il valore deve essere maggiore o uguale a 1."
+                "timestamp_second": "Il valore deve essere maggiore o uguale a 0."
             })
         if not video or video.duration is None:
             raise serializers.ValidationError({
