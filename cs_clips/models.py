@@ -118,7 +118,7 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     timestamp_second = models.PositiveIntegerField(
-        help_text="Secondo del video a cui si riferisce il commento (>=1, <= durata video))",
+        help_text="Secondo del video a cui si riferisce il commento (>=0, <= durata video))",
         default=0 # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
 
