@@ -34,12 +34,27 @@ class User(AbstractUser):
 
 # Contest model
 class Contest(models.Model):
+    class Tag(models.TextChoices):
+        CLUTCH = 'clutch', 'Clutch'
+        FUNNY = 'funny', 'Funny'
+        FAIL = 'fail', 'Fail'
+
     name = models.CharField(max_length=100)
+    tag = models.CharField(
+        max_length=20,
+        choices=Tag.choices,
+        null=False, blank=False,
+        help_text="Tag che identifica la categoria del contest",
+        default=Tag.FUNNY   # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
+    )
     start_date = models.DateField()
     end_date = models.DateField()
     winner = models.ForeignKey('Video', null=True, blank=True, on_delete=models.SET_NULL, related_name='won_contests')
     is_closed = models.BooleanField(default=False)  # principalmente per test
     closed_at = models.DateTimeField(null=True, blank=True) # principalmente per test
+
+    class Meta:
+        unique_together = ('start_date', 'end_date', 'tag')
 
     def __str__(self):
         return f"Contest {self.name} ({self.start_date} - {self.end_date})"
@@ -54,8 +69,18 @@ class Video(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
     views = models.IntegerField(default=0)
-    tags = models.CharField(max_length=200, blank=True, help_text="Comma-separated tags to classify the video")
 
+    tag = models.CharField(
+        max_length=20,
+        choices=Contest.Tag.choices,
+        null=False, blank=False,
+        help_text="Tag del video, deve corrispondere al contest",
+        default=Contest.Tag.FUNNY  # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
+    )
+    duration = models.PositiveIntegerField(
+        help_text="Durata del video in secondi",
+        default=0   # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
+    )
 
     def __str__(self):
         return self.title
@@ -75,7 +100,7 @@ class Video(models.Model):
 class Rating(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ratings')
     video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name='ratings')
-    value = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)])
+    value = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])    # Valore ridotto a 5
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,6 +118,10 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    timestamp_second = models.PositiveIntegerField(
+        help_text="Secondo del video a cui si riferisce il commento (>=0, <= durata video))",
+        default=0 # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
+    )
 
     def __str__(self):
-        return f"{self.user.username} commented on {self.video.title}"
+        return f"{self.user.username} commented on {self.video.title} at {self.timestamp_second}s"
