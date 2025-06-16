@@ -18,11 +18,12 @@ class RoleBasedPermission(BasePermission):
 
         # 'user' può fare tutto (create, update, delete)
         if request.user.groups.filter(name='user').exists():
+
             return True
 
         # Se non appartiene a nessun gruppo, nega l'accesso
         return False
-
+    
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True

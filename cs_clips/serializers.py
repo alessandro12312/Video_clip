@@ -46,10 +46,11 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ('id', 'title', 'file', 'uploader', 
+        fields = ('id', 'title', 'file', 'uploader',
                  'average_rating', 'views', 'created_at', 'updated_at', 'contest', 'tag')
         read_only_fields = ('created_at', 'updated_at', 'uploader', 'contest')
         extra_kwargs = {'tag': {'required': True}}
+
 
     def get_average_rating(self, obj):
         ratings = obj.ratings.all()

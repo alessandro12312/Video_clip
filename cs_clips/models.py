@@ -69,6 +69,7 @@ class Video(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, null=True, blank=True, related_name="videos")
     views = models.IntegerField(default=0)
+
     tag = models.CharField(
         max_length=20,
         choices=Contest.Tag.choices,
