@@ -1,4 +1,5 @@
 # Controllers for the API endpoints
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
@@ -23,6 +24,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 
 User = get_user_model()
@@ -207,11 +209,51 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
 
+    # Documentazione OpenAPI per l'endpoint top_rated
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='range',
+                description='Intervallo temporale: day, week, month, year, all',
+                required=False,
+                type=str,
+                enum=['day', 'week', 'month', 'year', 'all']
+            )
+        ]
+    )
+    # Top rated in base a un intervallo di tempo controllo da FE per spaziare automaticamente quando finiscono i video
     @action(detail=False, methods=['get'], url_path='top-rated')
     def top_rated(self, request):
-        videos = Video.objects.annotate(average_rating=models.Avg('ratings__value')).order_by('-average_rating')
-        page = self.paginate_queryset(videos)
-        serializer = self.get_serializer(page or videos, many=True)
+        """
+        Restituisce i video top-rated filtrabili per intervallo temporale:
+        day, week, month, year, all (default: all).
+        """
+        range_param = request.query_params.get('range', 'all')
+        now = timezone.now()
+
+        # Calcola l'intervallo di tempo
+        time_ranges = {
+            'day': now - timedelta(days=1),
+            'week': now - timedelta(days=7),
+            'month': now - timedelta(days=30),
+            'year': now - timedelta(days=365),
+            'all': None
+        }
+
+        # Valida parametro
+        if range_param not in time_ranges:
+            return Response({"detail": f"Intervallo non valido: {range_param}"}, status=400)
+
+        queryset = Video.objects.all()
+        if time_ranges[range_param]:
+            queryset = queryset.filter(created_at__gte=time_ranges[range_param])
+
+        # Calcolo della media voto
+        queryset = queryset.annotate(average_rating=models.Avg('ratings__value')).order_by('-average_rating')
+
+        # Paginazione
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page or queryset, many=True)
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='views')

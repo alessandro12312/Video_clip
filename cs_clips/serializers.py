@@ -52,10 +52,14 @@ class VideoSerializer(serializers.ModelSerializer):
         extra_kwargs = {'tag': {'required': True}}
 
     def get_average_rating(self, obj):
+        """
+        Calcola la media dei voti, escludendo i video senza voti.
+        Ritorna 0.0 invece di None se non ci sono voti.
+        """
         ratings = obj.ratings.all()
-        if not ratings:
-            return None
-        return sum(r.value for r in ratings) / len(ratings)
+        if not ratings.exists():
+            return 0.0
+        return round(sum(r.value for r in ratings) / ratings.count(), 2)
     
     def create(self, validated_data):
             """
