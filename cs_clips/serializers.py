@@ -9,11 +9,11 @@ from django.core.files.storage import default_storage
 
 User = get_user_model()
 
-
+#TODO crea un serializer per semplificare la visualizzazione dell'utente senza lista di followers e following
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'created_at', 'updated_at')
+        fields = ('id', 'username', 'email', 'created_at', 'updated_at', 'followers', 'following')
         read_only_fields = ('created_at', 'updated_at')
 
 
@@ -53,10 +53,14 @@ class VideoSerializer(serializers.ModelSerializer):
 
 
     def get_average_rating(self, obj):
+        """
+        Calcola la media dei voti, escludendo i video senza voti.
+        Ritorna 0.0 invece di None se non ci sono voti.
+        """
         ratings = obj.ratings.all()
-        if not ratings:
-            return None
-        return sum(r.value for r in ratings) / len(ratings)
+        if not ratings.exists():
+            return 0.0
+        return round(sum(r.value for r in ratings) / ratings.count(), 2)
     
     def create(self, validated_data):
             """
