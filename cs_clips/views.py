@@ -1,7 +1,8 @@
 # Controllers for the API endpoints
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from cs_clips.permissions import RoleBasedPermission
+from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied, NotFound, APIException
 from django.contrib.auth import get_user_model
 from django.db import models, IntegrityError
@@ -23,6 +24,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 
 User = get_user_model()
@@ -122,6 +124,47 @@ class UserViewSet(viewsets.ModelViewSet):
         group, created = Group.objects.get_or_create(name='toconfirm')
         user.groups.add(group)
 
+    @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])
+    def follow(self, request, pk=None):
+        """
+        Permette all'utente autenticato di seguire un altro utente.
+        """
+        target_user = self.get_object()
+        if request.user == target_user:
+            return Response({"detail": "Non puoi seguire te stesso."}, status=400)
+
+        request.user.following.add(target_user)
+        return Response({"detail": f"Hai iniziato a seguire {target_user.username}."})
+    
+    @action(detail=True, methods=['post'], url_path='unfollow', permission_classes=[OnlyUsersPermission])
+    def unfollow(self, request, pk=None):
+        """
+        Permette all'utente autenticato di smettere di seguire un altro utente.
+        """
+        target_user = self.get_object()
+        request.user.following.remove(target_user)
+        return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
+
+    @action(detail=True, methods=['get'], url_path='followers')
+    def get_followers(self, request, pk=None):
+        """
+        Restituisce la lista degli utenti che seguono questo utente.
+        """
+        target_user = self.get_object()
+        followers = target_user.followers.all()
+        serializer = UserSerializer(followers, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='following')
+    def get_following(self, request, pk=None):
+        """
+        Restituisce la lista degli utenti che questo utente sta seguendo.
+        """
+        target_user = self.get_object()
+        following = target_user.following.all()
+        serializer = UserSerializer(following, many=True)
+        return Response(serializer.data)
+
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
     
@@ -138,11 +181,79 @@ class VideoViewSet(viewsets.ModelViewSet):
         contest = get_or_create_current_contest(tag)
         serializer.save(uploader=self.request.user, contest=contest, tag=tag)
 
-    @action(detail=False, methods=['get'], url_path='top-rated')
-    def top_rated(self, request):
-        videos = Video.objects.annotate(average_rating=models.Avg('ratings__value')).order_by('-average_rating')
+    @action(detail=False, methods=['get'], url_path='following')
+    def videos_from_following(self, request):
+        """
+        Restituisce i video caricati dagli utenti che l'utente autenticato segue.
+        Ordinati dal più recente al meno recente.
+        """
+        user = request.user
+
+        
+        # Controllo permessi: solo user e superuser SOLO PER TEST
+        # if not user.is_authenticated or (
+        #     not user.is_superuser and not user.groups.filter(name='user').exists()
+        # ):
+        #     return Response({'detail': 'Accesso negato. Solo per utenti confermati.'},
+        #                     status=status.HTTP_403_FORBIDDEN)
+
+
+        following_users = user.following.all()
+
+        # Filtra i video caricati dagli utenti seguiti
+        videos = Video.objects.filter(uploader__in=following_users).order_by('-created_at')
+
+        # Applica paginazione globale
         page = self.paginate_queryset(videos)
         serializer = self.get_serializer(page or videos, many=True)
+
+        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+
+    # Documentazione OpenAPI per l'endpoint top_rated
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='range',
+                description='Intervallo temporale: day, week, month, year, all',
+                required=False,
+                type=str,
+                enum=['day', 'week', 'month', 'year', 'all']
+            )
+        ]
+    )
+    # Top rated in base a un intervallo di tempo controllo da FE per spaziare automaticamente quando finiscono i video
+    @action(detail=False, methods=['get'], url_path='top-rated')
+    def top_rated(self, request):
+        """
+        Restituisce i video top-rated filtrabili per intervallo temporale:
+        day, week, month, year, all (default: all).
+        """
+        range_param = request.query_params.get('range', 'all')
+        now = timezone.now()
+
+        # Calcola l'intervallo di tempo
+        time_ranges = {
+            'day': now - timedelta(days=1),
+            'week': now - timedelta(days=7),
+            'month': now - timedelta(days=30),
+            'year': now - timedelta(days=365),
+            'all': None
+        }
+
+        # Valida parametro
+        if range_param not in time_ranges:
+            return Response({"detail": f"Intervallo non valido: {range_param}"}, status=400)
+
+        queryset = Video.objects.all()
+        if time_ranges[range_param]:
+            queryset = queryset.filter(created_at__gte=time_ranges[range_param])
+
+        # Calcolo della media voto
+        queryset = queryset.annotate(average_rating=models.Avg('ratings__value')).order_by('-average_rating')
+
+        # Paginazione
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page or queryset, many=True)
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='views')
