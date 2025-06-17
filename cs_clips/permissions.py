@@ -37,3 +37,14 @@ class RoleBasedPermission(BasePermission):
             return request.method in SAFE_METHODS
 
         return False
+    
+#TODO crea così le classi di permessi per ogni gruppo (devi aggiungere "permission_classes=[NomeClasse]" nei viewset)
+class OnlyUsersPermission(BasePermission):
+    """
+    Permette l'accesso solo a utenti del gruppo 'user' o admin.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (
+            user.is_superuser or user.groups.filter(name='user').exists()
+        )

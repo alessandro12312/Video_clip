@@ -14,6 +14,15 @@ class UserAdmin(BaseUserAdmin):
         return groups[0].name if groups else '-'
     role.short_description = 'Ruolo'
 
+    readonly_fields = ['followers_list', 'following_list']
+
+    def followers_list(self, obj):
+        return ", ".join(u.username for u in obj.followers.all())
+
+    def following_list(self, obj):
+        return ", ".join(u.username for u in obj.following.all())
+
+
 admin.site.register(Video)
 admin.site.register(Rating)
 admin.site.register(Comment)

@@ -1,7 +1,7 @@
 # Controllers for the API endpoints
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from cs_clips.permissions import RoleBasedPermission
+from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied, NotFound, APIException
 from django.contrib.auth import get_user_model
 from django.db import models, IntegrityError
@@ -122,6 +122,47 @@ class UserViewSet(viewsets.ModelViewSet):
         group, created = Group.objects.get_or_create(name='toconfirm')
         user.groups.add(group)
 
+    @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])
+    def follow(self, request, pk=None):
+        """
+        Permette all'utente autenticato di seguire un altro utente.
+        """
+        target_user = self.get_object()
+        if request.user == target_user:
+            return Response({"detail": "Non puoi seguire te stesso."}, status=400)
+
+        request.user.following.add(target_user)
+        return Response({"detail": f"Hai iniziato a seguire {target_user.username}."})
+    
+    @action(detail=True, methods=['post'], url_path='unfollow', permission_classes=[OnlyUsersPermission])
+    def unfollow(self, request, pk=None):
+        """
+        Permette all'utente autenticato di smettere di seguire un altro utente.
+        """
+        target_user = self.get_object()
+        request.user.following.remove(target_user)
+        return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
+
+    @action(detail=True, methods=['get'], url_path='followers')
+    def get_followers(self, request, pk=None):
+        """
+        Restituisce la lista degli utenti che seguono questo utente.
+        """
+        target_user = self.get_object()
+        followers = target_user.followers.all()
+        serializer = UserSerializer(followers, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='following')
+    def get_following(self, request, pk=None):
+        """
+        Restituisce la lista degli utenti che questo utente sta seguendo.
+        """
+        target_user = self.get_object()
+        following = target_user.following.all()
+        serializer = UserSerializer(following, many=True)
+        return Response(serializer.data)
+
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
     
@@ -137,6 +178,34 @@ class VideoViewSet(viewsets.ModelViewSet):
             raise ValidationError({"tag": "Questo campo è obbligatorio."})
         contest = get_or_create_current_contest(tag)
         serializer.save(uploader=self.request.user, contest=contest, tag=tag)
+
+    @action(detail=False, methods=['get'], url_path='following')
+    def videos_from_following(self, request):
+        """
+        Restituisce i video caricati dagli utenti che l'utente autenticato segue.
+        Ordinati dal più recente al meno recente.
+        """
+        user = request.user
+
+        
+        # Controllo permessi: solo user e superuser SOLO PER TEST
+        # if not user.is_authenticated or (
+        #     not user.is_superuser and not user.groups.filter(name='user').exists()
+        # ):
+        #     return Response({'detail': 'Accesso negato. Solo per utenti confermati.'},
+        #                     status=status.HTTP_403_FORBIDDEN)
+
+
+        following_users = user.following.all()
+
+        # Filtra i video caricati dagli utenti seguiti
+        videos = Video.objects.filter(uploader__in=following_users).order_by('-created_at')
+
+        # Applica paginazione globale
+        page = self.paginate_queryset(videos)
+        serializer = self.get_serializer(page or videos, many=True)
+
+        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='top-rated')
     def top_rated(self, request):

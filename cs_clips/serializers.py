@@ -9,11 +9,11 @@ from django.core.files.storage import default_storage
 
 User = get_user_model()
 
-
+#TODO crea un serializer per semplificare la visualizzazione dell'utente senza lista di followers e following
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'created_at', 'updated_at')
+        fields = ('id', 'username', 'email', 'created_at', 'updated_at', 'followers', 'following')
         read_only_fields = ('created_at', 'updated_at')
 
 

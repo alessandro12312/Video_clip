@@ -10,6 +10,15 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Aggiunta relazione follower
+    following = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        related_name='followers',
+        blank=True,
+        help_text="Utenti che questo utente sta seguendo"
+    )
+
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
