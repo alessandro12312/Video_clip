@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
+# Define the root directory for logs
+LOGS_ROOT = BASE_DIR / "logs"
+
 # Security settings
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "your-secret-key-here")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
@@ -65,6 +68,40 @@ DATABASES = {
         'PORT': os.getenv('POSTGRES_PORT'),
     }
 }
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} [{levelname}] {name} - {message}',
+            'style': '{',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file.errors': {
+            'class': 'logging.FileHandler',
+            'filename': LOGS_ROOT / 'handler' / 'errors.log',
+            'formatter': 'verbose',
+            'level': 'ERROR',
+        },
+    },
+
+    'loggers': {
+        'cs_clips.errors': {
+            'handlers': ['console', 'file.errors'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

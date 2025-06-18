@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-#TODO controlla bene i gruppi e i permessi come funzionano in Django
+
+
 class RoleBasedPermission(BasePermission):
     """
     Permission basata sui ruoli:
@@ -48,3 +49,15 @@ class OnlyUsersPermission(BasePermission):
         return user.is_authenticated and (
             user.is_superuser or user.groups.filter(name='user').exists()
         )
+    
+    
+class OnlyAdminsPermission(BasePermission):
+    """
+    Permette l'accesso solo a utenti del gruppo 'admin' o superuser.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (
+            user.is_superuser or user.groups.filter(name='admin').exists()
+        )
+

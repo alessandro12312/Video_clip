@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularRedocView, SpectacularSwaggerView, SpectacularAPIView
-from cs_clips.views import CustomTokenObtainPairView
+from cs_clips.api.users.user_views import CustomTokenObtainPairView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
