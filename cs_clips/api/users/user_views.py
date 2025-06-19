@@ -4,6 +4,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import action
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
@@ -25,8 +26,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+@extend_schema(
+        parameters=[
+            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
+            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
+        ]
+    )
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('id')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 
@@ -41,6 +48,7 @@ class UserViewSet(viewsets.ModelViewSet):
         # Assegna automaticamente l'utente al gruppo 'toconfirm'
         group, created = Group.objects.get_or_create(name='toconfirm')
         user.groups.add(group)
+
 
     @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])
     def follow(self, request, pk=None):

@@ -1,4 +1,3 @@
-
 from django.forms import ValidationError
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
@@ -6,7 +5,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.db.models import Avg
 from cs_clips.models import Contest, Video
 from cs_clips.api.videos.video_serializers import VideoSerializer
@@ -22,11 +21,15 @@ class EndContestView(APIView):
     permission_classes = [OnlyAdminsPermission]
 
     @extend_schema(
-        request=OpenApiExample(
-            name="Tag contest",
-            value={"tag": "clutch"},
-            request_only=True
-        )
+        parameters=[
+            OpenApiParameter(
+                name='tag',
+                description='Tag del contest da chiudere',
+                required=True,
+                type=str,
+                enum=[choice[0] for choice in Contest.Tag.choices]  # Enum dinamico!
+            )
+        ]
     )
     def post(self, request):
         valid_tags = [choice[0] for choice in Contest.Tag.choices]

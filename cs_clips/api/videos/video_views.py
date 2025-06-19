@@ -16,6 +16,12 @@ from cs_clips.utils.get_date_util import get_or_create_current_contest
 
 
 
+@extend_schema(
+        parameters=[
+            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
+            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
+        ]
+    )
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
     serializer_class = VideoSerializer  # Default serializer per GET e POST
