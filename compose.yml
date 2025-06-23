@@ -24,26 +24,20 @@ services:
     depends_on:
       - db
 
-  # MinIO S3-compatible object storage
   minio:
     image: minio/minio:latest
     container_name: ${MINIO_CONTAINER_NAME}
     restart: always
     command: server /data --console-address ":9001"
     environment:
-      # Credenziali di accesso per MinIO
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      # Porta per le API S3
-      - "${MINIO_API_PORT}:9000"
-      # Porta per la console web di amministrazione
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "${MINIO_HOST_API_PORT}:9000"
+      - "${MINIO_HOST_CONSOLE_PORT}:9001"
     volumes:
-      # Persistenza dei dati su filesystem locale
       - ./minio-data:/data
     healthcheck:
-      # Health check per verificare che MinIO sia operativo
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
