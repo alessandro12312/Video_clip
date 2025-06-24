@@ -152,5 +152,5 @@ media/videos/*
 !.gitkeep
 
 # minio
-minio-data/*
-!minio-data/.gitkeep
+minio/*
+!minio/.gitkeep
