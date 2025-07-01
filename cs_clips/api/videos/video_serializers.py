@@ -1,4 +1,6 @@
 # Video serializer
+import os
+import tempfile
 from moviepy import VideoFileClip
 from rest_framework import serializers
 from cs_clips.models import Video
@@ -37,16 +39,30 @@ class VideoSerializer(serializers.ModelSerializer):
             # Salva il modello
             instance = super().create(validated_data)
 
+            tmp_file_path = None
+
             # Calcola la durata usando il path reale del file già salvato
             try:
-                absolute_path = instance.file.path  # Path del file in /media/videos/...
-                with VideoFileClip(absolute_path) as clip:
+                # Ottieni il file come file-like object (funziona sia con MinIO che in locale)
+                file_obj = instance.file
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
+                    for chunk in file_obj.chunks() if hasattr(file_obj, "chunks") else [file_obj.read()]:
+                        tmp.write(chunk)
+                    tmp_file_path = tmp.name
+
+                with VideoFileClip(tmp_file_path) as clip:
                     instance.duration = int(clip.duration)
                     instance.save(update_fields=["duration"])
             except Exception as e:
                 # In caso di errore, elimina il record per non lasciare dati inconsistenti
                 instance.delete()
                 raise serializers.ValidationError({'file': f"Impossibile calcolare la durata del video: {str(e)}"})
+            finally:
+                if tmp_file_path:
+                    try:
+                        os.remove(tmp_file_path)
+                    except Exception:
+                        pass
             return instance
     
 

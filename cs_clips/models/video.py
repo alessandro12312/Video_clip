@@ -8,7 +8,7 @@ from .contest import Contest
 
 class Video(models.Model):
     title = models.CharField(max_length=100)
-    file = models.FileField(upload_to='videos/')
+    file = models.FileField(upload_to='video/')
     uploader = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_videos')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -28,13 +28,3 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
-
-    def delete(self, *args, **kwargs):
-        """
-        Cancella il file fisico associato nella cartella media/videos/
-        quando il video viene eliminato dal database.
-        """
-        # Prima cancella il file, poi il record
-        if self.file and os.path.isfile(self.file.path):
-            os.remove(self.file.path)
-        super().delete(*args, **kwargs)

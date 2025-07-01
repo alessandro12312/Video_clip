@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
+    'storages',  # Aggiunto per django-storages (MinIO)
     'cs_clips',
 ]
 
@@ -68,6 +69,54 @@ DATABASES = {
         'PORT': os.getenv('POSTGRES_PORT'),
     }
 }
+
+
+# ===============================================
+# CONFIGURAZIONE MINIO S3 STORAGE
+# ===============================================
+
+# Usa MinIO solo se le variabili d'ambiente sono configurate
+USE_S3_STORAGE = bool(os.getenv('AWS_S3_ENDPOINT_URL'))
+
+if USE_S3_STORAGE:
+    # Configurazione per django-storages con MinIO
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    
+    # Credenziali MinIO (compatibili con AWS S3)
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    # AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'eu-west-1')
+    
+    # Configurazioni SSL per MinIO locale
+    AWS_S3_USE_SSL = os.getenv('AWS_S3_USE_SSL', 'False').lower() == 'true'
+    AWS_S3_VERIFY = os.getenv('AWS_S3_VERIFY', 'False').lower() == 'true'
+    
+    # Configurazioni file storage
+    AWS_S3_FILE_OVERWRITE = os.getenv('AWS_S3_FILE_OVERWRITE', 'False').lower() == 'true'
+    AWS_DEFAULT_ACL = None  # Nessun ACL di default
+    AWS_QUERYSTRING_AUTH = os.getenv('AWS_QUERYSTRING_AUTH', 'False').lower() == 'true'
+    
+    # Configurazioni URL per i media files
+    AWS_S3_CUSTOM_DOMAIN = None  # Usa l'endpoint MinIO diretto
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': 'max-age=86400',  # Cache di 1 giorno per i file
+    }
+    
+    AWS_S3_ENDPOINT_URL = "http://localhost:9000"
+    # Override MEDIA_URL per usare MinIO
+    MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/'
+    
+    print(f"✅ MinIO Storage configurato - Endpoint: {AWS_S3_ENDPOINT_URL}")
+    print(f"✅ Bucket: {AWS_STORAGE_BUCKET_NAME}")
+    
+else:
+    # Fallback: storage locale se MinIO non è configurato
+    print("⚠️  MinIO non configurato, usando storage locale")
+
+# ===============================================
+
 
 LOGGING = {
     'version': 1,
@@ -139,12 +188,40 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static & Media files
+
+# ===============================================
+# STATIC & MEDIA FILES CONFIGURATION
+# ===============================================
+
 STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-# STATICFILES_DIRS = [BASE_DIR / "static"]
-MEDIA_ROOT = BASE_DIR / "media"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media files: configurazione condizionale basata su MinIO
+if not USE_S3_STORAGE:
+    print('DEBUG USE_S3_STORAGE null AWS_S3_ENDPOINT_URL:', os.getenv('AWS_S3_ENDPOINT_URL'))
+    # Storage locale (fallback)
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / "media"
+else:
+    print('DEBUG USE_S3_STORAGE not null AWS_S3_ENDPOINT_URL:', os.getenv('AWS_S3_ENDPOINT_URL'))
+    print('DEBUG USE_S3_STORAGE not null DEFAULT_FILE_STORAGE:', DEFAULT_FILE_STORAGE)
+    print('DEBUG USE_S3_STORAGE not null MEDIA_URL:', MEDIA_URL)
+# Se USE_S3_STORAGE è True, MEDIA_URL è già configurato sopra nella sezione MinIO
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ===============================================
+
+
+# ===============================================
+# CONFIGURAZIONI UPLOAD FILE
+# ===============================================
+
+# Dimensione massima file upload
+FILE_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024  # 500MB
+# DATA_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024  # 500MB
+
+# Formati video consentiti
+ALLOWED_VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
+# MAX_VIDEO_SIZE = 500 * 1024 * 1024  # 500MB

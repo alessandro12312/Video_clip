@@ -28,6 +28,11 @@ class VideoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 
     def perform_create(self, serializer):
+        """
+        Salva il video e lo associa al contest corrente.
+        L'upload fisico del file viene gestito automaticamente dal backend di storage
+        (es. MinIO S3), tramite il campo FileField e il serializer.
+        """
         tag = self.request.data.get('tag')
         if not tag:
             raise ValidationError({"tag": "Questo campo è obbligatorio."})
