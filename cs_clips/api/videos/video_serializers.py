@@ -53,6 +53,8 @@ class VideoSerializer(serializers.ModelSerializer):
                 with VideoFileClip(tmp_file_path) as clip:
                     instance.duration = int(clip.duration)
                     instance.save(update_fields=["duration"])
+
+                file_obj.close()  # Chiude il file-like object
             except Exception as e:
                 # In caso di errore, elimina il record per non lasciare dati inconsistenti
                 instance.delete()

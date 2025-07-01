@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
-    'storages',  # Aggiunto per django-storages (MinIO)
+    'minio_storage',  # Aggiunto per django-storages (MinIO)
     'cs_clips',
 ]
 
@@ -76,17 +76,22 @@ DATABASES = {
 # ===============================================
 
 # Usa MinIO solo se le variabili d'ambiente sono configurate
-USE_S3_STORAGE = bool(os.getenv('AWS_S3_ENDPOINT_URL'))
+USE_S3_STORAGE = bool(os.getenv('AWS_S3_URL'))
 
 if USE_S3_STORAGE:
     # Configurazione per django-storages con MinIO
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    
+    #DEFAULT_FILE_STORAGE = 'cs_clips.storage_backends.S3MediaStorage'
+    DEFAULT_FILE_STORAGE = 'minio_storage.storage.MinioMediaStorage'
+
     # Credenziali MinIO (compatibili con AWS S3)
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-    # AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
+    MINIO_STORAGE_SECRET_KEY = os.getenv('AWS_ACCESS_KEY_ID')
+    MINIO_STORAGE_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+    MINIO_STORAGE_MEDIA_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+    MINIO_STORAGE_ENDPOINT = os.getenv("AWS_S3_URL")
+    #MINIO_ACCESS_URL = os.getenv("MINIO_ACCESS_URL")
+    MINIO_STORAGE_USE_HTTPS = False
+    MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = False
+
     AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'eu-west-1')
     
     # Configurazioni SSL per MinIO locale
@@ -98,18 +103,12 @@ if USE_S3_STORAGE:
     AWS_DEFAULT_ACL = None  # Nessun ACL di default
     AWS_QUERYSTRING_AUTH = os.getenv('AWS_QUERYSTRING_AUTH', 'False').lower() == 'true'
     
-    # Configurazioni URL per i media files
-    AWS_S3_CUSTOM_DOMAIN = None  # Usa l'endpoint MinIO diretto
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',  # Cache di 1 giorno per i file
-    }
-    
-    AWS_S3_ENDPOINT_URL = "http://localhost:9000"
+
     # Override MEDIA_URL per usare MinIO
-    MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/'
+    #MEDIA_URL = f'{MINIO_STORAGE_ENDPOINT}/'
     
-    print(f"✅ MinIO Storage configurato - Endpoint: {AWS_S3_ENDPOINT_URL}")
-    print(f"✅ Bucket: {AWS_STORAGE_BUCKET_NAME}")
+    print(f"✅ MinIO Storage configurato - Endpoint: {MINIO_STORAGE_ENDPOINT}")
+    print(f"✅ Bucket: {MINIO_STORAGE_ENDPOINT}")
     
 else:
     # Fallback: storage locale se MinIO non è configurato
@@ -193,19 +192,20 @@ USE_TZ = True
 # STATIC & MEDIA FILES CONFIGURATION
 # ===============================================
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = "/static/"
+STATICFILES_LOCATION = "static"
+STATICFILES_STORAGE = "blogs.storage.StaticS3Boto3Storage"
 
 # Media files: configurazione condizionale basata su MinIO
 if not USE_S3_STORAGE:
-    print('DEBUG USE_S3_STORAGE null AWS_S3_ENDPOINT_URL:', os.getenv('AWS_S3_ENDPOINT_URL'))
+    print('DEBUG USE_S3_STORAGE null AWS_S3_URL:', os.getenv('AWS_S3_URL'))
     # Storage locale (fallback)
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / "media"
 else:
-    print('DEBUG USE_S3_STORAGE not null AWS_S3_ENDPOINT_URL:', os.getenv('AWS_S3_ENDPOINT_URL'))
+    print('DEBUG USE_S3_STORAGE not null AWS_S3_URL:', os.getenv('AWS_S3_URL'))
     print('DEBUG USE_S3_STORAGE not null DEFAULT_FILE_STORAGE:', DEFAULT_FILE_STORAGE)
-    print('DEBUG USE_S3_STORAGE not null MEDIA_URL:', MEDIA_URL)
+    print('DEBUG USE_S3_STORAGE not null MEDIA_URL:', MINIO_STORAGE_ENDPOINT)
 # Se USE_S3_STORAGE è True, MEDIA_URL è già configurato sopra nella sezione MinIO
 
 # Default primary key field type
