@@ -32,16 +32,25 @@ class VideoSerializer(serializers.ModelSerializer):
         return round(sum(r.value for r in ratings) / ratings.count(), 2)
     
     def create(self, validated_data):
-        """
-        Crea l'istanza del video e lancia un task in background
-        per calcolare la durata.
-        """
-        # Crea l'oggetto come al solito (questo caricherà il file su MinIO)
-        instance = super().create(validated_data) # <--- Questo ora riceverà lo stream del file integro
+        uploaded_file = validated_data.get('file')
+        if not uploaded_file:
+            raise serializers.ValidationError({'file': 'File non fornito.'})
 
-        # Lancia il task in background passando l'ID dell'istanza
-        # Questo task scaricherà il file da MinIO per calcolare la durata
-        calculate_video_duration_task.delay(instance.pk)
+        tmp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
+                for chunk in uploaded_file.chunks():
+                    tmp.write(chunk)
+                tmp_file_path = tmp.name
+            with VideoFileClip(tmp_file_path) as clip:
+                validated_data['duration'] = int(clip.duration)
+        except Exception as e:
+            raise serializers.ValidationError({'file': f"Impossibile analizzare il video: {str(e)}"})
+        finally:
+            if tmp_file_path and os.path.exists(tmp_file_path):
+                os.remove(tmp_file_path)
+
+        instance = super().create(validated_data)
         print(f"DEBUG: URL del file dopo il salvataggio: {instance.file.url}")
         print(f"DEBUG: Nome del file dopo il salvataggio: {instance.file.name}")
         return instance
