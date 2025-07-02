@@ -4,6 +4,7 @@ import tempfile
 from moviepy import VideoFileClip
 from rest_framework import serializers
 from cs_clips.models import Video
+from cs_clips.utils.calculate_video_duration_util import calculate_video_duration_task 
 from cs_clips.utils.get_date_util import get_or_create_current_contest
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -31,41 +32,19 @@ class VideoSerializer(serializers.ModelSerializer):
         return round(sum(r.value for r in ratings) / ratings.count(), 2)
     
     def create(self, validated_data):
-            """
-            Override del metodo create per impostare automaticamente la durata del video.
-            Prima salva il modello,
-            poi calcola la durata e aggiorna il campo duration.
-            """
-            # Salva il modello
-            instance = super().create(validated_data)
+        """
+        Crea l'istanza del video e lancia un task in background
+        per calcolare la durata.
+        """
+        # Crea l'oggetto come al solito (questo caricherà il file su MinIO)
+        instance = super().create(validated_data) # <--- Questo ora riceverà lo stream del file integro
 
-            tmp_file_path = None
-
-            # Calcola la durata usando il path reale del file già salvato
-            try:
-                # Ottieni il file come file-like object (funziona sia con MinIO che in locale)
-                file_obj = instance.file
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
-                    for chunk in file_obj.chunks() if hasattr(file_obj, "chunks") else [file_obj.read()]:
-                        tmp.write(chunk)
-                    tmp_file_path = tmp.name
-
-                with VideoFileClip(tmp_file_path) as clip:
-                    instance.duration = int(clip.duration)
-                    instance.save(update_fields=["duration"])
-
-                file_obj.close()  # Chiude il file-like object
-            except Exception as e:
-                # In caso di errore, elimina il record per non lasciare dati inconsistenti
-                instance.delete()
-                raise serializers.ValidationError({'file': f"Impossibile calcolare la durata del video: {str(e)}"})
-            finally:
-                if tmp_file_path:
-                    try:
-                        os.remove(tmp_file_path)
-                    except Exception:
-                        pass
-            return instance
+        # Lancia il task in background passando l'ID dell'istanza
+        # Questo task scaricherà il file da MinIO per calcolare la durata
+        calculate_video_duration_task.delay(instance.pk)
+        print(f"DEBUG: URL del file dopo il salvataggio: {instance.file.url}")
+        print(f"DEBUG: Nome del file dopo il salvataggio: {instance.file.name}")
+        return instance
     
 
 class VideoUpdateSerializer(serializers.ModelSerializer):

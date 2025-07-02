@@ -1,5 +1,4 @@
 services:
-  # Database PostgreSQL
   db:
     image: postgres:16
     container_name: ${POSTGRES_CONTAINER_NAME}
@@ -18,7 +17,6 @@ services:
     volumes:
       - ./db:/var/lib/postgresql
 
-  # PGAdmin
   pgadmin:
     image: dpage/pgadmin4
     container_name: ${PGADMIN_CONTAINER_NAME}
@@ -32,7 +30,6 @@ services:
       db:
         condition: service_healthy
 
-  # MinIO
   minio:
     image: minio/minio:latest
     container_name: ${MINIO_CONTAINER_NAME}
@@ -41,6 +38,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Configurazione regione (opzionale ma consigliata)
       MINIO_REGION: ${MINIO_REGION}
     ports:
       - "${MINIO_API_PORT}:9000"
@@ -53,7 +51,7 @@ services:
       timeout: 20s
       retries: 3
 
-  # Inizializzazione MinIO
+  # Client MinIO per inizializzazione bucket
   minio-init:
     image: minio/mc:latest
     container_name: ${MINIO_INIT_CONTAINER_NAME}
@@ -67,59 +65,6 @@ services:
         sleep 2; \
         mc anonymous set download minio/${MINIO_BUCKET_NAME}; \
         mc anonymous info minio/${MINIO_BUCKET_NAME}; \
-        echo 'Bucket ${MINIO_BUCKET_NAME} creato e reso pubblico'; \
+        echo 'Bucket ${MINIO_BUCKET_NAME} creato e reso pubblico (anonymous download)'; \
       "
-
-  # Redis per Celery
-  redis:
-    image: redis:7-alpine
-    container_name: ${REDIS_CONTAINER_NAME:-redis_broker}
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Celery Worker in Docker
-  celery-worker:
-    build: .
-    container_name: ${CELERY_WORKER_CONTAINER_NAME:-celery_worker}
-    restart: always
-    command: celery -A Video_clip worker --loglevel=info
-    environment:
-      - DJANGO_SETTINGS_MODULE=project_clip.settings
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - .:/app
-    working_dir: /app
-
-  # Celery Flower per monitoring
-  celery-flower:
-    build: .
-    container_name: ${CELERY_FLOWER_CONTAINER_NAME:-celery_flower}
-    restart: always
-    command: celery -A Video_clip flower --port=5555
-    ports:
-      - "5555:5555"
-    environment:
-      - DJANGO_SETTINGS_MODULE=project_clip.settings
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-    volumes:
-      - .:/app
-    working_dir: /app
-
-volumes:
-  redis_data:
-    driver: local
+      

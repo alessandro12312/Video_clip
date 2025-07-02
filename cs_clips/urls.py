@@ -6,6 +6,8 @@ from cs_clips.api.contests.contest_views import ContestWinnersView, EndContestVi
 from cs_clips.api.ratings.rating_views import RatingViewSet
 from cs_clips.api.users.user_views import UserViewSet
 from cs_clips.api.videos.video_views import VideoViewSet
+from project_clip import settings
+from django.conf.urls.static import static
 
 
 # Si usa per le viewset che gestiscono CRUD standard
@@ -22,3 +24,6 @@ urlpatterns = [
     path('contests/winners/', ContestWinnersView.as_view(), name='contest-winners'),
     path('contests/end/', EndContestView.as_view(), name='contest-end'),
 ]
+
+# if settings.DEBUG:
+#     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
