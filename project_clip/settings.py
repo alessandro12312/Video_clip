@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'minio_storage',
     'cs_clips',
+    'corsheaders'
 ]
 
 # Middleware
@@ -98,7 +99,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware'
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'project_clip.urls'
 
