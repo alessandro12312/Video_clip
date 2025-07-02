@@ -8,7 +8,7 @@ from .contest import Contest
 
 class Video(models.Model):
     title = models.CharField(max_length=100)
-    file = models.FileField(upload_to='')
+    file = models.FileField(upload_to="")
     uploader = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_videos')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

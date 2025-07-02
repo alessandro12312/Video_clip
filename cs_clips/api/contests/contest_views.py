@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from django.db.models import Avg
 from cs_clips.models import Contest, Video
-from cs_clips.api.videos.video_serializers import VideoSerializer
+from cs_clips.api.videos.video_serializers import VideoOutputSerializer
 from cs_clips.permissions import OnlyAdminsPermission
 from cs_clips.utils.desempate import desempate_ponderato
 

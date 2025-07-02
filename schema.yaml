@@ -1,0 +1,1679 @@
+openapi: 3.0.3
+info:
+  title: ''
+  version: 0.0.0
+paths:
+  /api/comments/:
+    get:
+      operationId: api_comments_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCommentList'
+          description: ''
+    post:
+      operationId: api_comments_create
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Comment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Comment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+  /api/comments/{id}/:
+    get:
+      operationId: api_comments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this comment.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+    put:
+      operationId: api_comments_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this comment.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Comment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Comment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+    patch:
+      operationId: api_comments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this comment.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedComment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedComment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedComment'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+    delete:
+      operationId: api_comments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this comment.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/contests/end/:
+    post:
+      operationId: api_contests_end_create
+      description: Endpoint per chiudere il contest attivo associato a un tag e decretare
+        il vincitore (con spareggio ponderato).
+      parameters:
+      - in: query
+        name: tag
+        schema:
+          type: string
+          enum:
+          - clutch
+          - fail
+          - funny
+        description: Tag del contest da chiudere
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/contests/winners/:
+    get:
+      operationId: api_contests_winners_retrieve
+      description: |-
+        Restituisce una lista paginata dei video vincitori
+        dei contest passati (chiusi), ordinati dal contest più recente.
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/ratings/:
+    get:
+      operationId: api_ratings_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRatingList'
+          description: ''
+    post:
+      operationId: api_ratings_create
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Rating'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+  /api/ratings/{id}/:
+    get:
+      operationId: api_ratings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this rating.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+    put:
+      operationId: api_ratings_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this rating.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Rating'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Rating'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+    patch:
+      operationId: api_ratings_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this rating.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRating'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRating'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRating'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rating'
+          description: ''
+    delete:
+      operationId: api_ratings_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this rating.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/schema/:
+    get:
+      operationId: api_schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/token/:
+    post:
+      operationId: api_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomTokenObtainPair'
+          description: ''
+  /api/token/refresh/:
+    post:
+      operationId: api_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/users/:
+    get:
+      operationId: api_users_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: api_users_create
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistration'
+          description: ''
+  /api/users/{id}/:
+    get:
+      operationId: api_users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: api_users_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: api_users_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/users/{id}/follow/:
+    post:
+      operationId: api_users_follow_create
+      description: Permette all'utente autenticato di seguire un altro utente.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/followers/:
+    get:
+      operationId: api_users_followers_retrieve
+      description: Restituisce la lista degli utenti che seguono questo utente.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/following/:
+    get:
+      operationId: api_users_following_retrieve
+      description: Restituisce la lista degli utenti che questo utente sta seguendo.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/unfollow/:
+    post:
+      operationId: api_users_unfollow_create
+      description: Permette all'utente autenticato di smettere di seguire un altro
+        utente.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Numero della pagina
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Numero di risultati per pagina
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/videos/:
+    get:
+      operationId: api_videos_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVideoOutputList'
+          description: ''
+    post:
+      operationId: api_videos_create
+      description: Carica un nuovo video associandolo a un tag e al contest corrente.
+      summary: Crea un nuovo video
+      tags:
+      - api
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoInput'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoOutput'
+          description: ''
+  /api/videos/{id}/:
+    get:
+      operationId: api_videos_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this video.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoOutput'
+          description: ''
+    put:
+      operationId: api_videos_update
+      description: PUT → input con VideoUpdateSerializer, output con VideoSerializer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this video.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoUpdate'
+          description: ''
+    patch:
+      operationId: api_videos_partial_update
+      description: PATCH → input con VideoUpdateSerializer, output con VideoSerializer
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this video.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoUpdate'
+          description: ''
+    delete:
+      operationId: api_videos_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this video.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/videos/{id}/views/:
+    post:
+      operationId: api_videos_views_create
+      description: |-
+        Endpoint per incrementare le visualizzazioni di un video.
+        Deve essere chiamato dal frontend ogni volta che il video viene effettivamente visualizzato.
+        5/10 secondi controllo da frontend
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this video.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoOutput'
+          description: ''
+  /api/videos/following/:
+    get:
+      operationId: api_videos_following_retrieve
+      description: |-
+        Restituisce i video caricati dagli utenti che l'utente autenticato segue.
+        Ordinati dal più recente al meno recente.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoOutput'
+          description: ''
+  /api/videos/top-rated/:
+    get:
+      operationId: api_videos_top_rated_retrieve
+      description: |-
+        Restituisce i video top-rated filtrabili per intervallo temporale:
+        day, week, month, year, all (default: all).
+      parameters:
+      - in: query
+        name: range
+        schema:
+          type: string
+          enum:
+          - all
+          - day
+          - month
+          - week
+          - year
+        description: 'Intervallo temporale: day, week, month, year, all'
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoOutput'
+          description: ''
+components:
+  schemas:
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        video:
+          type: integer
+        content:
+          type: string
+        timestamp_second:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Secondo del video a cui si riferisce il commento (>=0, <= durata
+            video))
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content
+      - created_at
+      - id
+      - updated_at
+      - user
+      - video
+    CustomTokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    PaginatedCommentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+    PaginatedRatingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rating'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PaginatedVideoOutputList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoOutput'
+    PatchedComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        video:
+          type: integer
+        content:
+          type: string
+        timestamp_second:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Secondo del video a cui si riferisce il commento (>=0, <= durata
+            video))
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedRating:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        video:
+          type: integer
+        value:
+          type: integer
+          maximum: 5
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        followers:
+          type: array
+          items:
+            type: integer
+        following:
+          type: array
+          items:
+            type: integer
+          description: Utenti che questo utente sta seguendo
+    PatchedVideoUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 100
+        tag:
+          allOf:
+          - $ref: '#/components/schemas/TagEnum'
+          description: |-
+            Tag del video, deve corrispondere al contest
+
+            * `clutch` - Clutch
+            * `funny` - Funny
+            * `fail` - Fail
+    Rating:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        video:
+          type: integer
+        value:
+          type: integer
+          maximum: 5
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - updated_at
+      - user
+      - value
+      - video
+    TagEnum:
+      enum:
+      - clutch
+      - funny
+      - fail
+      type: string
+      description: |-
+        * `clutch` - Clutch
+        * `funny` - Funny
+        * `fail` - Fail
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        followers:
+          type: array
+          items:
+            type: integer
+        following:
+          type: array
+          items:
+            type: integer
+          description: Utenti che questo utente sta seguendo
+      required:
+      - created_at
+      - email
+      - followers
+      - id
+      - updated_at
+      - username
+    UserRegistration:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+      - username
+    VideoInput:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 100
+        file:
+          type: string
+          format: uri
+          writeOnly: true
+          description: Carica il file video qui.
+        tag:
+          allOf:
+          - $ref: '#/components/schemas/TagEnum'
+          description: |-
+            Tag del video, deve corrispondere al contest
+
+            * `clutch` - Clutch
+            * `funny` - Funny
+            * `fail` - Fail
+      required:
+      - file
+      - title
+    VideoOutput:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 100
+        file:
+          type: string
+          format: uri
+          readOnly: true
+          description: URL del file video.
+        uploader:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        average_rating:
+          type: number
+          format: double
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        contest:
+          type: integer
+          readOnly: true
+          nullable: true
+        tag:
+          allOf:
+          - $ref: '#/components/schemas/TagEnum'
+          description: |-
+            Tag del video, deve corrispondere al contest
+
+            * `clutch` - Clutch
+            * `funny` - Funny
+            * `fail` - Fail
+      required:
+      - average_rating
+      - contest
+      - created_at
+      - file
+      - id
+      - title
+      - updated_at
+      - uploader
+    VideoUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 100
+        tag:
+          allOf:
+          - $ref: '#/components/schemas/TagEnum'
+          description: |-
+            Tag del video, deve corrispondere al contest
+
+            * `clutch` - Clutch
+            * `funny` - Funny
+            * `fail` - Fail
+      required:
+      - tag
+      - title
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
