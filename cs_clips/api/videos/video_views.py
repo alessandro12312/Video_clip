@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import viewsets, parsers # Import parsers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -8,35 +8,60 @@ from django.db.models import Avg, F
 from cs_clips.permissions import RoleBasedPermission
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiRequest
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.models import Video
-from cs_clips.api.videos.video_serializers import VideoSerializer, VideoUpdateSerializer
+from cs_clips.api.videos.video_serializers import VideoOutputSerializer, VideoInputSerializer, VideoUpdateSerializer
 from cs_clips.utils.get_date_util import get_or_create_current_contest
+import logging
 
+logger = logging.getLogger('django')
 
-
-@extend_schema(
-        parameters=[
-            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
-            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
-        ]
-    )
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
-    serializer_class = VideoSerializer  # Default serializer per GET e POST
+    queryset = Video.objects.all().order_by('-created_at')
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
-    def perform_create(self, serializer):
+    @extend_schema(
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'title': {
+                        'type': 'string',
+                        'maxLength': 100,
+                    },
+                    'tag': {
+                        '$ref': '#/components/schemas/TagEnum'
+                    },
+                    'file': {
+                        'type': 'string',
+                        'format': 'binary'
+                        }
+                    }
+                }
+            },
+        responses=VideoOutputSerializer,
+        summary="Crea un nuovo video",
+        description="Carica un nuovo video associandolo a un tag e al contest corrente."
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    def perform_create(self, serializer, *args, **kwargs):
         """
         Salva il video e lo associa al contest corrente.
         L'upload fisico del file viene gestito automaticamente dal backend di storage
         (es. MinIO S3), tramite il campo FileField e il serializer.
         """
+        logger.info(f"Upload video data: {serializer.validated_data}, user: {self.request.user}")
         tag = self.request.data.get('tag')
         if not tag:
             raise ValidationError({"tag": "Questo campo è obbligatorio."})
         contest = get_or_create_current_contest(tag)
+        if not serializer.is_valid():
+            logger.error(f"Video upload error: {serializer.errors}")
+            raise ValidationError(serializer.errors)
         serializer.save(uploader=self.request.user, contest=contest, tag=tag)
 
     def update(self, request, *args, **kwargs):
@@ -67,7 +92,6 @@ class VideoViewSet(viewsets.ModelViewSet):
         """
         user = request.user
 
-        
         # Controllo permessi: solo user e superuser SOLO PER TEST
         # if not user.is_authenticated or (
         #     not user.is_superuser and not user.groups.filter(name='user').exists()
@@ -133,7 +157,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page or queryset, many=True)
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'], url_path='views', parser_classes=[])
     def views(self, request, pk=None):
         """
@@ -148,10 +172,11 @@ class VideoViewSet(viewsets.ModelViewSet):
         return Response({'views': video.views}, status=status.HTTP_200_OK)
 
     def get_serializer_class(self):
-        if self.action in ['update', 'partial_update']:
+        if self.action == 'create':
+            return VideoInputSerializer
+        elif self.action in ['update', 'partial_update']:
             return VideoUpdateSerializer
-        return VideoSerializer
+        return VideoOutputSerializer
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
-    

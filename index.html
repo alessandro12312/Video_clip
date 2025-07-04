@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-900 text-gray-100">
+<head>
+  <meta charset="UTF-8">
+  <title>CS2 Video Clips</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Video.js CSS -->
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+  <style>
+    .cs2-accent { color: #FFD700; } /* gold accent */
+    .cs2-bg { background: linear-gradient(135deg, #23272a 60%, #FFD700 100%); }
+    .video-js { border-radius: 0.5rem; }
+  </style>
+</head>
+<body class="min-h-screen cs2-bg">
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    <h1 class="text-3xl font-bold mb-6 text-center cs2-accent drop-shadow">Counter-Strike 2 Video Clips</h1>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="bg-gray-800 rounded-lg p-6 shadow mb-8 flex flex-col gap-4">
+      <div>
+        <label class="block text-sm font-semibold mb-1">Username</label>
+        <input type="text" id="username" required class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold mb-1">Password</label>
+        <input type="password" id="password" required class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+      </div>
+      <button type="submit" class="bg-yellow-400 text-gray-900 font-bold py-2 rounded hover:bg-yellow-300 transition">Login</button>
+      <span id="loginStatus" class="text-sm"></span>
+    </form>
+
+    <!-- Upload Section -->
+    <div id="uploadSection" style="display:none;">
+      <form id="uploadForm" class="bg-gray-800 rounded-lg p-6 shadow mb-8 flex flex-col gap-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Title</label>
+          <input type="text" name="title" required class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Tag</label>
+          <select name="tag" required class="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600">
+            <option value="clutch">Clutch</option>
+            <option value="funny">Funny</option>
+            <option value="fail">Fail</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Video File</label>
+          <input type="file" name="file" accept="video/*" required class="w-full text-gray-300">
+        </div>
+        <button type="submit" class="bg-yellow-400 text-gray-900 font-bold py-2 rounded hover:bg-yellow-300 transition">Upload</button>
+        <span id="uploadStatus" class="text-sm"></span>
+      </form>
+    </div>
+
+    <h2 class="text-2xl font-bold mb-4 cs2-accent">All Videos</h2>
+    <!-- Responsive grid for videos -->
+    <div id="videos" class="grid grid-cols-1 sm:grid-cols-2 gap-8"></div>
+  </div>
+
+  <!-- Video.js -->
+  <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+  <script>
+    const API_BASE = "http://localhost:8000"; // Change if needed
+    let accessToken = null;
+
+    // Login
+    document.getElementById('loginForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const res = await fetch(API_BASE + "/api/token/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        accessToken = data.access;
+        document.getElementById('loginStatus').textContent = "✅ Login OK";
+        document.getElementById('uploadSection').style.display = "";
+        document.getElementById('loginForm').style.display = "none";
+        loadVideos();
+      } else {
+        document.getElementById('loginStatus').textContent = "❌ Login failed";
+      }
+    };
+
+    // Upload
+    document.getElementById('uploadForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      document.getElementById('uploadStatus').textContent = "Uploading...";
+      const res = await fetch(API_BASE + "/api/videos/", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken },
+        body: formData
+      });
+      if (res.ok) {
+        document.getElementById('uploadStatus').textContent = "✅ Uploaded!";
+        form.reset();
+        loadVideos();
+      } else {
+        document.getElementById('uploadStatus').textContent = "❌ Upload failed";
+      }
+    };
+
+    // Load and display videos
+    async function loadVideos() {
+      const res = await fetch(API_BASE + "/api/videos/", {
+        headers: { Authorization: "Bearer " + accessToken }
+      });
+      const data = await res.json();
+      const videosDiv = document.getElementById('videos');
+      videosDiv.innerHTML = "";
+      (data.results || data).forEach((video, idx) => {
+        const block = document.createElement('div');
+        block.className = "video-block bg-gray-800 rounded-lg p-4 shadow flex flex-col";
+        block.innerHTML = `
+          <h3 class="text-lg font-bold mb-2 cs2-accent">${video.title} <span class="text-gray-400 text-sm">(${video.tag})</span></h3>
+          <video
+            id="videojs_${idx}"
+            class="video-js vjs-default-skin"
+            controls
+            preload="auto"
+            width="100%"
+            style="display: flex; width:100%"
+            height="270"
+            data-setup='{}'>
+            <source src="${video.file_url || video.file}" type="video/mp4">
+          </video>
+          <div class="mt-4">
+            <h4 class="font-semibold text-yellow-400 mb-2">Comments</h4>
+            <div id="comments_${video.id}" class="space-y-2 mb-2"></div>
+            <form class="commentForm flex gap-2" data-videoid="${video.id}">
+              <input type="text" name="content" placeholder="Add a comment..." required class="flex-1 px-2 py-1 rounded bg-gray-700 border border-gray-600 text-sm">
+              <input type="hidden" name="timestamp_second" value="0">
+              <button type="submit" class="bg-yellow-400 text-gray-900 font-bold px-3 py-1 rounded hover:bg-yellow-300 transition text-sm">Send</button>
+            </form>
+            <span id="commentStatus_${video.id}" class="text-xs"></span>
+          </div>
+        `;
+        videosDiv.appendChild(block);
+        const player = videojs(`videojs_${idx}`);
+        loadComments(video.id);
+
+        // Attach comment form handler
+        block.querySelector('.commentForm').onsubmit = async function(ev) {
+          ev.preventDefault();
+          const form = ev.target;
+          const content = form.content.value;
+          // Get current timestamp from the video player
+          const currentTime = player.currentTime ? Math.floor(player.currentTime()) : 0;
+          form.timestamp_second.value = currentTime;
+          const statusSpan = document.getElementById(`commentStatus_${video.id}`);
+          statusSpan.textContent = "Sending...";
+          const res = await fetch(API_BASE + "/api/comments/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + accessToken
+            },
+            body: JSON.stringify({
+              video: video.id,
+              content: content,
+              timestamp_second: currentTime
+            })
+          });
+          if (res.ok) {
+            statusSpan.textContent = "✅ Comment added!";
+            form.reset();
+            loadComments(video.id);
+          } else {
+            statusSpan.textContent = "❌ Failed to add comment";
+          }
+        };
+      });
+    }
+
+    // Load comments for a video
+    async function loadComments(videoId) {
+      const res = await fetch(API_BASE + `/api/comments/?video=${videoId}`, {
+        headers: { Authorization: "Bearer " + accessToken }
+      });
+      const data = await res.json();
+      const commentsDiv = document.getElementById(`comments_${videoId}`);
+      if (!commentsDiv) return;
+      commentsDiv.innerHTML = "";
+      (data.results || data).forEach(comment => {
+        // Only show comments for this video
+        if (comment.video !== videoId && comment.video !== String(videoId)) return;
+        const ts = comment.timestamp_second !== undefined && comment.timestamp_second !== null
+          ? `<span class="text-xs text-gray-400">[${comment.timestamp_second}s]</span> `
+          : "";
+        const c = document.createElement('div');
+        c.className = "bg-gray-700 rounded px-2 py-1 text-sm";
+        c.innerHTML = `${ts}<span class="font-bold text-yellow-300">${comment.user || "User"}:</span> ${comment.content}`;
+        commentsDiv.appendChild(c);
+      });
+    }
+  </script>
+</body>
+</html>

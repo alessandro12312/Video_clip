@@ -16,6 +16,8 @@ class CommentSerializer(serializers.ModelSerializer):
         Valida che timestamp_second sia >= 0 e non superi la durata del video.
         """
         timestamp = data.get('timestamp_second')
+        if timestamp is None:
+            timestamp = 0
         video = data.get('video')
         if timestamp < 0:
             raise serializers.ValidationError({
