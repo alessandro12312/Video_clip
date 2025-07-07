@@ -52,3 +52,16 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./policy:/policy:ro
+      - ./scripts/minio_init.sh:/usr/local/bin/minio_init.sh:ro
+    entrypoint: ["/usr/local/bin/minio_init.sh"]

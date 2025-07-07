@@ -13,6 +13,7 @@ load_dotenv(BASE_DIR / '.env')
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+#TODO prendi le variabili dall' .env
 USE_MINIO_STORAGE = True
 DEFAULT_FILE_STORAGE = "minio_storage.storage.MinioMediaStorage"
 STATICFILES_STORAGE = "minio_storage.storage.MinioStaticStorage"
@@ -27,48 +28,6 @@ MINIO_STORAGE_MEDIA_BACKUP_FORMAT = '%c/'
 MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = True
 MINIO_STORAGE_STATIC_BUCKET_NAME = 'video'
 MINIO_STORAGE_AUTO_CREATE_STATIC_BUCKET = True
-
-# if USE_MINIO_STORAGE:
-#     print("✅ Storage dei media file configurato su MinIO.")
-    
-    # # Imposta il backend di storage predefinito per i file media
-    # DEFAULT_FILE_STORAGE = 'minio_storage.storage.MinioMediaStorage'
-
-    # # Endpoint del server MinIO (localhost:9000)
-    # MINIO_STORAGE_ENDPOINT = os.getenv("MINIO_ENDPOINT")
-
-    # # Credenziali di accesso a MinIO
-    # MINIO_STORAGE_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
-    # MINIO_STORAGE_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
-    
-    # # Nome del bucket su MinIO dove salvare i file
-    # MINIO_STORAGE_MEDIA_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME')
-
-    # # Impostazioni di sicurezza e creazione bucket
-    # MINIO_STORAGE_USE_HTTPS = os.getenv('MINIO_USE_HTTPS', 'False').lower() == 'true'
-    # MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = True  # Consigliato False: crea il bucket manualmente per maggior controllo
-
-
-    # ***** AGGIUNGI QUESTI PRINT TEMPORANEI *****
-    # print(f"DEBUG_MINIO: Endpoint = {MINIO_STORAGE_ENDPOINT}")
-    # print(f"DEBUG_MINIO: Access Key = {MINIO_STORAGE_ACCESS_KEY}") # Non mostrare in log di produzione!
-    # print(f"DEBUG_MINIO: Secret Key = {MINIO_STORAGE_SECRET_KEY}") # Non mostrare in log di produzione!
-    # print(f"DEBUG_MINIO: Bucket Name = {MINIO_STORAGE_MEDIA_BUCKET_NAME}")
-    # **********************************************
-
-
-    # Per default, la libreria genera URL "pre-firmati" (privati e con scadenza).
-    # Questa è l'opzione più sicura e non richiede di impostare MEDIA_URL.
-    # Se vuoi invece che i file siano sempre accessibili pubblicamente, decommenta le righe seguenti:
-    # MINIO_STORAGE_PUBLIC_URLS = True
-    # protocol = "https" if MINIO_STORAGE_USE_HTTPS else "http"
-    # MEDIA_URL = f"{protocol}://{MINIO_STORAGE_ENDPOINT}/{MINIO_STORAGE_MEDIA_BUCKET_NAME}/"
-
-# else:
-#     # Fallback: storage locale se MinIO non è configurato
-#     print("⚠️  Storage dei media file configurato in locale.")
-#     MEDIA_URL = '/media/'
-#     MEDIA_ROOT = BASE_DIR / "media"
 
 # Security settings
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "your-secret-key-here")
