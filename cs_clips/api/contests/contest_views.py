@@ -32,8 +32,10 @@ class EndContestView(APIView):
         ]
     )
     def post(self, request):
-        valid_tags = [choice[0] for choice in Contest.Tag.choices]
-        tag = request.data.get("tag")
+        valid_tags = [c[0] for c in Contest.Tag.choices]
+
+        # Prende il tag da body 𝘰  da query string, toglie spazi e forza lowercase
+        tag = (request.data.get("tag") or request.query_params.get("tag") or "").strip().lower()
 
         if tag not in valid_tags:
             raise ValidationError({
@@ -88,10 +90,10 @@ class EndContestView(APIView):
         closed_at_now = contest.closed_at = timezone.now()
         contest.save()
 
-        winner_data = VideoSerializer(winner).data if winner else None
+        winner_data = VideoOutputSerializer(winner).data if winner else None
 
         # Se c'è stato spareggio, mostra anche la lista dei finalisti
-        finalists_data = [VideoSerializer(v).data for v in top_videos] if len(top_videos) > 1 else None
+        finalists_data = [VideoOutputSerializer(v).data for v in top_videos] if len(top_videos) > 1 else None
 
         return Response({
             "contest": {
@@ -133,5 +135,5 @@ class ContestWinnersView(APIView):
         result_page = paginator.paginate_queryset(winners, request)
 
         # Serializzo la lista dei vincitori
-        serializer = VideoSerializer(result_page, many=True)
+        serializer = VideoOutputSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)

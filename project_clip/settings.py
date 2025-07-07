@@ -17,15 +17,15 @@ USE_MINIO_STORAGE = True
 DEFAULT_FILE_STORAGE = "minio_storage.storage.MinioMediaStorage"
 STATICFILES_STORAGE = "minio_storage.storage.MinioStaticStorage"
 MINIO_STORAGE_ENDPOINT = 'localhost:9000'
-MINIO_STORAGE_ACCESS_KEY = 'console'
-MINIO_STORAGE_SECRET_KEY = 'console_access_key'
+MINIO_STORAGE_ACCESS_KEY = 'stick'
+MINIO_STORAGE_SECRET_KEY = 'stickStick'
 MINIO_STORAGE_USE_HTTPS = False
 MINIO_STORAGE_MEDIA_OBJECT_METADATA = {"Cache-Control": "max-age=1000"}
-MINIO_STORAGE_MEDIA_BUCKET_NAME = 'clips'
-MINIO_STORAGE_MEDIA_BACKUP_BUCKET = 'clips'
+MINIO_STORAGE_MEDIA_BUCKET_NAME = 'video'
+MINIO_STORAGE_MEDIA_BACKUP_BUCKET = 'video-backup'
 MINIO_STORAGE_MEDIA_BACKUP_FORMAT = '%c/'
 MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = True
-MINIO_STORAGE_STATIC_BUCKET_NAME = 'clips'
+MINIO_STORAGE_STATIC_BUCKET_NAME = 'video'
 MINIO_STORAGE_AUTO_CREATE_STATIC_BUCKET = True
 
 # if USE_MINIO_STORAGE:
@@ -86,8 +86,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_spectacular',
     'minio_storage',
+    'django_cleanup.apps.CleanupConfig',
     'cs_clips',
-    'corsheaders'
+    'corsheaders',
 ]
 
 # Middleware

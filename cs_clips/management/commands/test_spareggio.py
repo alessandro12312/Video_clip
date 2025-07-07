@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from cs_clips.models import Contest, Video, Rating, Comment
 from cs_clips.utils.desempate import desempate_ponderato
-from cs_clips.utils.error_response_serializer import VideoSerializer
+from cs_clips.exceptions.error_response_serializer import VideoSerializer
 from django.utils import timezone
 import tempfile
 

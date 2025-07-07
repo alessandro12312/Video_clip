@@ -8,7 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.db import IntegrityError
 from collections import namedtuple
-from cs_clips.utils.error_response_serializer import ErrorResponseSerializer
+from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
 
 
 logger = logging.getLogger('cs_clips.errors')

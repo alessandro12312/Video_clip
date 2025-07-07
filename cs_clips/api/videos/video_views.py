@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.utils import timezone
-from rest_framework import viewsets, parsers # Import parsers
+from rest_framework import viewsets, parsers
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -8,7 +8,7 @@ from django.db.models import Avg, F
 from cs_clips.permissions import RoleBasedPermission
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiRequest
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.models import Video
 from cs_clips.api.videos.video_serializers import VideoOutputSerializer, VideoInputSerializer, VideoUpdateSerializer
