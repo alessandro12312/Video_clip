@@ -15,7 +15,9 @@ from cs_clips.api.videos.video_serializers import VideoOutputSerializer, VideoIn
 from cs_clips.utils.get_date_util import get_or_create_current_contest
 import logging
 
-logger = logging.getLogger('django')
+
+
+logger = logging.getLogger('views')
 
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all().order_by('-created_at')
@@ -46,6 +48,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         description="Carica un nuovo video associandolo a un tag e al contest corrente."
     )
     def create(self, request, *args, **kwargs):
+        logger.info("[video_views] Richiesta creazione video ricevuta")
         return super().create(request, *args, **kwargs)
     
     def perform_create(self, serializer, *args, **kwargs):
@@ -54,34 +57,50 @@ class VideoViewSet(viewsets.ModelViewSet):
         L'upload fisico del file viene gestito automaticamente dal backend di storage
         (es. MinIO S3), tramite il campo FileField e il serializer.
         """
-        logger.info(f"Upload video data: {serializer.validated_data}, user: {self.request.user}")
+        logger.info(f"[video_views] Upload video data: {serializer.validated_data}, user: {self.request.user}")
         tag = self.request.data.get('tag')
         if not tag:
+            logger.error("[video_views] Campo 'tag' mancante nella richiesta di upload video")
             raise ValidationError({"tag": "Questo campo è obbligatorio."})
         contest = get_or_create_current_contest(tag)
         if not serializer.is_valid():
-            logger.error(f"Video upload error: {serializer.errors}")
+            logger.error(f"[video_views] Video upload error: {serializer.errors}")
             raise ValidationError(serializer.errors)
         serializer.save(uploader=self.request.user, contest=contest, tag=tag)
+        logger.info("[video_views] Video creato e associato al contest")
+
+    # @action(detail=True, methods=['delete', 'post'], url_path='revert')
+    # def revert(self, request, pk=None):
+    #     """
+    #     Endpoint chiamato da FilePond per annullare un upload.
+    #     Cancella il video dal DB e dal backend storage.
+    #     """
+    #     video = self.get_object()
+    #     video.delete()
+    #     return Response(status=status.HTTP_204_NO_CONTENT)
 
     def update(self, request, *args, **kwargs):
         """
         PUT → input con VideoUpdateSerializer, output con VideoSerializer
         """
+        logger.info("[video_views] Richiesta update video ricevuta")
         instance = self.get_object()
         serializer = VideoUpdateSerializer(instance, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        logger.info(f"[video_views] Video ID {instance.id} aggiornato")
         return Response(VideoSerializer(instance, context={'request': request}).data, status=status.HTTP_200_OK)
 
     def partial_update(self, request, *args, **kwargs):
         """
         PATCH → input con VideoUpdateSerializer, output con VideoSerializer
         """
+        logger.info("[video_views] Richiesta partial_update video ricevuta")
         instance = self.get_object()
         serializer = VideoUpdateSerializer(instance, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        logger.info(f"[video_views] Video ID {instance.id} aggiornato (parziale)")
         return Response(VideoSerializer(instance, context={'request': request}).data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='following')
@@ -90,6 +109,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         Restituisce i video caricati dagli utenti che l'utente autenticato segue.
         Ordinati dal più recente al meno recente.
         """
+        logger.info("[video_views] Richiesta video utenti seguiti")
         user = request.user
 
         # Controllo permessi: solo user e superuser SOLO PER TEST
@@ -109,6 +129,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(videos)
         serializer = self.get_serializer(page or videos, many=True)
 
+        logger.info(f"[video_views] Trovati {len(serializer.data)} video dagli utenti seguiti")
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
 
     # Documentazione OpenAPI per l'endpoint top_rated
@@ -131,6 +152,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         day, week, month, year, all (default: all).
         """
         range_param = request.query_params.get('range', 'all')
+        logger.info(f"[video_views] Richiesta top_rated con range: {range_param}")
         now = timezone.now()
 
         # Calcola l'intervallo di tempo
@@ -144,6 +166,7 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         # Valida parametro
         if range_param not in time_ranges:
+            logger.warning(f"[video_views] Intervallo non valido: {range_param}")
             return Response({"detail": f"Intervallo non valido: {range_param}"}, status=400)
 
         queryset = Video.objects.all()
@@ -156,6 +179,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         # Paginazione
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page or queryset, many=True)
+        logger.info(f"[video_views] Trovati {len(serializer.data)} video top-rated")
         return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='views', parser_classes=[])
@@ -165,13 +189,16 @@ class VideoViewSet(viewsets.ModelViewSet):
         Deve essere chiamato dal frontend ogni volta che il video viene effettivamente visualizzato.
         5/10 secondi controllo da frontend
         """
+        logger.info(f"[video_views] Incremento visualizzazioni per video ID {pk}")
         video = self.get_object()
         video.views = F('views') + 1
         video.save(update_fields=['views'])
         video.refresh_from_db()  # aggiorna il valore da DB
+        logger.info(f"[video_views] Nuovo numero di visualizzazioni: {video.views}")
         return Response({'views': video.views}, status=status.HTTP_200_OK)
 
     def get_serializer_class(self):
+        logger.info(f"[video_views] Determinazione serializer per action: {self.action}")
         if self.action == 'create':
             return VideoInputSerializer
         elif self.action in ['update', 'partial_update']:
@@ -179,4 +206,5 @@ class VideoViewSet(viewsets.ModelViewSet):
         return VideoOutputSerializer
 
     def handle_exception(self, exc):
+        logger.error(f"[video_views] Eccezione gestita: {exc}")
         return handle_exception_with_serializer(exc)

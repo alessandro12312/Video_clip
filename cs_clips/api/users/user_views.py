@@ -12,6 +12,7 @@ from cs_clips.api.users.user_serializers import UserSerializer, UserRegistration
 from cs_clips.models import User
 
 
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -26,16 +27,19 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-@extend_schema(
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by('id')
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
+
+    @extend_schema(
         parameters=[
             OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
             OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
         ]
     )
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().order_by('id')
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, RoleBasedPermission]
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     def get_permissions(self):
         return [AllowAny()] if self.action == 'create' else super().get_permissions()
@@ -71,6 +75,12 @@ class UserViewSet(viewsets.ModelViewSet):
         request.user.following.remove(target_user)
         return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
+            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
+        ]
+    )
     @action(detail=True, methods=['get'], url_path='followers')
     def get_followers(self, request, pk=None):
         """
@@ -81,6 +91,12 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserSerializer(followers, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
+            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
+        ]
+    )
     @action(detail=True, methods=['get'], url_path='following')
     def get_following(self, request, pk=None):
         """

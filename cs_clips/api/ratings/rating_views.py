@@ -8,16 +8,19 @@ from cs_clips.api.ratings.rating_serializers import RatingSerializer
 
 
 
-@extend_schema(
+class RatingViewSet(viewsets.ModelViewSet):
+    queryset = Rating.objects.all()
+    serializer_class = RatingSerializer
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
+
+    @extend_schema(
         parameters=[
             OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
             OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
         ]
     )
-class RatingViewSet(viewsets.ModelViewSet):
-    queryset = Rating.objects.all()
-    serializer_class = RatingSerializer
-    permission_classes = [IsAuthenticated, RoleBasedPermission]
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

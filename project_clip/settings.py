@@ -117,6 +117,7 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'EXCEPTION_HANDLER': 'cs_clips.exceptions.error_handler.handle_exception_with_serializer',
 }
 
 # JWT Authentication settings
@@ -162,10 +163,25 @@ LOGGING = {
             'level': os.getenv("DJANGO_LOG_LEVEL", "INFO"),
             'propagate': False,
         },
-        'minio_storage': {
+        'minio_storage': {          # log default MinIO storage operations
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
+        },
+        'serializers': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'views': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'exception_handler': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
         },
     },
     'root': {

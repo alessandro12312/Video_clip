@@ -11,7 +11,7 @@ from collections import namedtuple
 from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
 
 
-logger = logging.getLogger('cs_clips.errors')
+logger = logging.getLogger('exception_handler')
 ErrorInfo = namedtuple('ErrorInfo', ['code', 'status'])
 
 # Mappa delle eccezioni
@@ -30,7 +30,7 @@ def handle_exception_with_serializer(exc):
     Gestisce le eccezioni restituendo una risposta JSON coerente
     e strutturata per il frontend.
     """
-    logger.exception(f"Eccezione intercettata: {exc}")
+    logger.exception(f"[error_handler] Eccezione intercettata: {exc}")
 
     # Valori di default
     code = exc.__class__.__name__
@@ -48,10 +48,19 @@ def handle_exception_with_serializer(exc):
     if isinstance(exc, ValidationError) and hasattr(exc, "detail"):
         if isinstance(exc.detail, dict):
             # Mostra tutti i campi con errori
-            messages = [
-                f"Campo '{field}': {', '.join(map(str, errors))}"
-                for field, errors in exc.detail.items()
-            ]
+            messages = []
+            # Itera sui campi e i loro errori
+            for field, field_errors in exc.detail.items():
+                # Controlla se 'field_errors' è una lista o una singola stringa
+                if isinstance(field_errors, list):
+                    # Se è una lista, unisci i messaggi di errore
+                    error_text = ', '.join(map(str, field_errors))
+                else:
+                    # Se è una singola stringa, usala direttamente
+                    error_text = str(field_errors)
+                
+                messages.append(f"Campo '{field}': {error_text}")
+
             detail_message = " | ".join(messages)
         elif isinstance(exc.detail, list):
             detail_message = '; '.join([str(error) for error in exc.detail])

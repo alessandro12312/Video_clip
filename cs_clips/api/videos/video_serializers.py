@@ -14,7 +14,7 @@ import logging
 
 from project_clip import settings
 
-logger = logging.getLogger('django')
+logger = logging.getLogger('serializers')
 
 class VideoOutputSerializer(serializers.ModelSerializer):
     uploader = serializers.ReadOnlyField(source='uploader.username')
@@ -34,6 +34,7 @@ class VideoOutputSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.FloatField)
     def get_average_rating(self, obj):
+        logger.info(f"[video_serializer] Calcolo average_rating per video ID {obj.id}")
         ratings = obj.ratings.all()
         if not ratings.exists():
             return 0.0
@@ -46,6 +47,9 @@ class VideoOutputSerializer(serializers.ModelSerializer):
         Restituisce un singleton di Minio client inizializzato
         con i parametri definiti in settings.py.
         """
+
+        logger.info("[video_serializer] Inizializzazione Minio client singleton")
+
         return Minio(
             endpoint   = settings.MINIO_STORAGE_ENDPOINT,
             access_key = settings.MINIO_STORAGE_ACCESS_KEY,
@@ -60,7 +64,11 @@ class VideoOutputSerializer(serializers.ModelSerializer):
         Se MinIO non risponde restituisce l'URL locale,
         così evitiamo un 500 e diamo comunque un link al client.
         """
+
+        logger.info(f"[video_serializer] Generazione presigned URL per video ID {obj.id}")
+
         if not obj.file:
+            logger.warning(f"[video_serializer] Nessun file associato al video ID {obj.id}")
             return None
 
         bucket_name  = settings.MINIO_STORAGE_MEDIA_BUCKET_NAME
@@ -87,10 +95,10 @@ class VideoInputSerializer(serializers.ModelSerializer):
         5. Cancella il file temporaneo.
         """
         uploaded_file = validated_data.get("file")
-        logger.info(f"Tipo file ricevuto: {type(uploaded_file)}")
+        logger.info(f"[video_serializer] Tipo file ricevuto: {type(uploaded_file)}")
 
         if not uploaded_file:
-            logger.error("File non fornito.")
+            logger.error("[video_serializer] File non fornito.")
             raise serializers.ValidationError({"file": "File non fornito."})
 
         temp_path = None  # servirà per la pulizia finale
@@ -99,39 +107,44 @@ class VideoInputSerializer(serializers.ModelSerializer):
             # ----- File già su disco (TemporaryUploadedFile) -----
             if isinstance(uploaded_file, TemporaryUploadedFile):
                 uploaded_file.seek(0)
+                logger.info("[video_serializer] TemporaryUploadedFile rilevato, estraggo durata...")
+
                 with VideoFileClip(uploaded_file.temporary_file_path()) as clip:
                     validated_data["duration"] = int(clip.duration)
 
             # ----- File in memoria (InMemoryUploadedFile) -----
             elif isinstance(uploaded_file, InMemoryUploadedFile):
                 uploaded_file.seek(0)
+                logger.info("[video_serializer] InMemoryUploadedFile rilevato, salvo su disco temporaneo...")
 
-                # 1. Genera un path temporaneo chiuso
+                # Genera un path temporaneo chiuso
                 temp_path = (
                     Path(tempfile.gettempdir())
                     / f"{uuid.uuid4()}{Path(uploaded_file.name).suffix}"
                 )
 
-                # 2. Copia i chunk nel file
+                # Copia i chunk nel file
                 with open(temp_path, "wb") as tmp:
                     for chunk in uploaded_file.chunks():
                         tmp.write(chunk)
 
-                # 3. Ora che il file è chiuso, MoviePy può leggerlo
+                logger.info(f"[video_serializer] File temporaneo creato: {temp_path}")
+
+                # Ora che il file è chiuso, MoviePy può leggerlo
                 with VideoFileClip(str(temp_path)) as clip:
                     validated_data["duration"] = int(clip.duration)
 
             # ----- Tipo non gestito -----
             else:
-                logger.error(f"Tipo file non gestito: {type(uploaded_file)}")
+                logger.error(f"[video_serializer] Tipo file non gestito: {type(uploaded_file)}")
                 raise serializers.ValidationError({"file": "File non valido."})
 
             logger.info(
-                f"Duration extracted {validated_data['duration']} s, proceeding to save model..."
+                f"[video_serializer] Duration extracted {validated_data['duration']} s, proceeding to save model..."
             )
 
         except Exception as e:
-            logger.error(f"Errore durante l'analisi del video: {str(e)}")
+            logger.error(f"[video_serializer] Errore durante l'analisi del video: {str(e)}")
             raise serializers.ValidationError(
                 {"file": f"Impossibile analizzare il video: {str(e)}"}
             )
@@ -141,16 +154,17 @@ class VideoInputSerializer(serializers.ModelSerializer):
             if temp_path and Path(temp_path).exists():
                 try:
                     Path(temp_path).unlink()
+                    logger.info(f"[video_serializer] File temporaneo cancellato: {temp_path}")
                 except Exception as ex:
                     logger.warning(
-                        f"Impossibile cancellare file temporaneo {temp_path}: {ex}"
+                        f"[video_serializer] Impossibile cancellare file temporaneo {temp_path}: {ex}"
                     )
 
         # ----- Salvataggio del modello -----
         instance = super().create(validated_data)
-        logger.info(f"Video creato: {instance.title} (ID: {instance.id})")
-        logger.info(f"File caricato: {instance.file.name}")
-        logger.info(f"File URL: {getattr(instance.file, 'url', 'NO URL')}")
+        logger.info(f"[video_serializer] Video creato: {instance.title} (ID: {instance.id})")
+        logger.info(f"[video_serializer] File caricato: {instance.file.name}")
+        logger.info(f"[video_serializer] File URL: {getattr(instance.file, 'url', 'NO URL')}")
 
         return instance
 
@@ -164,7 +178,9 @@ class VideoUpdateSerializer(serializers.ModelSerializer):
         }
 
     def update(self, instance, validated_data):
+        logger.info(f"[video_serializer] Aggiornamento video ID {instance.id}")
         if 'tag' in validated_data and validated_data['tag'] != instance.tag:
+            logger.info(f"[video_serializer] Cambio contest per video ID {instance.id} (tag: {validated_data['tag']})")
             nuovo_contest = get_or_create_current_contest(validated_data['tag'])
             validated_data['contest'] = nuovo_contest
         return super().update(instance, validated_data)
