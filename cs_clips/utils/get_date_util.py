@@ -13,17 +13,19 @@ MESI_ITALIANO = [
 def get_or_create_current_contest(tag):
     """
     Restituisce il contest settimanale attivo, o lo crea se non esiste o è stato già chiuso.
-    La settimana inizia di lunedì e finisce di domenica.
+    La settimana inizia di lunedì e finisce di sabato (chiusura prevista il sabato).
     Il nome è generato come: anno, mese, numero della settimana del mese, tag.
     Esempio: 2025giugno2clutch
     Se c'è più di un contest per la stessa settimana (chiusura anticipata),
     aggiunge un suffisso progressivo 
     (es: 2025giugno2clutch).
     """
+
     today = timezone.now().date()
     # Calcola il lunedì della settimana corrente
     start_of_week = today - datetime.timedelta(days=today.weekday())
-    end_of_week = start_of_week + datetime.timedelta(days=6)
+    # Contest disponibili fino a sabato incluso (5 giorni dopo lunedì)
+    end_of_week = start_of_week + datetime.timedelta(days=5)
 
     # Calcola anno e mese
     anno = start_of_week.year
@@ -35,7 +37,7 @@ def get_or_create_current_contest(tag):
     first_day_month = start_of_week.replace(day=1)
     first_day_weekday = first_day_month.weekday()
     delta_days = (start_of_week - first_day_month).days
-    week_number = ((delta_days + first_day_weekday) // 7) # + 1
+    week_number = ((delta_days + first_day_weekday) // 7)
 
     base_nome = f"{anno}{mese_nome}{week_number}{tag}"
 
