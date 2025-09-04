@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'minio_storage',
     'django_cleanup.apps.CleanupConfig',
-    'cs_clips',
+    'cs_clips.apps.CsClipsConfig',
     'corsheaders',
 ]
 
