@@ -145,3 +145,6 @@ db/*
 # upload folder
 media/videos/*
 !media/videos/.gitkeep
+
+# Node / bmad-method
+node_modules/
