@@ -51,7 +51,6 @@ class VideoSerializer(serializers.ModelSerializer):
                  'allow_download', 'created_at', 'updated_at', 'contest', 'tag')
         read_only_fields = ('created_at', 'updated_at', 'uploader', 'contest')
         extra_kwargs = {'tag': {'required': True}}
-        filterset_fields = ['allow_download']
 
 
     def get_average_rating(self, obj):
@@ -66,8 +65,8 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_like_count(self, obj):
         """Restituisce il numero di like del video."""
-        return obj.likes.count()
-    
+        return getattr(obj, 'annotated_like_count', obj.likes.count())
+
     def create(self, validated_data):
             """
             Override del metodo create per impostare automaticamente la durata del video.
@@ -107,11 +106,11 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = ('id', 'user', 'video', 'content', 'timestamp_second',
                  'is_disabled', 'like_count', 'created_at', 'updated_at')
-        read_only_fields = ('created_at', 'updated_at')
-    
+        read_only_fields = ('created_at', 'updated_at', 'is_disabled')
+
     def get_like_count(self, obj):
         """Restituisce il numero di like del commento."""
-        return obj.likes.count()
+        return getattr(obj, 'annotated_like_count', obj.likes.count())
 
     def validate(self, data):
         """

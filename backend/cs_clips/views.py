@@ -175,10 +175,15 @@ class UserViewSet(viewsets.ModelViewSet):
     
 
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
+    queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     filterset_fields = ['allow_download']
+
+    def get_queryset(self):
+        return Video.objects.annotate(
+            annotated_like_count=Count('likes', distinct=True)
+        ).order_by('-created_at')
 
     def perform_create(self, serializer):
         tag = self.request.data.get('tag')
@@ -290,6 +295,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         comments = (
             Comment.objects
             .filter(video=video, is_disabled=False, timestamp_second__gt=0)
+            .select_related('user')
             .annotate(like_count=Count('likes'))
             .filter(like_count__gte=1)
             .order_by('timestamp_second', '-like_count')
@@ -309,7 +315,8 @@ class VideoViewSet(viewsets.ModelViewSet):
             }
             for c in seen.values()
         ]
-        return Response(result)
+        serializer = PopupCommentSerializer(result, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='like', permission_classes=[OnlyUsersPermission])
     def like(self, request, pk=None):
@@ -354,7 +361,9 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Esclude i commenti disabilitati per gli utenti normali."""
-        return Comment.objects.filter(is_disabled=False)
+        return Comment.objects.filter(is_disabled=False).annotate(
+            annotated_like_count=Count('likes', distinct=True)
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

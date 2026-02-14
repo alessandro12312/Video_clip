@@ -1,6 +1,6 @@
 # Story 1.1: Evoluzione Backend — Migration PRD Alignment
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -331,12 +331,14 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-02-14: Implementazione completa Story 1.1 — nuovi modelli, campi, serializers, endpoint, admin, migration, test suite (34 test)
+- 2026-02-14: Code review — Fix sicurezza (is_disabled read-only), fix N+1 query (select_related + annotate), rimosso dead code (filterset_fields in serializer), collegato PopupCommentSerializer all'endpoint
 
 ### File List
 
 - `backend/cs_clips/models.py` — Aggiunto import `settings`, rimosso import `User` da auth.models. Aggiunti modelli `VideoLike`, `CommentLike`, `Notification`. Aggiunto campo `allow_download` su `Video`, `is_disabled` su `Comment`.
-- `backend/cs_clips/serializers.py` — Aggiunto import nuovi modelli. Creato `PopupCommentSerializer`. Aggiornato `VideoSerializer` (allow_download, like_count). Aggiornato `CommentSerializer` (is_disabled, like_count).
-- `backend/cs_clips/views.py` — Aggiunto import `VideoLike`, `CommentLike`, `PopupCommentSerializer`, `Count`. Aggiunte action `popup_comments`, `like`, `unlike` su `VideoViewSet`. Aggiunte action `like`, `unlike` su `CommentViewSet`. Aggiunto `get_queryset()` filtro is_disabled su `CommentViewSet`. Aggiunto `filterset_fields` su `VideoViewSet`.
+- `backend/cs_clips/serializers.py` — Aggiunto import nuovi modelli. Creato `PopupCommentSerializer`. Aggiornato `VideoSerializer` (allow_download, like_count). Aggiornato `CommentSerializer` (is_disabled, like_count). [Review fix] Rimosso `filterset_fields` da Meta (dead code). `is_disabled` aggiunto a `read_only_fields`. `get_like_count` usa annotazione con fallback.
+- `backend/cs_clips/views.py` — Aggiunto import `VideoLike`, `CommentLike`, `PopupCommentSerializer`, `Count`. Aggiunte action `popup_comments`, `like`, `unlike` su `VideoViewSet`. Aggiunte action `like`, `unlike` su `CommentViewSet`. Aggiunto `get_queryset()` filtro is_disabled su `CommentViewSet`. Aggiunto `filterset_fields` su `VideoViewSet`. [Review fix] `get_queryset()` con `annotate(like_count)` su VideoViewSet e CommentViewSet. `select_related('user')` su popup_comments. `PopupCommentSerializer` usato nella response.
+- `backend/cs_clips/permissions.py` — Utilizzato `OnlyUsersPermission` sulle custom action like/unlike (fix permessi pre-esistente).
 - `backend/cs_clips/admin.py` — Registrati `VideoLike`, `CommentLike`, `Notification`.
 - `backend/cs_clips/migrations/0015_prd_alignment.py` — Migration schema auto-generata (nuovi modelli e campi).
 - `backend/cs_clips/migrations/0016_create_moderator_group.py` — Data migration per gruppo moderator.
