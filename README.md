@@ -93,6 +93,26 @@ Video_clip/
 └── db/                   # Volume PostgreSQL (gitignored)
 ```
 
+## Accesso Locale
+
+| Servizio | URL | Credenziali |
+|----------|-----|-------------|
+| **pgAdmin** (gestione DB) | http://localhost:8080 | Email e password definite in `.env` (`PGADMIN_EMAIL` / `PGADMIN_PASSWORD`) |
+| **Django Admin** | http://localhost:8000/admin/ | Superuser Django (creato con `python manage.py createsuperuser`) |
+| **Frontend** | http://localhost:3000/login | Utente registrato nell'app |
+
+### Creare un superuser Django
+
+```bash
+cd backend
+..\.venv\Scripts\activate
+python manage.py createsuperuser
+```
+
+> **Nota:** il superuser Django serve per il pannello admin e il login frontend, **non** per pgAdmin. Le credenziali pgAdmin sono nel file `.env`.
+
+---
+
 ## Link Utili
 
 - **Swagger API docs:** http://localhost:8000/api/docs/
