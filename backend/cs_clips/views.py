@@ -205,9 +205,11 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         # Applica paginazione globale
         page = self.paginate_queryset(videos)
-        serializer = self.get_serializer(page or videos, many=True)
-
-        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(videos, many=True)
+        return Response(serializer.data)
 
     # Documentazione OpenAPI per l'endpoint top_rated
     @extend_schema(
@@ -253,8 +255,11 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         # Paginazione
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page or queryset, many=True)
-        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='views')
     def views(self, request, pk=None):
@@ -288,6 +293,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ['video']
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
