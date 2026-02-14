@@ -7,11 +7,14 @@ from rest_framework.exceptions import ValidationError, NotAuthenticated, Permiss
 from django.contrib.auth import get_user_model
 from django.db import models, IntegrityError
 from django.db.models import Avg
-from .models import Video, Rating, Comment, Contest
+from .models import Video, Rating, Comment, Contest, VideoLike, CommentLike
 from .serializers import (
     ErrorResponseSerializer, UserSerializer, VideoSerializer,
-    UserRegistrationSerializer, RatingSerializer, CommentSerializer
+    UserRegistrationSerializer, RatingSerializer, CommentSerializer,
+    PopupCommentSerializer
 )
+from django.db.models import Count
+from rest_framework.filters import SearchFilter
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
@@ -108,9 +111,11 @@ def handle_exception_with_serializer(exc):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('username')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filter_backends = [SearchFilter]
+    search_fields = ['username']
 
     def get_permissions(self):
         return [AllowAny()] if self.action == 'create' else super().get_permissions()
@@ -120,8 +125,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Assegna automaticamente l'utente al gruppo 'toconfirm'
-        group, created = Group.objects.get_or_create(name='toconfirm')
+        # Assegna automaticamente l'utente al gruppo 'user' (accesso completo)
+        group, created = Group.objects.get_or_create(name='user')
         user.groups.add(group)
 
     @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])
@@ -173,6 +178,7 @@ class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ['allow_download']
 
     def perform_create(self, serializer):
         tag = self.request.data.get('tag')
@@ -274,6 +280,57 @@ class VideoViewSet(viewsets.ModelViewSet):
         video.refresh_from_db()  # aggiorna il valore da DB
         return Response({'views': video.views}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['get'], url_path='popup-comments', permission_classes=[IsAuthenticated])
+    def popup_comments(self, request, pk=None):
+        """
+        Restituisce i commenti popup per il video: per ogni timestamp unico,
+        solo il commento con più like (minimo 1 like), ordinati per timestamp crescente.
+        """
+        video = self.get_object()
+        comments = (
+            Comment.objects
+            .filter(video=video, is_disabled=False, timestamp_second__gt=0)
+            .annotate(like_count=Count('likes'))
+            .filter(like_count__gte=1)
+            .order_by('timestamp_second', '-like_count')
+        )
+        # Raggruppamento Python: per ogni timestamp, prendi solo il top comment
+        seen = {}
+        for c in comments:
+            if c.timestamp_second not in seen:
+                seen[c.timestamp_second] = c
+        result = [
+            {
+                "timestamp": c.timestamp_second,
+                "comment_id": c.id,
+                "text": c.content,
+                "author": c.user.username,
+                "like_count": c.like_count,
+            }
+            for c in seen.values()
+        ]
+        return Response(result)
+
+    @action(detail=True, methods=['post'], url_path='like', permission_classes=[OnlyUsersPermission])
+    def like(self, request, pk=None):
+        """Aggiunge un like al video dall'utente autenticato."""
+        video = self.get_object()
+        like, created = VideoLike.objects.get_or_create(user=request.user, video=video)
+        if not created:
+            return Response({"detail": "Hai già messo like"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": video.likes.count()})
+
+    @action(detail=True, methods=['post'], url_path='unlike', permission_classes=[OnlyUsersPermission])
+    def unlike(self, request, pk=None):
+        """Rimuove il like dal video dell'utente autenticato."""
+        video = self.get_object()
+        try:
+            like = VideoLike.objects.get(user=request.user, video=video)
+            like.delete()
+        except VideoLike.DoesNotExist:
+            return Response({"detail": "Non hai messo like a questo video"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": video.likes.count()})
+
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
 
@@ -295,8 +352,32 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     filterset_fields = ['video']
 
+    def get_queryset(self):
+        """Esclude i commenti disabilitati per gli utenti normali."""
+        return Comment.objects.filter(is_disabled=False)
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='like', permission_classes=[OnlyUsersPermission])
+    def like(self, request, pk=None):
+        """Aggiunge un like al commento dall'utente autenticato."""
+        comment = self.get_object()
+        like, created = CommentLike.objects.get_or_create(user=request.user, comment=comment)
+        if not created:
+            return Response({"detail": "Hai già messo like"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": comment.likes.count()})
+
+    @action(detail=True, methods=['post'], url_path='unlike', permission_classes=[OnlyUsersPermission])
+    def unlike(self, request, pk=None):
+        """Rimuove il like dal commento dell'utente autenticato."""
+        comment = self.get_object()
+        try:
+            like = CommentLike.objects.get(user=request.user, comment=comment)
+            like.delete()
+        except CommentLike.DoesNotExist:
+            return Response({"detail": "Non hai messo like a questo commento"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": comment.likes.count()})
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)

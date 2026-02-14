@@ -1,8 +1,7 @@
 # DTOs for the API
 from moviepy import VideoFileClip
 from rest_framework import serializers
-from django.contrib.auth.models import User
-from .models import Contest, Video, Rating, Comment
+from .models import Contest, Video, Rating, Comment, VideoLike, CommentLike, Notification
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 
@@ -43,13 +42,16 @@ class ContestSerializer(serializers.ModelSerializer):
 class VideoSerializer(serializers.ModelSerializer):
     uploader = serializers.ReadOnlyField(source='uploader.username')
     average_rating = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Video
         fields = ('id', 'title', 'file', 'uploader',
-                 'average_rating', 'views', 'duration', 'created_at', 'updated_at', 'contest', 'tag')
+                 'average_rating', 'like_count', 'views', 'duration',
+                 'allow_download', 'created_at', 'updated_at', 'contest', 'tag')
         read_only_fields = ('created_at', 'updated_at', 'uploader', 'contest')
         extra_kwargs = {'tag': {'required': True}}
+        filterset_fields = ['allow_download']
 
 
     def get_average_rating(self, obj):
@@ -61,6 +63,10 @@ class VideoSerializer(serializers.ModelSerializer):
         if not ratings.exists():
             return 0.0
         return round(sum(r.value for r in ratings) / ratings.count(), 2)
+
+    def get_like_count(self, obj):
+        """Restituisce il numero di like del video."""
+        return obj.likes.count()
     
     def create(self, validated_data):
             """
@@ -95,12 +101,18 @@ class RatingSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
+    like_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ('id', 'user', 'video', 'content', 'timestamp_second', 'created_at', 'updated_at')
+        fields = ('id', 'user', 'video', 'content', 'timestamp_second',
+                 'is_disabled', 'like_count', 'created_at', 'updated_at')
         read_only_fields = ('created_at', 'updated_at')
     
+    def get_like_count(self, obj):
+        """Restituisce il numero di like del commento."""
+        return obj.likes.count()
+
     def validate(self, data):
         """
         Valida che timestamp_second sia >= 0 e non superi la durata del video.
@@ -120,6 +132,14 @@ class CommentSerializer(serializers.ModelSerializer):
                 "timestamp_second": f"Il valore non può superare la durata del video ({video.duration} secondi)."
             })
         return data
+
+
+class PopupCommentSerializer(serializers.Serializer):
+    timestamp = serializers.IntegerField(help_text="Secondo del video")
+    comment_id = serializers.IntegerField(help_text="ID del commento")
+    text = serializers.CharField(help_text="Testo del commento")
+    author = serializers.CharField(help_text="Username dell'autore")
+    like_count = serializers.IntegerField(help_text="Numero di like")
 
 
 # Error response serializer

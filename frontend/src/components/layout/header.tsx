@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/providers/auth-provider";
 import { UserAvatar } from "@/components/user/user-avatar";
+import { UserSearchBar } from "@/components/user/user-search-bar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,10 +59,10 @@ export function Header() {
         </SheetContent>
       </Sheet>
 
-      {/* Logo */}
-      <Link href="/home" className="text-lg font-bold gradient-text">
-        Video_clip
-      </Link>
+      {/* Ricerca utenti */}
+      <div className="flex-1 max-w-xs mx-2">
+        <UserSearchBar />
+      </div>
 
       {/* User avatar + dropdown */}
       {user ? (

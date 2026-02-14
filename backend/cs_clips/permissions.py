@@ -28,10 +28,11 @@ class RoleBasedPermission(BasePermission):
         if request.user.is_superuser:
             return True
 
-        # Gli 'user' possono eliminare solo i propri contenuti
+        # Gli 'user' possono fare tutto, ma eliminare solo i propri contenuti
         if request.user.groups.filter(name='user').exists():
             if request.method == 'DELETE':
                 return obj.user == request.user
+            return True
 
         # 'toconfirm' solo lettura
         if request.user.groups.filter(name='toconfirm').exists():

@@ -1,7 +1,8 @@
 # Entities for the database
 import os
+from django.conf import settings
 from django.db import models
-from django.contrib.auth.models import User, AbstractUser
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 # User model
@@ -90,6 +91,10 @@ class Video(models.Model):
         help_text="Durata del video in secondi",
         default=0   # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
+    allow_download = models.BooleanField(
+        default=True,
+        help_text="Consente il download del video"
+    )
 
     def __str__(self):
         return self.title
@@ -131,6 +136,88 @@ class Comment(models.Model):
         help_text="Secondo del video a cui si riferisce il commento (>=0, <= durata video))",
         default=0 # Default value per evitare errori su record precedenti #TODO: rimuovere in produzione
     )
+    is_disabled = models.BooleanField(
+        default=False,
+        help_text="Commento disabilitato (soft-delete per moderazione)"
+    )
 
     def __str__(self):
         return f"{self.user.username} commented on {self.video.title} at {self.timestamp_second}s"
+
+
+# VideoLike model
+class VideoLike(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='video_likes'
+    )
+    video = models.ForeignKey(
+        Video,
+        on_delete=models.CASCADE,
+        related_name='likes'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'video')
+
+    def __str__(self):
+        return f"{self.user.username} likes {self.video.title}"
+
+
+# CommentLike model
+class CommentLike(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comment_likes'
+    )
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name='likes'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'comment')
+
+    def __str__(self):
+        return f"{self.user.username} likes comment {self.comment.id}"
+
+
+# Notification model
+class Notification(models.Model):
+    class NotificationType(models.TextChoices):
+        COMMENT = 'comment', 'Commento ricevuto'
+        COMMENT_LIKE = 'comment_like', 'Like al commento'
+        VIDEO_LIKE = 'video_like', 'Like alla clip'
+        POPUP_PROMOTED = 'popup_promoted', 'Commento promosso a popup'
+        CONTEST_INVITE = 'contest_invite', 'Invito contest'
+        CONTEST_TURN = 'contest_turn', 'Turno contest disponibile'
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    type = models.CharField(
+        max_length=30,
+        choices=NotificationType.choices,
+        help_text="Tipo di notifica"
+    )
+    content = models.TextField(
+        help_text="Testo della notifica"
+    )
+    related_object_id = models.PositiveIntegerField(
+        help_text="ID dell'oggetto correlato (risolto dal frontend in base al type)"
+    )
+    read = models.BooleanField(
+        default=False,
+        help_text="Se la notifica è stata letta"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notifica [{self.type}] per {self.recipient.username}"

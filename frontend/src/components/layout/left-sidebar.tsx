@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { UserAvatar } from "@/components/user/user-avatar";
+import { UserSearchBar } from "@/components/user/user-search-bar";
 
 const ICONS = {
   Home,
@@ -53,6 +54,13 @@ export function LeftSidebar() {
             {collapsed ? "V" : "Video_clip"}
           </span>
         </Link>
+      </div>
+
+      <Separator />
+
+      {/* Ricerca utenti */}
+      <div className="p-2">
+        <UserSearchBar collapsed={collapsed} />
       </div>
 
       <Separator />

@@ -455,6 +455,33 @@ So that l'esperienza sia coerente con l'identità visiva della piattaforma e il 
 **When** il login o il refresh avviene in < 300ms
 **Then** l'animazione di transizione viene comunque mostrata per un minimo di 500ms per evitare flash visivi
 
+### Story 1.9: Ricerca Utenti e Scoperta Profili
+
+As a utente registrato,
+I want cercare altri utenti per username tramite una barra di ricerca,
+So that possa scoprire nuovi utenti da seguire e visitare i loro profili.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato su qualsiasi pagina
+**When** clicca sull'icona di ricerca o sulla barra di ricerca nell'header/sidebar
+**Then** viene mostrato un campo di ricerca con placeholder "Cerca utenti..."
+
+**Given** un utente che digita almeno 2 caratteri nel campo di ricerca
+**When** il testo cambia (debounce 300ms)
+**Then** il sistema chiama `GET /api/users/?search=<query>` e mostra i risultati in un dropdown:
+- Ogni risultato mostra username
+- Cliccando su un risultato si naviga al profilo dell'utente (`/profilo/{id}`)
+- Se nessun risultato, mostra "Nessun utente trovato"
+
+**Given** un utente che naviga al profilo di un altro utente
+**When** la pagina profilo si carica
+**Then** viene mostrato il bottone "Segui" / "Smetti di seguire" (dipendenza: Story 1.5)
+
+**Given** il backend esistente (UserViewSet)
+**When** il frontend invia `GET /api/users/?search=<query>`
+**Then** il backend filtra gli utenti per username con `icontains` e restituisce la lista paginata
+
 ---
 
 ## Epic 2: Creazione & Gestione Clip
