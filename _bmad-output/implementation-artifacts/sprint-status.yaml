@@ -49,7 +49,7 @@ development_status:
   1-6-liste-follower-e-following: done                           # DONE: 7 task completati, build OK, 85 test OK. Code review passed (6 fix applied: enabled guard hooks, error handling pages, PAGE_SIZE constant, click target WCAG, wrapper div cleanup)
   1-9-ricerca-utenti-e-scoperta-profili: done                    # DONE: SearchFilter backend, UserSearchBar frontend, 7 test. Code review passed (4 fix applied)
   1-7-header-utente-desktop-con-menu-profilo: done                # DONE: 5 AC implementati, DesktopNavbar + DesktopUserMenu + /impostazioni placeholder. Code review passed (7 fix: 1 code + 6 docs)
-  1-8-spinner-animato-del-brand-e-transizione-post-login: review  # REVIEW: 6 task completati, build OK. GradientSpinner variant full/inline, LoginTransitionOverlay cinematografico, min display 500ms
+  1-8-spinner-animato-del-brand-e-transizione-post-login: done    # DONE: Code review passed (6 fix: variant="full" PageLoader+landing, MIN_DISPLAY_TIME ricalcolo, ARIA role, File List). Build OK
   epic-1-retrospective: optional
 
   # --- Epic 3: Commenti Temporizzati & Popup ---

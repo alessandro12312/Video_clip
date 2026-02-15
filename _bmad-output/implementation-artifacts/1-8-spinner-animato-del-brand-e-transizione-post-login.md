@@ -1,6 +1,6 @@
 # Story 1.8: Spinner Animato del Brand e Transizione Post-Login
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -346,6 +346,11 @@ Pattern stabiliti nei commit precedenti:
   - Fase 4 splittata in 4a (scale) + 4b (translate) per ridimensionamento prima dell'arrivo
   - Fix bug scale: Fase 2 ora termina a `scale: 1.0` (keyframe `[0.9, 1.05, 1]`) per calcolo `targetScale` corretto via `getBoundingClientRect`
   - Rimosso `tracking-tight` dal logo overlay per combaciare con letter-spacing sidebar
+- 2026-02-14: Code Review fix (3 CRITICAL, 1 HIGH, 2 MEDIUM):
+  - Fix C1: `PageLoader` ora usa `<GradientSpinner variant="full" />` (AC1 — brand loader durante authenticating)
+  - Fix C2: Landing page ora usa `<GradientSpinner variant="full" />` (AC5 — brand loader durante refresh)
+  - Fix H1: `MIN_DISPLAY_TIME` ricalcolato al punto di utilizzo (non piu all'inizio della sequenza)
+  - Fix M2: Aggiunto `role="status"` all'overlay di transizione per accessibilita ARIA
 
 ## Dev Agent Record
 
@@ -377,4 +382,6 @@ Claude Opus 4.6
 - `frontend/src/app/layout.tsx` — MODIFICATO: aggiunto `LoginTransitionProvider` nella gerarchia provider
 - `frontend/src/app/page.tsx` — MODIFICATO: usa `GradientSpinner variant="full"`, minimum display time 500ms con `useRef(Date.now())`
 - `frontend/src/components/layout/left-sidebar.tsx` — MODIFICATO: aggiunto `id="sidebar-brand-logo"` per targeting `getBoundingClientRect`
+- `frontend/src/app/(auth)/layout.tsx` — MODIFICATO: aggiunto `id="auth-brand-logo"`, struttura gradient 3 zone per logo brand
+- `frontend/src/components/layout/header.tsx` — MODIFICATO: aggiunto `id="mobile-brand-logo"` per targeting mobile transizione
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — MODIFICATO: status 1-8 aggiornato

@@ -91,8 +91,6 @@ export function LoginTransitionOverlay({
 
     async function runSequence() {
       try {
-        const elapsed = Date.now() - activatedAt.current;
-        const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
         const srcRect = sourceRectRef.current;
 
         if (prefersReducedMotion) {
@@ -103,8 +101,10 @@ export function LoginTransitionOverlay({
             { opacity: 1, scale: 1, x: 0, y: 0 },
             { duration: 0 }
           );
-          if (remaining > 0) {
-            await new Promise((r) => setTimeout(r, remaining));
+          const elapsedReduced = Date.now() - activatedAt.current;
+          const remainingReduced = Math.max(0, MIN_DISPLAY_TIME - elapsedReduced);
+          if (remainingReduced > 0) {
+            await new Promise((r) => setTimeout(r, remainingReduced));
           }
           await animate(scope.current, { opacity: 0 }, { duration: 0.3 });
           onTransitionEndRef.current();
@@ -169,7 +169,9 @@ export function LoginTransitionOverlay({
           { duration: 0.3 }
         );
 
-        // Attendi minimum display time (AC4)
+        // Attendi minimum display time (AC4) — ricalcola al punto di utilizzo
+        const elapsed = Date.now() - activatedAt.current;
+        const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
         if (remaining > 0) {
           await new Promise((r) => setTimeout(r, remaining));
         }
@@ -274,6 +276,7 @@ export function LoginTransitionOverlay({
       ref={scope}
       className="fixed inset-0 z-50"
       initial={{ opacity: 1 }}
+      role="status"
       aria-label="Transizione in corso"
     >
       {/* Background — trasparente se parte dal logo auth, opaco altrimenti */}
