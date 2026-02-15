@@ -150,6 +150,13 @@
     background-clip: text;
   }
 
+  .gradient-text-reverse {
+    background: linear-gradient(135deg, var(--gradient-end), var(--gradient-start));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
   .gradient-bg {
     background: var(--gradient);
   }

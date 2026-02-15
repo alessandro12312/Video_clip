@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/providers/auth-provider";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { UserSearchBar } from "@/components/user/user-search-bar";
@@ -19,45 +18,10 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 flex h-[var(--header-height)] items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-sm lg:hidden">
-      {/* Hamburger menu (opens sidebar on mobile) */}
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <Menu className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-64 bg-sidebar p-0">
-          <div className="flex h-14 items-center px-4">
-            <span className="text-xl font-bold gradient-text">Video_clip</span>
-          </div>
-          <nav className="flex flex-col gap-1 p-2">
-            <Link
-              href="/home"
-              className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-sidebar-accent"
-            >
-              Home
-            </Link>
-            <Link
-              href="/esplora"
-              className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-sidebar-accent"
-            >
-              Esplora
-            </Link>
-            <Link
-              href="/carica"
-              className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-sidebar-accent"
-            >
-              Carica
-            </Link>
-            <Link
-              href="/contest"
-              className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-sidebar-accent"
-            >
-              Contest
-            </Link>
-          </nav>
-        </SheetContent>
-      </Sheet>
+      {/* Logo */}
+      <Link href="/home" className="shrink-0">
+        <span id="mobile-brand-logo" className="text-lg font-bold gradient-text">V</span>
+      </Link>
 
       {/* Ricerca utenti */}
       <div className="flex-1 max-w-xs mx-2">

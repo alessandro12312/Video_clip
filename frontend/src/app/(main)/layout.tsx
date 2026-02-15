@@ -7,6 +7,7 @@ import { LeftSidebar } from "@/components/layout/left-sidebar";
 import { MobileBottomBar } from "@/components/layout/mobile-bottom-bar";
 import { Header } from "@/components/layout/header";
 import { PageLoader } from "@/components/shared/page-loader";
+import { DesktopNavbar } from "@/components/layout/desktop-navbar";
 
 export default function MainLayout({
   children,
@@ -31,6 +32,7 @@ export default function MainLayout({
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
+        <DesktopNavbar />
 
         <main className="flex-1 overflow-y-auto p-4 pb-[var(--bottom-bar-height)] lg:pb-4 scrollbar-thin">
           {children}

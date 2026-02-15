@@ -1,23 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { GradientSpinner } from "@/components/shared/gradient-spinner";
 
+const MIN_DISPLAY_TIME = 500;
+
 export default function LandingPage() {
   const { isAuthenticated, isAuthenticating } = useAuth();
   const router = useRouter();
+  const mountTime = useRef(Date.now());
 
   useEffect(() => {
     if (!isAuthenticating) {
-      router.replace(isAuthenticated ? "/home" : "/login");
+      const elapsed = Date.now() - mountTime.current;
+      const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+      const timer = setTimeout(() => {
+        router.replace(isAuthenticated ? "/home" : "/login");
+      }, remaining);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, isAuthenticating, router]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <GradientSpinner size={48} />
-    </div>
-  );
+  return <GradientSpinner variant="full" size={32} />;
 }

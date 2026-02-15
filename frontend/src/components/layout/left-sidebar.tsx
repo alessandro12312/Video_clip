@@ -15,9 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/providers/auth-provider";
-import { UserAvatar } from "@/components/user/user-avatar";
-import { UserSearchBar } from "@/components/user/user-search-bar";
 
 const ICONS = {
   Home,
@@ -38,7 +35,6 @@ const NAV_ITEMS = [
 export function LeftSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { user } = useAuth();
 
   return (
     <aside
@@ -47,20 +43,26 @@ export function LeftSidebar() {
         collapsed ? "w-[var(--sidebar-collapsed-width)]" : "w-[var(--sidebar-width)]"
       )}
     >
-      {/* Logo */}
-      <div className="flex h-14 items-center px-4">
+      {/* Logo + Collapse toggle */}
+      <div className={cn(
+        "flex h-14 items-center justify-between",
+        collapsed ? "px-2" : "px-4"
+      )}>
         <Link href="/home" className="flex items-center gap-2">
-          <span className="text-xl font-bold gradient-text">
-            {collapsed ? "V" : "Video_clip"}
-          </span>
+          <span id="sidebar-brand-logo" className="text-xl font-bold">{collapsed ? <span className="gradient-text">V</span> : <><span className="gradient-text">V</span><span style={{ color: 'var(--gradient-end)' }}>ideo_cli</span><span className="gradient-text-reverse">p</span></>}</span>
         </Link>
-      </div>
-
-      <Separator />
-
-      {/* Ricerca utenti */}
-      <div className="p-2">
-        <UserSearchBar collapsed={collapsed} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-sidebar-foreground/50"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
       </div>
 
       <Separator />
@@ -89,33 +91,6 @@ export function LeftSidebar() {
           );
         })}
       </nav>
-
-      <Separator />
-
-      {/* User + Collapse toggle */}
-      <div className="flex items-center justify-between p-3">
-        {user && !collapsed && (
-          <div className="flex items-center gap-2 overflow-hidden">
-            <UserAvatar username={user.username} size="sm" />
-            <span className="truncate text-sm text-sidebar-foreground/70">
-              {user.username}
-            </span>
-          </div>
-        )}
-        {user && collapsed && <UserAvatar username={user.username} size="sm" />}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 text-sidebar-foreground/50"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
     </aside>
   );
 }

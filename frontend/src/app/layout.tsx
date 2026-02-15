@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { LoginTransitionProvider } from "@/providers/login-transition-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,10 +29,12 @@ export default function RootLayout({
       >
         <QueryProvider>
           <AuthProvider>
-            <TooltipProvider delayDuration={300}>
-              {children}
-              <Toaster position="bottom-right" richColors />
-            </TooltipProvider>
+            <LoginTransitionProvider>
+              <TooltipProvider delayDuration={300}>
+                {children}
+                <Toaster position="bottom-right" richColors />
+              </TooltipProvider>
+            </LoginTransitionProvider>
           </AuthProvider>
         </QueryProvider>
       </body>
