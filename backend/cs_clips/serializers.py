@@ -11,12 +11,58 @@ from django.core.files.storage import default_storage
 
 User = get_user_model()
 
-#TODO crea un serializer per semplificare la visualizzazione dell'utente senza lista di followers e following
 class UserSerializer(serializers.ModelSerializer):
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    is_followed_by_me = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'created_at', 'updated_at', 'followers', 'following')
+        fields = ('id', 'username', 'email', 'bio', 'created_at', 'updated_at',
+                  'followers', 'following', 'followers_count', 'following_count',
+                  'is_followed_by_me')
         read_only_fields = ('created_at', 'updated_at')
+
+    def get_followers_count(self, obj):
+        """Restituisce il numero di follower (usa annotazione se disponibile)."""
+        return getattr(obj, 'annotated_followers_count', obj.followers.count())
+
+    def get_following_count(self, obj):
+        """Restituisce il numero di utenti seguiti (usa annotazione se disponibile)."""
+        return getattr(obj, 'annotated_following_count', obj.following.count())
+
+    def get_is_followed_by_me(self, obj):
+        """Restituisce True se l'utente autenticato segue questo utente."""
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        if not hasattr(self, '_following_ids'):
+            self._following_ids = set(request.user.following.values_list('id', flat=True))
+        return obj.id in self._following_ids
+
+    def to_representation(self, instance):
+        """Nasconde l'email per utenti non proprietari del profilo."""
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            if request.user.id != instance.id:
+                data.pop('email', None)
+        else:
+            data.pop('email', None)
+        return data
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer per la modifica del profilo utente (solo campi consentiti)."""
+
+    class Meta:
+        model = User
+        fields = ('bio',)
+
+    def validate_bio(self, value):
+        if len(value) > 500:
+            raise serializers.ValidationError("La bio non può superare i 500 caratteri.")
+        return value
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

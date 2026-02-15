@@ -43,11 +43,11 @@ development_status:
   epic-1: in-progress
   1-1-evoluzione-backend-migration-prd-alignment: done          # DONE: backend models, endpoints, migrations, tests. Code review passed (6 fix applied)
   1-2-registrazione-utente: done                                  # DONE: gruppo toconfirm, validazione password, UniqueValidator IT, 13 test, a11y. Code review passed (4 fix applied)
-  1-3-login-e-gestione-sessione-jwt: in-progress                # REVIEW DONE: 5 fix applicati (gitignore, logout redirect, isAuthenticating, non-null, Secure cookie). 47 test OK. Residui: 2 MEDIUM + 2 LOW non bloccanti
-  1-4-profilo-utente-pubblico: ready-for-dev                   # FIX: era "review" senza story file. Codice esiste, serve story file per review formale
-  1-5-follow-e-unfollow: ready-for-dev                         # FIX: era "review" senza story file. Codice esiste, serve story file per review formale
-  1-6-liste-follower-e-following: backlog                      # AUDIT: MANCA UI liste (API+hooks esistono)
-  1-9-ricerca-utenti-e-scoperta-profili: review                 # DONE: SearchFilter backend, UserSearchBar frontend, 4 test
+  1-3-login-e-gestione-sessione-jwt: done                        # DONE: 5 fix applicati (gitignore, logout redirect, isAuthenticating, non-null, Secure cookie). 47 test OK. Residui: 2 MEDIUM + 2 LOW non bloccanti
+  1-4-profilo-utente-pubblico: done                              # DONE: 10 task completati, 58 test OK, build OK. Code review passed (7 fix applied: N+1 query, error state, type mismatch, email privacy, isFollowing, double get_object, staleTime)
+  1-5-follow-e-unfollow: done                                      # DONE: 6 task completati, 13 test backend, optimistic UI + rollback + toast, 85 test OK, build OK. Code review passed (6 fix applied)
+  1-6-liste-follower-e-following: done                           # DONE: 7 task completati, build OK, 85 test OK. Code review passed (6 fix applied: enabled guard hooks, error handling pages, PAGE_SIZE constant, click target WCAG, wrapper div cleanup)
+  1-9-ricerca-utenti-e-scoperta-profili: done                    # DONE: SearchFilter backend, UserSearchBar frontend, 7 test. Code review passed (4 fix applied)
   1-7-header-utente-desktop-con-menu-profilo: backlog          # AUDIT: parziale, avatar in sidebar non header
   1-8-spinner-animato-del-brand-e-transizione-post-login: backlog  # polish UX, bassa priorità
   epic-1-retrospective: optional

@@ -1,6 +1,6 @@
 # Story 1.3: Login e Gestione Sessione JWT
 
-Status: in-progress
+Status: done
 
 ## Story
 

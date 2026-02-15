@@ -563,3 +563,253 @@ class UserSearchEndpointTest(APITestCase):
         response = self.client.get('/api/users/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 3)
+
+    def test_search_unauthenticated_returns_401(self):
+        """GET /api/users/?search=al senza autenticazione → 401."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.get('/api/users/', {'search': 'al'})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_search_single_char_returns_results(self):
+        """GET /api/users/?search=a con singolo carattere → restituisce risultati."""
+        response = self.client.get('/api/users/', {'search': 'a'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usernames = [u['username'] for u in response.data['results']]
+        self.assertIn('alice', usernames)
+        self.assertIn('alex', usernames)
+
+    def test_search_special_characters_no_error(self):
+        """GET /api/users/?search=%_ con caratteri speciali → nessun errore server."""
+        response = self.client.get('/api/users/', {'search': '%_'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 0)
+
+
+class UserProfileTest(APITestCase):
+    """Test per profilo utente pubblico (Story 1-4)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='profileuser', email='profile@test.com', password='SecurePass123!'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser', email='other@test.com', password='SecurePass123!'
+        )
+        group, _ = Group.objects.get_or_create(name='user')
+        self.user.groups.add(group)
+        self.other_user.groups.add(group)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_get_own_profile_includes_bio_and_counts(self):
+        """GET /api/users/{id}/ proprio → include username, bio, followers_count, following_count (AC #1, Task 5.1)."""
+        self.user.bio = 'Ciao, sono un gamer!'
+        self.user.save()
+        self.user.following.add(self.other_user)
+
+        response = self.client.get(f'/api/users/{self.user.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'profileuser')
+        self.assertEqual(response.data['bio'], 'Ciao, sono un gamer!')
+        self.assertEqual(response.data['followers_count'], 0)
+        self.assertEqual(response.data['following_count'], 1)
+
+    def test_get_other_profile_includes_bio_and_counts(self):
+        """GET /api/users/{id}/ altrui → include username, bio, followers_count, following_count (AC #3, Task 5.2)."""
+        self.other_user.bio = 'Pro player CS2'
+        self.other_user.save()
+        self.user.following.add(self.other_user)
+
+        response = self.client.get(f'/api/users/{self.other_user.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'otheruser')
+        self.assertEqual(response.data['bio'], 'Pro player CS2')
+        self.assertEqual(response.data['followers_count'], 1)
+        self.assertEqual(response.data['following_count'], 0)
+
+    def test_patch_own_bio_success(self):
+        """PATCH /api/users/{id}/ proprio con bio valida → 200 (AC #2, Task 5.3)."""
+        response = self.client.patch(
+            f'/api/users/{self.user.id}/',
+            {'bio': 'Nuova bio aggiornata'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.bio, 'Nuova bio aggiornata')
+
+    def test_patch_bio_too_long_returns_400(self):
+        """PATCH /api/users/{id}/ con bio >500 char → 400 errore validazione (Task 5.4)."""
+        long_bio = 'a' * 501
+        response = self.client.patch(
+            f'/api/users/{self.user.id}/',
+            {'bio': long_bio},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_patch_other_user_profile_returns_403(self):
+        """PATCH /api/users/{id}/ altrui → 403 Forbidden (Task 5.5)."""
+        response = self.client.patch(
+            f'/api/users/{self.other_user.id}/',
+            {'bio': 'Tentativo di modifica'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_by_username_existing_user(self):
+        """GET /api/users/by-username/{username}/ con username esistente → 200 (Task 5.6)."""
+        response = self.client.get('/api/users/by-username/profileuser/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'profileuser')
+        self.assertIn('bio', response.data)
+        self.assertIn('followers_count', response.data)
+        self.assertIn('following_count', response.data)
+
+    def test_by_username_nonexistent_user(self):
+        """GET /api/users/by-username/{username}/ con username inesistente → 404 (Task 5.7)."""
+        response = self.client.get('/api/users/by-username/ghostuser/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_toconfirm_user_cannot_patch_profile(self):
+        """PATCH /api/users/{id}/ da utente toconfirm → 403 (Task 5.8)."""
+        toconfirm_user = User.objects.create_user(
+            username='pendinguser', email='pending@test.com', password='SecurePass123!'
+        )
+        toconfirm_group, _ = Group.objects.get_or_create(name='toconfirm')
+        toconfirm_user.groups.add(toconfirm_group)
+
+        self.client.force_authenticate(user=toconfirm_user)
+        response = self.client.patch(
+            f'/api/users/{toconfirm_user.id}/',
+            {'bio': 'Tentativo'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class FollowUnfollowTest(APITestCase):
+    """Test per endpoint follow/unfollow (Story 1-5)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='follower', email='follower@test.com', password='SecurePass123!'
+        )
+        self.target = User.objects.create_user(
+            username='target', email='target@test.com', password='SecurePass123!'
+        )
+        group, _ = Group.objects.get_or_create(name='user')
+        self.user.groups.add(group)
+        self.target.groups.add(group)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_follow_success(self):
+        """POST /api/users/{id}/follow/ → 200, is_followed: true, followers_count incrementato (Task 2.1)."""
+        response = self.client.post(f'/api/users/{self.target.id}/follow/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_followed'])
+        self.assertEqual(response.data['followers_count'], 1)
+        self.assertIn('detail', response.data)
+        self.assertTrue(self.user.following.filter(pk=self.target.pk).exists())
+
+    def test_unfollow_success(self):
+        """POST /api/users/{id}/unfollow/ → 200, is_followed: false, followers_count decrementato (Task 2.2)."""
+        self.user.following.add(self.target)
+        response = self.client.post(f'/api/users/{self.target.id}/unfollow/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['is_followed'])
+        self.assertEqual(response.data['followers_count'], 0)
+        self.assertIn('detail', response.data)
+        self.assertFalse(self.user.following.filter(pk=self.target.pk).exists())
+
+    def test_self_follow_returns_400(self):
+        """POST /api/users/{id}/follow/ su se stessi → 400 con messaggio errore italiano (Task 2.3)."""
+        response = self.client.post(f'/api/users/{self.user.id}/follow/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('code', response.data)
+        self.assertIn('detail', response.data)
+        self.assertIn('Non puoi seguire te stesso', response.data['detail'])
+
+    def test_double_follow_idempotent(self):
+        """POST /api/users/{id}/follow/ quando già segui → 200 idempotente (Task 2.4)."""
+        self.user.following.add(self.target)
+        response = self.client.post(f'/api/users/{self.target.id}/follow/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_followed'])
+        self.assertEqual(response.data['followers_count'], 1)
+
+    def test_unfollow_when_not_following_idempotent(self):
+        """POST /api/users/{id}/unfollow/ quando non segui → 200 idempotente (Task 2.5)."""
+        response = self.client.post(f'/api/users/{self.target.id}/unfollow/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['is_followed'])
+        self.assertEqual(response.data['followers_count'], 0)
+
+    def test_get_followers_list(self):
+        """GET /api/users/{id}/followers/ → lista paginata utenti follower (Task 2.6)."""
+        self.user.following.add(self.target)
+        response = self.client.get(f'/api/users/{self.target.id}/followers/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        usernames = [u['username'] for u in response.data['results']]
+        self.assertIn('follower', usernames)
+
+    def test_get_following_list(self):
+        """GET /api/users/{id}/following/ → lista paginata utenti seguiti (Task 2.7)."""
+        self.user.following.add(self.target)
+        response = self.client.get(f'/api/users/{self.user.id}/following/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        usernames = [u['username'] for u in response.data['results']]
+        self.assertIn('target', usernames)
+
+    def test_is_followed_by_me_after_follow(self):
+        """is_followed_by_me → true dopo follow, false dopo unfollow (Task 2.8)."""
+        self.user.following.add(self.target)
+        response = self.client.get(f'/api/users/{self.target.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_followed_by_me'])
+
+        self.user.following.remove(self.target)
+        response = self.client.get(f'/api/users/{self.target.id}/')
+        self.assertFalse(response.data['is_followed_by_me'])
+
+    def test_unauthenticated_follow_returns_401(self):
+        """POST /api/users/{id}/follow/ senza autenticazione → 401 (Task 2.9)."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.post(f'/api/users/{self.target.id}/follow/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unauthenticated_unfollow_returns_401(self):
+        """POST /api/users/{id}/unfollow/ senza autenticazione → 401 (Task 2.9)."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.post(f'/api/users/{self.target.id}/unfollow/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_follow_nonexistent_user_returns_404(self):
+        """POST /api/users/99999/follow/ → 404 utente inesistente (Review fix)."""
+        response = self.client.post('/api/users/99999/follow/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_toconfirm_user_follow_returns_403(self):
+        """POST /api/users/{id}/follow/ da utente toconfirm → 403 (Task 2.10)."""
+        toconfirm_user = User.objects.create_user(
+            username='pending', email='pending@test.com', password='SecurePass123!'
+        )
+        toconfirm_group, _ = Group.objects.get_or_create(name='toconfirm')
+        toconfirm_user.groups.add(toconfirm_group)
+        self.client.force_authenticate(user=toconfirm_user)
+        response = self.client.post(f'/api/users/{self.target.id}/follow/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_toconfirm_user_unfollow_returns_403(self):
+        """POST /api/users/{id}/unfollow/ da utente toconfirm → 403 (Task 2.10)."""
+        toconfirm_user = User.objects.create_user(
+            username='pending2', email='pending2@test.com', password='SecurePass123!'
+        )
+        toconfirm_group, _ = Group.objects.get_or_create(name='toconfirm')
+        toconfirm_user.groups.add(toconfirm_group)
+        self.client.force_authenticate(user=toconfirm_user)
+        response = self.client.post(f'/api/users/{self.target.id}/unfollow/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

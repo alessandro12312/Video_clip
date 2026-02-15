@@ -1,6 +1,6 @@
 # Story 1.9: Ricerca Utenti e Scoperta Profili
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -46,7 +46,7 @@ So that possa scoprire nuovi utenti da seguire e visitare i loro profili.
   - [x] 4.2 Aggiungere UserSearchBar nell'Header mobile
 
 - [x] Task 5: Test e verifica (AC: #1-4)
-  - [x] 5.1 Test backend: ricerca per username funzionante (4 test, tutti superati)
+  - [x] 5.1 Test backend: ricerca per username funzionante (7 test, tutti superati)
   - [x] 5.2 Verifica navigazione al profilo con bottone follow visibile
 
 ## Dev Notes
@@ -111,14 +111,15 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-02-14: Implementazione completa Story 1.9 — SearchFilter backend, API frontend, componente UserSearchBar, integrazione layout, test suite (38 test totali, 4 nuovi)
+- 2026-02-15: Code review fix — corretto bug collapsed sidebar (forceExpand overlay), aggiunta accessibilità ARIA (combobox, listbox, option), aggiunta navigazione da tastiera (frecce, Enter, Escape), aggiunti 3 test backend (401 non autenticato, singolo carattere, caratteri speciali)
 
 ### File List
 
 - `backend/cs_clips/views.py` — Aggiunto import `SearchFilter`. Aggiunto `filter_backends`, `search_fields`, `order_by('username')` a `UserViewSet`.
-- `backend/cs_clips/tests/test_views.py` — Aggiunta classe `UserSearchEndpointTest` con 4 test.
+- `backend/cs_clips/tests/test_views.py` — Aggiunta classe `UserSearchEndpointTest` con 7 test (4 originali + 3 da code review).
 - `frontend/src/lib/api/users.ts` — Aggiunto metodo `search(query)`.
 - `frontend/src/lib/query-keys.ts` — Aggiunto `users.search(query)`.
 - `frontend/src/lib/hooks/use-users.ts` — Aggiunto hook `useSearchUsers(query)`.
-- `frontend/src/components/user/user-search-bar.tsx` — **NUOVO** componente UserSearchBar.
+- `frontend/src/components/user/user-search-bar.tsx` — **NUOVO** componente UserSearchBar. Code review: fix collapsed mode (forceExpand overlay), ARIA attributes, keyboard navigation.
 - `frontend/src/components/layout/left-sidebar.tsx` — Aggiunto import e rendering `UserSearchBar`.
 - `frontend/src/components/layout/header.tsx` — Aggiunto import e rendering `UserSearchBar` (sostituisce logo mobile).

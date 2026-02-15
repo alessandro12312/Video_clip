@@ -1,13 +1,15 @@
 export interface User {
   id: number;
   username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
+  email?: string;
+  bio: string;
   created_at: string;
   updated_at: string;
   followers: number[];
   following: number[];
+  followers_count: number;
+  following_count: number;
+  is_followed_by_me: boolean;
 }
 
 export interface UserRegistration {

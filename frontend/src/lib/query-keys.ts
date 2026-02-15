@@ -19,6 +19,7 @@ export const queryKeys = {
   },
   users: {
     detail: (id: number) => ["users", id] as const,
+    byUsername: (username: string) => ["users", "username", username] as const,
     followers: (id: number) => ["users", id, "followers"] as const,
     following: (id: number) => ["users", id, "following"] as const,
     search: (query: string) => ["users", "search", query] as const,

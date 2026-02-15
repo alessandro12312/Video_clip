@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface FollowButtonProps {
   userId: number;
+  username: string;
   isFollowing: boolean;
   size?: "sm" | "default";
   className?: string;
@@ -14,6 +15,7 @@ interface FollowButtonProps {
 
 export function FollowButton({
   userId,
+  username,
   isFollowing,
   size = "sm",
   className,
@@ -23,15 +25,20 @@ export function FollowButton({
   const unfollowMutation = useUnfollow();
   const isPending = followMutation.isPending || unfollowMutation.isPending;
 
-  // Don't show follow button for yourself
   if (user?.id === userId) return null;
 
   function handleClick() {
     if (isFollowing) {
-      unfollowMutation.mutate(userId);
+      unfollowMutation.mutate({ userId, username });
     } else {
-      followMutation.mutate(userId);
+      followMutation.mutate({ userId, username });
     }
+  }
+
+  function getButtonText() {
+    if (followMutation.isPending) return "Seguendo...";
+    if (unfollowMutation.isPending) return "Rimuovendo...";
+    return isFollowing ? "Smetti di seguire" : "Segui";
   }
 
   return (
@@ -45,7 +52,7 @@ export function FollowButton({
       onClick={handleClick}
       disabled={isPending}
     >
-      {isFollowing ? "Segui già" : "Segui"}
+      {getButtonText()}
     </Button>
   );
 }

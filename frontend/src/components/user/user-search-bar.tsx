@@ -19,6 +19,8 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [forceExpand, setForceExpand] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -31,16 +33,29 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Chiudi dropdown al click esterno
+  // Chiudi dropdown e overlay al click esterno
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setForceExpand(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Focus input quando si espande da collapsed
+  useEffect(() => {
+    if (forceExpand) {
+      inputRef.current?.focus();
+    }
+  }, [forceExpand]);
+
+  // Reset indice attivo quando cambia la query
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [debouncedQuery]);
 
   const { data, isLoading } = useSearchUsers(debouncedQuery);
   const results = data?.results ?? [];
@@ -50,25 +65,68 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
     setQuery("");
     setDebouncedQuery("");
     setIsOpen(false);
+    setForceExpand(false);
+    setActiveIndex(-1);
     onSelect?.();
     router.push(`/profilo/${username}`);
   }
 
-  // In modalità collapsed mostra solo l'icona
-  if (collapsed) {
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+      setForceExpand(false);
+      inputRef.current?.blur();
+      return;
+    }
+
+    if (!showDropdown || results.length === 0) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < results.length) {
+          handleSelect(results[activeIndex].username);
+        }
+        break;
+    }
+  }
+
+  // In modalità collapsed: icona che apre l'overlay di ricerca
+  if (collapsed && !forceExpand) {
     return (
-      <button
-        className={cn("flex items-center justify-center rounded-lg p-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent", className)}
-        onClick={() => inputRef.current?.focus()}
-        title="Cerca utenti"
-      >
-        <Search className="h-5 w-5" />
-      </button>
+      <div ref={containerRef} className={cn("relative", className)}>
+        <button
+          className="flex items-center justify-center rounded-lg p-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent"
+          onClick={() => setForceExpand(true)}
+          title="Cerca utenti"
+          aria-label="Apri ricerca utenti"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+      </div>
     );
   }
 
+  const isOverlay = collapsed && forceExpand;
+
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <div
+      ref={containerRef}
+      className={cn(
+        "relative",
+        isOverlay && "absolute left-0 top-0 z-50 w-64 bg-sidebar p-2 rounded-r-lg border border-border shadow-lg",
+        className
+      )}
+    >
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -79,11 +137,18 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
           onChange={(e) => {
             setQuery(e.target.value);
             setIsOpen(true);
+            setActiveIndex(-1);
           }}
           onFocus={() => {
             if (debouncedQuery.length >= 2) setIsOpen(true);
           }}
+          onKeyDown={handleKeyDown}
           className="pl-8 pr-8 h-9"
+          role="combobox"
+          aria-expanded={showDropdown}
+          aria-controls="user-search-results"
+          aria-autocomplete="list"
+          aria-activedescendant={activeIndex >= 0 ? `user-search-option-${activeIndex}` : undefined}
         />
         {query && (
           <button
@@ -92,7 +157,9 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
               setQuery("");
               setDebouncedQuery("");
               setIsOpen(false);
+              setActiveIndex(-1);
             }}
+            aria-label="Cancella ricerca"
           >
             <X className="h-4 w-4" />
           </button>
@@ -100,7 +167,12 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
       </div>
 
       {showDropdown && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+        <div
+          id="user-search-results"
+          role="listbox"
+          aria-label="Risultati ricerca utenti"
+          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-md"
+        >
           {isLoading ? (
             <div className="flex flex-col gap-2 p-2">
               {[1, 2, 3].map((i) => (
@@ -116,10 +188,16 @@ export function UserSearchBar({ collapsed, className, onSelect }: UserSearchBarP
             </div>
           ) : (
             <div className="flex flex-col py-1">
-              {results.map((user) => (
+              {results.map((user, index) => (
                 <button
                   key={user.id}
-                  className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                  id={`user-search-option-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent transition-colors",
+                    index === activeIndex && "bg-accent"
+                  )}
                   onClick={() => handleSelect(user.username)}
                 >
                   <UserAvatar username={user.username} size="sm" />

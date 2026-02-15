@@ -8,6 +8,12 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 # User model
 class User(AbstractUser):
     email = models.EmailField('email address', unique=True, blank=False, null=False)
+    bio = models.TextField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text="Breve descrizione dell'utente"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

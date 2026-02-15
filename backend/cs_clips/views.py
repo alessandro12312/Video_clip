@@ -9,9 +9,9 @@ from django.db import models, IntegrityError
 from django.db.models import Avg
 from .models import Video, Rating, Comment, Contest, VideoLike, CommentLike
 from .serializers import (
-    ErrorResponseSerializer, UserSerializer, VideoSerializer,
-    UserRegistrationSerializer, RatingSerializer, CommentSerializer,
-    PopupCommentSerializer
+    ErrorResponseSerializer, UserSerializer, UserProfileUpdateSerializer,
+    VideoSerializer, UserRegistrationSerializer, RatingSerializer,
+    CommentSerializer, PopupCommentSerializer
 )
 from django.db.models import Count
 from rest_framework.filters import SearchFilter
@@ -117,11 +117,27 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = [SearchFilter]
     search_fields = ['username']
 
+    def get_queryset(self):
+        return User.objects.annotate(
+            annotated_followers_count=Count('followers', distinct=True),
+            annotated_following_count=Count('following', distinct=True),
+        ).order_by('username')
+
     def get_permissions(self):
         return [AllowAny()] if self.action == 'create' else super().get_permissions()
 
     def get_serializer_class(self):
-        return UserRegistrationSerializer if self.action == 'create' else UserSerializer
+        if self.action == 'create':
+            return UserRegistrationSerializer
+        if self.action in ('update', 'partial_update'):
+            return UserProfileUpdateSerializer
+        return UserSerializer
+
+    def perform_update(self, serializer):
+        """Solo il proprietario può modificare il proprio profilo."""
+        if self.request.user.id != serializer.instance.id:
+            raise PermissionDenied("Non puoi modificare il profilo di un altro utente.")
+        serializer.save()
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -133,41 +149,95 @@ class UserViewSet(viewsets.ModelViewSet):
     def follow(self, request, pk=None):
         """
         Permette all'utente autenticato di seguire un altro utente.
+        Restituisce is_followed e followers_count aggiornato.
+        Idempotente: se già segui, restituisce 200 con stato attuale.
         """
         target_user = self.get_object()
         if request.user == target_user:
-            return Response({"detail": "Non puoi seguire te stesso."}, status=400)
+            raise ValidationError("Non puoi seguire te stesso.")
 
+        already_following = request.user.following.filter(pk=target_user.pk).exists()
         request.user.following.add(target_user)
-        return Response({"detail": f"Hai iniziato a seguire {target_user.username}."})
+        followers_count = target_user.followers.count()
+
+        if already_following:
+            return Response({
+                "detail": f"Stai già seguendo {target_user.username}.",
+                "is_followed": True,
+                "followers_count": followers_count,
+            })
+
+        return Response({
+            "detail": f"Hai iniziato a seguire {target_user.username}.",
+            "is_followed": True,
+            "followers_count": followers_count,
+        })
     
     @action(detail=True, methods=['post'], url_path='unfollow', permission_classes=[OnlyUsersPermission])
     def unfollow(self, request, pk=None):
         """
         Permette all'utente autenticato di smettere di seguire un altro utente.
+        Restituisce is_followed e followers_count aggiornato.
+        Idempotente: se non segui, restituisce 200 con stato attuale.
         """
         target_user = self.get_object()
+        was_following = request.user.following.filter(pk=target_user.pk).exists()
         request.user.following.remove(target_user)
-        return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
+        followers_count = target_user.followers.count()
+
+        if not was_following:
+            return Response({
+                "detail": f"Non stavi seguendo {target_user.username}.",
+                "is_followed": False,
+                "followers_count": followers_count,
+            })
+
+        return Response({
+            "detail": f"Hai smesso di seguire {target_user.username}.",
+            "is_followed": False,
+            "followers_count": followers_count,
+        })
 
     @action(detail=True, methods=['get'], url_path='followers')
     def get_followers(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che seguono questo utente.
+        Restituisce la lista paginata degli utenti che seguono questo utente.
+        Usa il queryset annotato per evitare N+1 su followers_count/following_count.
         """
         target_user = self.get_object()
-        followers = target_user.followers.all()
-        serializer = UserSerializer(followers, many=True)
+        followers = self.get_queryset().filter(pk__in=target_user.followers.all())
+        page = self.paginate_queryset(followers)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(followers, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='following')
     def get_following(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che questo utente sta seguendo.
+        Restituisce la lista paginata degli utenti che questo utente sta seguendo.
+        Usa il queryset annotato per evitare N+1 su followers_count/following_count.
         """
         target_user = self.get_object()
-        following = target_user.following.all()
-        serializer = UserSerializer(following, many=True)
+        following = self.get_queryset().filter(pk__in=target_user.following.all())
+        page = self.paginate_queryset(following)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(following, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='by-username/(?P<username>[^/.]+)')
+    def by_username(self, request, username=None):
+        """
+        Restituisce il profilo di un utente cercato per username.
+        """
+        try:
+            user = self.get_queryset().get(username=username)
+        except User.DoesNotExist:
+            raise NotFound(f"Utente '{username}' non trovato.")
+        serializer = self.get_serializer(user)
         return Response(serializer.data)
 
     def handle_exception(self, exc):

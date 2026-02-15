@@ -8,15 +8,15 @@ import { InfiniteScroll } from "@/components/shared/infinite-scroll";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageLoader } from "@/components/shared/page-loader";
 import { useUserVideos } from "@/lib/hooks/use-videos";
-import { Film } from "lucide-react";
+import { useUserByUsername } from "@/lib/hooks/use-users";
+import { Film, UserX } from "lucide-react";
 
 export default function ProfiloPage() {
   const params = useParams<{ username: string }>();
   const username = params.username;
 
-  // We need user by username — use the users API list with filtering
-  // For now, search by fetching all users (backend should support ?search=username)
-  // The profile header requires a User object; we'll adapt
+  const { data: profileUser, isLoading: usersLoading, isError } = useUserByUsername(username);
+
   const { data: userVideosData, isLoading: videosLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useUserVideos(username);
 
@@ -25,18 +25,22 @@ export default function ProfiloPage() {
     [userVideosData]
   );
 
-  // Find user ID from the first video uploader, or fall back
-  // Since we know the username, construct a minimal profile display
-  const { data: allUsers, isLoading: usersLoading } = useUserByUsername(username);
-
   if (usersLoading) return <PageLoader />;
+
+  if (isError || !profileUser) {
+    return (
+      <EmptyState
+        icon={UserX}
+        title="Utente non trovato"
+        description={`L'utente "${username}" non esiste o non è disponibile.`}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Profile header */}
-      {allUsers && <ProfileHeader profileUser={allUsers} />}
+      <ProfileHeader profileUser={profileUser} videoCount={videos.length} />
 
-      {/* User's videos */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Le clip di {username}</h2>
         {videosLoading ? (
@@ -60,21 +64,4 @@ export default function ProfiloPage() {
       </div>
     </div>
   );
-}
-
-// Helper hook: get user by username (searches all users)
-import { useQuery } from "@tanstack/react-query";
-import { usersApi } from "@/lib/api/users";
-import type { User } from "@/types";
-
-function useUserByUsername(username: string) {
-  return useQuery<User | null>({
-    queryKey: ["users", "byUsername", username],
-    queryFn: async () => {
-      const page = await usersApi.getAll(1);
-      const found = page.results.find((u) => u.username === username);
-      return found ?? null;
-    },
-    staleTime: 60_000,
-  });
 }
