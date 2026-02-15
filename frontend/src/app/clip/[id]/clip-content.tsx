@@ -29,7 +29,7 @@ interface ClipContentProps {
 }
 
 export function ClipContent({ videoId }: ClipContentProps) {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isAuthenticating: authLoading } = useAuth();
   const isWideDesktop = useIsWideDesktop();
 
   const { data: video, isLoading: videoLoading, error: videoError } = useVideo(videoId);

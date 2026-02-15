@@ -8,12 +8,12 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import type { User } from "@/types";
 import { authApi } from "@/lib/api/auth";
 import {
   setTokens,
-  getAccessToken,
   getRefreshToken,
   clearTokens,
 } from "@/lib/api/client";
@@ -26,7 +26,7 @@ interface JwtPayload {
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  isAuthenticating: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (
     username: string,
@@ -40,7 +40,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const router = useRouter();
 
   const fetchUser = useCallback(async (token: string) => {
     try {
@@ -53,35 +54,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // On mount: restore session from stored tokens
+  const logout = useCallback(() => {
+    clearTokens();
+    setUser(null);
+    router.replace("/login");
+  }, [router]);
+
+  // On mount: restore session via refresh token (access è memory-only, perso al reload)
   useEffect(() => {
     const init = async () => {
-      const token = getAccessToken();
       const refresh = getRefreshToken();
 
-      if (token) {
+      if (refresh) {
         try {
-          const decoded = jwtDecode<JwtPayload>(token);
-          const isExpired = decoded.exp * 1000 < Date.now();
-
-          if (isExpired && refresh) {
-            const { access } = await authApi.refreshToken(refresh);
-            setTokens(access, refresh);
-            await fetchUser(access);
-          } else if (!isExpired) {
-            await fetchUser(token);
-          } else {
-            clearTokens();
-          }
+          const data = await authApi.refreshToken(refresh);
+          setTokens(data.access, data.refresh || refresh);
+          await fetchUser(data.access);
         } catch {
           clearTokens();
         }
       }
-      setIsLoading(false);
+      setIsAuthenticating(false);
     };
 
     init();
   }, [fetchUser]);
+
+  // Listener per force-logout da client.ts (modulo vanilla, no React context)
+  useEffect(() => {
+    window.addEventListener("auth:logout", logout);
+    return () => window.removeEventListener("auth:logout", logout);
+  }, [logout]);
 
   const login = useCallback(
     async (username: string, password: string) => {
@@ -95,23 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (username: string, email: string, password: string) => {
       await authApi.register({ username, email, password });
-      // Auto-login after registration
       await login(username, password);
     },
     [login]
   );
-
-  const logout = useCallback(() => {
-    clearTokens();
-    setUser(null);
-  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
-        isLoading,
+        isAuthenticating,
         login,
         register,
         logout,

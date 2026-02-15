@@ -31,8 +31,8 @@ export default function RegisterPage() {
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data) {
         const data = err.response.data;
-        const messages = Object.values(data).flat().join(" ");
-        setError(messages || "Errore durante la registrazione.");
+        const message = data.detail || Object.values(data).flat().join(" ");
+        setError(message || "Errore durante la registrazione.");
       } else {
         setError("Errore di connessione. Riprova.");
       }
@@ -49,7 +49,7 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
+            <p role="alert" className="text-sm text-destructive text-center">{error}</p>
           )}
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
@@ -84,7 +84,11 @@ export default function RegisterPage() {
               placeholder="Scegli una password"
               required
               minLength={8}
+              aria-describedby="password-hint"
             />
+            <p id="password-hint" className="text-xs text-muted-foreground">
+              Minimo 8 caratteri, non interamente numerica, non troppo comune
+            </p>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">

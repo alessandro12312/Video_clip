@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const usernameRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +36,7 @@ export default function LoginPage() {
       } else {
         setError("Errore di connessione. Riprova.");
       }
+      usernameRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -48,11 +50,18 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
+            <p
+              id="login-error"
+              role="alert"
+              className="text-sm text-destructive text-center"
+            >
+              {error}
+            </p>
           )}
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
             <Input
+              ref={usernameRef}
               id="username"
               type="text"
               value={username}
@@ -60,6 +69,8 @@ export default function LoginPage() {
               placeholder="Il tuo username"
               required
               autoFocus
+              aria-invalid={!!error || undefined}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
           <div className="space-y-2">
@@ -71,11 +82,18 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="La tua password"
               required
+              aria-invalid={!!error || undefined}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
-          <Button type="submit" className="w-full gradient-bg" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full gradient-bg"
+            disabled={loading}
+            aria-label={loading ? "Accesso in corso" : undefined}
+          >
             {loading ? <GradientSpinner size={20} /> : "Accedi"}
           </Button>
           <p className="text-sm text-muted-foreground">

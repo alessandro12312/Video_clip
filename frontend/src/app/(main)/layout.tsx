@@ -13,16 +13,16 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isAuthenticating } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isAuthenticating && !isAuthenticated) {
       router.replace("/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isAuthenticating, router]);
 
-  if (isLoading) return <PageLoader />;
+  if (isAuthenticating) return <PageLoader />;
   if (!isAuthenticated) return null;
 
   return (

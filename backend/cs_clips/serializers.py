@@ -1,8 +1,11 @@
 # DTOs for the API
 from moviepy import VideoFileClip
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from .models import Contest, Video, Rating, Comment, VideoLike, CommentLike, Notification
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password as django_validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
 
 
@@ -17,11 +20,42 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    username = serializers.CharField(
+        max_length=150,
+        validators=[
+            UniqueValidator(
+                queryset=User.objects.all(),
+                message="Username già in uso.",
+                lookup='iexact'
+            )
+        ]
+    )
+    email = serializers.EmailField(
+        validators=[
+            UniqueValidator(
+                queryset=User.objects.all(),
+                message="Email già registrata.",
+                lookup='iexact'
+            )
+        ]
+    )
+    password = serializers.CharField(
+        write_only=True,
+        help_text="Minimo 8 caratteri, non interamente numerica, non troppo comune"
+    )
 
     class Meta:
         model = User
         fields = ('username', 'email', 'password')
+
+    def validate(self, data):
+        # Crea un oggetto user temporaneo per UserAttributeSimilarityValidator
+        temp_user = User(username=data.get('username', ''), email=data.get('email', ''))
+        try:
+            django_validate_password(data['password'], user=temp_user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({'password': e.messages})
+        return data
 
     def create(self, validated_data):
         user = User.objects.create_user(

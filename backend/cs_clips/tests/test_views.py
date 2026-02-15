@@ -8,6 +8,284 @@ from cs_clips.models import Video, Comment, VideoLike, CommentLike
 User = get_user_model()
 
 
+class UserRegistrationEndpointTest(APITestCase):
+    """Test per endpoint registrazione utente (Story 1-2)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/api/users/'
+        self.valid_data = {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'SecurePass123!'
+        }
+
+    def test_registration_success_creates_user_and_assigns_group(self):
+        """POST /api/users/ con dati validi → 201, crea utente con gruppo 'toconfirm' (AC #1)."""
+        response = self.client.post(self.url, self.valid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username='newuser')
+        self.assertEqual(user.email, 'newuser@example.com')
+        self.assertTrue(user.check_password('SecurePass123!'))
+        self.assertTrue(user.groups.filter(name='toconfirm').exists())
+        self.assertFalse(user.groups.filter(name='user').exists())
+
+    def test_registration_duplicate_username_returns_400(self):
+        """POST /api/users/ con username duplicato → 400 con messaggio specifico (AC #2)."""
+        User.objects.create_user(username='existing', email='old@example.com', password='OldPass123!')
+        data = {
+            'username': 'existing',
+            'email': 'new@example.com',
+            'password': 'SecurePass123!'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Username già in uso', response.data['detail'])
+
+    def test_registration_duplicate_email_returns_400(self):
+        """POST /api/users/ con email duplicata → 400 con messaggio specifico (AC #2)."""
+        User.objects.create_user(username='existing', email='taken@example.com', password='OldPass123!')
+        data = {
+            'username': 'differentuser',
+            'email': 'taken@example.com',
+            'password': 'SecurePass123!'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Email già registrata', response.data['detail'])
+
+    def test_registration_weak_password_returns_400(self):
+        """POST /api/users/ con password troppo corta → 400 con requisiti minimi (AC #3)."""
+        data = {
+            'username': 'shortpw',
+            'email': 'shortpw@example.com',
+            'password': 'abc'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data['detail'])
+
+    def test_registration_numeric_password_returns_400(self):
+        """POST /api/users/ con password interamente numerica → 400 (AC #3)."""
+        data = {
+            'username': 'numericpw',
+            'email': 'numericpw@example.com',
+            'password': '12345678'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data['detail'])
+
+    def test_registration_missing_username_returns_400(self):
+        """POST /api/users/ senza username → 400."""
+        data = {'email': 'no@user.com', 'password': 'SecurePass123!'}
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('username', response.data['detail'])
+
+    def test_registration_missing_email_returns_400(self):
+        """POST /api/users/ senza email → 400."""
+        data = {'username': 'noemail', 'password': 'SecurePass123!'}
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('email', response.data['detail'])
+
+    def test_registration_missing_password_returns_400(self):
+        """POST /api/users/ senza password → 400."""
+        data = {'username': 'nopw', 'email': 'nopw@example.com'}
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data['detail'])
+
+    def test_registration_password_not_in_response(self):
+        """La password non è visibile nella risposta (write_only)."""
+        response = self.client.post(self.url, self.valid_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn('password', response.data)
+
+    def test_registration_duplicate_username_case_insensitive(self):
+        """Username duplicato è case-insensitive (AC #2)."""
+        User.objects.create_user(username='CaseUser', email='case@test.com', password='OldPass123!')
+        data = {
+            'username': 'caseuser',
+            'email': 'other@test.com',
+            'password': 'SecurePass123!'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_registration_duplicate_email_case_insensitive(self):
+        """Email duplicata è case-insensitive (AC #2)."""
+        User.objects.create_user(username='original', email='Taken@Example.com', password='OldPass123!')
+        data = {
+            'username': 'newuser',
+            'email': 'taken@example.com',
+            'password': 'SecurePass123!'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class UserRegistrationIntegrationTest(APITestCase):
+    """Test integrazione: registrazione → JWT → refresh (Story 1-2, AC #1, Task 5)."""
+
+    def test_full_flow_register_then_login_jwt(self):
+        """Flusso completo: registrazione → login JWT → token valido (AC #1)."""
+        client = APIClient()
+        # 1. Registrazione
+        reg_data = {
+            'username': 'integration_user',
+            'email': 'integration@example.com',
+            'password': 'SecurePass123!'
+        }
+        reg_response = client.post('/api/users/', reg_data, format='json')
+        self.assertEqual(reg_response.status_code, status.HTTP_201_CREATED)
+
+        # 2. Login JWT
+        token_response = client.post('/api/token/', {
+            'username': 'integration_user',
+            'password': 'SecurePass123!'
+        }, format='json')
+        self.assertEqual(token_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', token_response.data)
+        self.assertIn('refresh', token_response.data)
+
+        # 3. Accesso autenticato con access token
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_response.data["access"]}')
+        me_response = client.get(f'/api/users/{User.objects.get(username="integration_user").id}/')
+        self.assertEqual(me_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(me_response.data['username'], 'integration_user')
+
+    def test_token_refresh_after_registration(self):
+        """Token refresh funziona dopo registrazione (AC #1, Subtask 5.2)."""
+        client = APIClient()
+        # Registrazione + Login
+        client.post('/api/users/', {
+            'username': 'refresh_user',
+            'email': 'refresh@example.com',
+            'password': 'SecurePass123!'
+        }, format='json')
+        token_response = client.post('/api/token/', {
+            'username': 'refresh_user',
+            'password': 'SecurePass123!'
+        }, format='json')
+
+        # Refresh token
+        refresh_response = client.post('/api/token/refresh/', {
+            'refresh': token_response.data['refresh']
+        }, format='json')
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', refresh_response.data)
+
+
+class LoginAndJWTEndpointTest(APITestCase):
+    """Test per login JWT e refresh token (Story 1-3)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='loginuser', email='login@example.com', password='SecurePass123!'
+        )
+        group, _ = Group.objects.get_or_create(name='user')
+        self.user.groups.add(group)
+        self.login_url = '/api/token/'
+        self.refresh_url = '/api/token/refresh/'
+
+    def test_login_success_returns_access_and_refresh(self):
+        """POST /api/token/ con credenziali valide → 200 + access + refresh (AC #1, Task 7.1)."""
+        response = self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+
+    def test_login_wrong_password_returns_401(self):
+        """POST /api/token/ con password errata → 401 (AC #1, Task 7.2)."""
+        response = self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'WrongPassword!'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_login_nonexistent_user_returns_401(self):
+        """POST /api/token/ con utente inesistente → 401 (AC #1, Task 7.3)."""
+        response = self.client.post(self.login_url, {
+            'username': 'ghostuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_refresh_token_returns_new_access(self):
+        """POST /api/token/refresh/ con refresh valido → nuovo access token (AC #2, Task 7.4)."""
+        login_response = self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        refresh = login_response.data['refresh']
+        response = self.client.post(self.refresh_url, {
+            'refresh': refresh
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+
+    def test_refresh_token_expired_returns_401(self):
+        """POST /api/token/refresh/ con refresh scaduto/invalido → 401 (AC #4, Task 7.5)."""
+        response = self.client.post(self.refresh_url, {
+            'refresh': 'invalid-token-value'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_refresh_token_rotation_returns_new_refresh(self):
+        """POST /api/token/refresh/ con ROTATE_REFRESH_TOKENS=True → restituisce nuovo refresh (AC #4, Task 7.6)."""
+        login_response = self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        old_refresh = login_response.data['refresh']
+        response = self.client.post(self.refresh_url, {
+            'refresh': old_refresh
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+        self.assertNotEqual(response.data['refresh'], old_refresh)
+
+    def test_login_updates_last_login(self):
+        """POST /api/token/ aggiorna last_login dell'utente (Task 7.7)."""
+        self.assertIsNone(self.user.last_login)
+        self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.last_login)
+
+    def test_protected_endpoint_without_jwt_returns_401(self):
+        """GET /api/users/ senza JWT → 401 (Task 7.8)."""
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.get('/api/users/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_protected_endpoint_with_valid_jwt_returns_200(self):
+        """GET /api/users/ con JWT valido → 200 (Task 7.9)."""
+        login_response = self.client.post(self.login_url, {
+            'username': 'loginuser',
+            'password': 'SecurePass123!'
+        }, format='json')
+        access = login_response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_protected_endpoint_with_invalid_jwt_returns_401(self):
+        """GET /api/users/ con JWT invalido → 401 (Task 7.10)."""
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer invalid-token-here')
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class VideoLikeEndpointTest(APITestCase):
     """Test per endpoint like/unlike video (AC #3)."""
 

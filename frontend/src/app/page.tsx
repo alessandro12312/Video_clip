@@ -6,14 +6,14 @@ import { useAuth } from "@/providers/auth-provider";
 import { GradientSpinner } from "@/components/shared/gradient-spinner";
 
 export default function LandingPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isAuthenticating } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isAuthenticating) {
       router.replace(isAuthenticated ? "/home" : "/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isAuthenticating, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

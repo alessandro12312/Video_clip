@@ -125,8 +125,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Assegna automaticamente l'utente al gruppo 'user' (accesso completo)
-        group, created = Group.objects.get_or_create(name='user')
+        # Assegna automaticamente l'utente al gruppo 'toconfirm' (read-only fino a promozione)
+        group, _ = Group.objects.get_or_create(name='toconfirm')
         user.groups.add(group)
 
     @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])

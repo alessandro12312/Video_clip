@@ -10,10 +10,10 @@ export default function ClipLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isAuthenticating } = useAuth();
 
   // Public view: no shell, just content
-  if (isLoading || !isAuthenticated) {
+  if (isAuthenticating || !isAuthenticated) {
     return <>{children}</>;
   }
 

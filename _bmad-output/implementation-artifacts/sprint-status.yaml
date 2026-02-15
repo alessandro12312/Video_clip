@@ -38,13 +38,14 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   # --- Epic 1: Autenticazione & Profili Utente ---
   # AUDIT 2026-02-14: Stories 1-2..1-5 hanno struttura funzionale ma gap UX/polish.
-  # Marcate "review" = funzionanti da completare. 1-6 manca UI. 1-9 priorità alta.
+  # FIX 2026-02-15: 1-2..1-5 riportate a ready-for-dev — nessun file story creato, status "review" era errato.
+  # Il codice esiste nel codebase ma il workflow BMAD non è stato seguito (mancano story file con task/AC/file list).
   epic-1: in-progress
   1-1-evoluzione-backend-migration-prd-alignment: done          # DONE: backend models, endpoints, migrations, tests. Code review passed (6 fix applied)
-  1-2-registrazione-utente: review                              # AUDIT: funzionale, gap messaggi errore in italiano
-  1-3-login-e-gestione-sessione-jwt: review                    # AUDIT: funzionale, gap middleware server-side, mutex interceptor, toast
-  1-4-profilo-utente-pubblico: review                          # AUDIT: profilo pubblico ok, MANCA bio/avatar model+edit
-  1-5-follow-e-unfollow: review                                # AUDIT: funzionale, gap optimistic UI, toast errore, testo bottone
+  1-2-registrazione-utente: done                                  # DONE: gruppo toconfirm, validazione password, UniqueValidator IT, 13 test, a11y. Code review passed (4 fix applied)
+  1-3-login-e-gestione-sessione-jwt: in-progress                # REVIEW DONE: 5 fix applicati (gitignore, logout redirect, isAuthenticating, non-null, Secure cookie). 47 test OK. Residui: 2 MEDIUM + 2 LOW non bloccanti
+  1-4-profilo-utente-pubblico: ready-for-dev                   # FIX: era "review" senza story file. Codice esiste, serve story file per review formale
+  1-5-follow-e-unfollow: ready-for-dev                         # FIX: era "review" senza story file. Codice esiste, serve story file per review formale
   1-6-liste-follower-e-following: backlog                      # AUDIT: MANCA UI liste (API+hooks esistono)
   1-9-ricerca-utenti-e-scoperta-profili: review                 # DONE: SearchFilter backend, UserSearchBar frontend, 4 test
   1-7-header-utente-desktop-con-menu-profilo: backlog          # AUDIT: parziale, avatar in sidebar non header
