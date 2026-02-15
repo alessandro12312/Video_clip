@@ -5,12 +5,20 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { LoginTransitionOverlay } from "@/components/shared/login-transition-overlay";
 
+export interface SourceRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 interface LoginTransitionContextValue {
-  startLoginTransition: () => void;
+  startLoginTransition: (sourceRect?: SourceRect) => void;
 }
 
 const LoginTransitionContext =
@@ -22,12 +30,15 @@ export function LoginTransitionProvider({
   children: ReactNode;
 }) {
   const [isActive, setIsActive] = useState(false);
+  const sourceRectRef = useRef<SourceRect | null>(null);
 
-  const startLoginTransition = useCallback(() => {
+  const startLoginTransition = useCallback((sourceRect?: SourceRect) => {
+    sourceRectRef.current = sourceRect ?? null;
     setIsActive(true);
   }, []);
 
   const handleTransitionEnd = useCallback(() => {
+    sourceRectRef.current = null;
     setIsActive(false);
   }, []);
 
@@ -36,6 +47,7 @@ export function LoginTransitionProvider({
       {children}
       <LoginTransitionOverlay
         isActive={isActive}
+        sourceRect={sourceRectRef.current}
         onTransitionEnd={handleTransitionEnd}
       />
     </LoginTransitionContext.Provider>

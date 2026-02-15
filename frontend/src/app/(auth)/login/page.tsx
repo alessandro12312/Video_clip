@@ -32,11 +32,23 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      // Login riuscito: avvia la transizione cinematografica nel root layout (sopravvive al cambio route)
+      // Cattura la posizione del logo auth PRIMA di avviare la transizione
+      const authLogo = document.getElementById("auth-brand-logo");
+      const rect = authLogo?.getBoundingClientRect();
+      const source = rect
+        ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+        : undefined;
+
+      // Nascondi logo + sottotitolo per evitare che restino visibili sotto l'overlay
+      if (authLogo?.parentElement) authLogo.parentElement.style.opacity = "0";
+
+      // Avvia la transizione cinematografica nel root layout (sopravvive al cambio route)
       setShowTransition(true);
-      startLoginTransition();
-      // Naviga DURANTE la transizione — il main layout si monta sotto l'overlay
-      router.replace("/home");
+      startLoginTransition(source);
+
+      // Ritarda la navigazione per dare tempo all'overlay di diventare opaco
+      // (evita flash del layout che cambia sotto il bg semi-trasparente)
+      setTimeout(() => router.replace("/home"), 400);
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data) {
         const data = err.response.data as ApiError;

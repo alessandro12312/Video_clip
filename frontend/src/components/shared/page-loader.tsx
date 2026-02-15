@@ -1,5 +1,9 @@
 import { GradientSpinner } from "./gradient-spinner";
 
 export function PageLoader() {
-  return <GradientSpinner variant="full" size={32} />;
+  return (
+    <div className="flex h-full min-h-[50vh] items-center justify-center">
+      <GradientSpinner size={32} />
+    </div>
+  );
 }

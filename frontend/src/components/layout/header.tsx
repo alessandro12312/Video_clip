@@ -18,7 +18,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 flex h-[var(--header-height)] items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-sm lg:hidden">
-      {/* Logo */}
+      {/* Brand logo — target mobile della transizione post-login. Vedi login-transition-overlay.tsx */}
       <Link href="/home" className="shrink-0">
         <span id="mobile-brand-logo" className="text-lg font-bold gradient-text">V</span>
       </Link>

@@ -1,11 +1,65 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║           SISTEMA DI TRANSIZIONE POST-LOGIN (Brand)            ║
+ * ╠══════════════════════════════════════════════════════════════════╣
+ * ║                                                                ║
+ * ║  Animazione cinematografica che collega la schermata di login   ║
+ * ║  alla UI principale. Il logo del brand fa da filo conduttore.  ║
+ * ║                                                                ║
+ * ║  FLUSSO COMPLETO:                                              ║
+ * ║  1. Login riuscito → cattura posizione logo auth               ║
+ * ║  2. Overlay si monta (bg trasparente, logo alla pos. auth)     ║
+ * ║  3. Fase 1: bg fade-in + logo si muove al centro              ║
+ * ║  4. Fase 2: spinner appare                                     ║
+ * ║  5. Fase 3: logo si sposta verso il target finale              ║
+ * ║     - Desktop: "Video_clip" intero → sidebar                   ║
+ * ║     - Mobile: dissolve lettere → "V" → header                  ║
+ * ║  6. Fase 4: overlay fade-out rivela la UI                      ║
+ * ║                                                                ║
+ * ║  STRUTTURA DEL LOGO (3 zone gradiente):                        ║
+ * ║  ┌─────────────┬──────────────┬─────────────────┐              ║
+ * ║  │ V           │ ideo_cli     │ p               │              ║
+ * ║  │ gradient-   │ solid cyan   │ gradient-text-  │              ║
+ * ║  │ text        │ --gradient-  │ reverse         │              ║
+ * ║  │ (viola→     │ end          │ (ciano→viola)   │              ║
+ * ║  │  ciano)     │              │                 │              ║
+ * ║  └─────────────┴──────────────┴─────────────────┘              ║
+ * ║                                                                ║
+ * ║  FILE CHE CONTENGONO IL LOGO (aggiornare TUTTI se cambia):     ║
+ * ║  1. (auth)/layout.tsx        → #auth-brand-logo (text-3xl)     ║
+ * ║  2. Questo file (overlay)    → .brand-logo (text-4xl/5xl)      ║
+ * ║  3. left-sidebar.tsx         → #sidebar-brand-logo (text-xl)   ║
+ * ║  4. header.tsx               → #mobile-brand-logo (solo "V")   ║
+ * ║                                                                ║
+ * ║  CLASSI CSS RICHIESTE (globals.css):                           ║
+ * ║  - .gradient-text         → gradiente 135deg start→end         ║
+ * ║  - .gradient-text-reverse → gradiente 135deg end→start         ║
+ * ║                                                                ║
+ * ║  ANIMAZIONE MOBILE — struttura span richiesta:                 ║
+ * ║  - .brand-letter-first  → prima lettera (rimane visibile)      ║
+ * ║  - .brand-letters-rest  → resto lettere (dissolte via width:0) ║
+ * ║                                                                ║
+ * ║  ID RICHIESTI PER IL TARGETING:                                ║
+ * ║  - #auth-brand-logo    → sorgente animazione (login page)      ║
+ * ║  - #sidebar-brand-logo → target desktop                        ║
+ * ║  - #mobile-brand-logo  → target mobile                         ║
+ * ║                                                                ║
+ * ║  PROVIDER: login-transition-provider.tsx                       ║
+ * ║  - Coordina login page ↔ overlay (sopravvive al cambio route)  ║
+ * ║  - startLoginTransition(sourceRect?) avvia la sequenza         ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ */
+
 "use client";
 
 import { useEffect, useRef } from "react";
 import { motion, useAnimate, useReducedMotion } from "framer-motion";
 import { GradientSpinner } from "./gradient-spinner";
+import type { SourceRect } from "@/providers/login-transition-provider";
 
 interface LoginTransitionOverlayProps {
   isActive: boolean;
+  sourceRect: SourceRect | null;
   onTransitionEnd: () => void;
 }
 
@@ -13,6 +67,7 @@ const MIN_DISPLAY_TIME = 500;
 
 export function LoginTransitionOverlay({
   isActive,
+  sourceRect,
   onTransitionEnd,
 }: LoginTransitionOverlayProps) {
   const [scope, animate] = useAnimate<HTMLDivElement>();
@@ -21,6 +76,8 @@ export function LoginTransitionOverlay({
   const prefersReducedMotion = useReducedMotion();
   const onTransitionEndRef = useRef(onTransitionEnd);
   onTransitionEndRef.current = onTransitionEnd;
+  const sourceRectRef = useRef<SourceRect | null>(null);
+  sourceRectRef.current = sourceRect;
 
   useEffect(() => {
     if (!isActive || isRunning.current) return;
@@ -36,8 +93,16 @@ export function LoginTransitionOverlay({
       try {
         const elapsed = Date.now() - activatedAt.current;
         const remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+        const srcRect = sourceRectRef.current;
 
         if (prefersReducedMotion) {
+          // Mostra tutto istantaneamente, attendi min time, poi dissolvi
+          await animate(".overlay-bg", { opacity: 1 }, { duration: 0 });
+          await animate(
+            ".brand-logo",
+            { opacity: 1, scale: 1, x: 0, y: 0 },
+            { duration: 0 }
+          );
           if (remaining > 0) {
             await new Promise((r) => setTimeout(r, remaining));
           }
@@ -46,16 +111,58 @@ export function LoginTransitionOverlay({
           return;
         }
 
-        // Fase 2: Logo appare al centro (overshoot a 1.05, poi si assesta a 1.0)
-        // IMPORTANTE: deve finire a scale 1.0 perché getBoundingClientRect in Fase 4
-        // include la transform — se finisse a 1.1 il calcolo di targetScale sarebbe sfalsato
-        await animate(
-          ".brand-logo",
-          { scale: [0.9, 1.05, 1], opacity: [0, 1] },
-          { duration: 0.45, ease: "easeOut" }
-        );
+        // ── Fase 1: Logo dalla posizione auth al centro ──
+        if (srcRect) {
+          const overlayLogo = scope.current?.querySelector(
+            ".brand-logo"
+          ) as HTMLElement | null;
 
-        // Fase 3: Spinner appare
+          if (overlayLogo) {
+            // Misura la posizione naturale del logo overlay (al centro, opacity 0)
+            const naturalRect = overlayLogo.getBoundingClientRect();
+            const scaleRatio = srcRect.height / naturalRect.height;
+            const dx =
+              srcRect.left +
+              srcRect.width / 2 -
+              (naturalRect.left + naturalRect.width / 2);
+            const dy =
+              srcRect.top +
+              srcRect.height / 2 -
+              (naturalRect.top + naturalRect.height / 2);
+
+            // Posiziona il logo esattamente sopra il logo auth (istantaneo)
+            await animate(
+              ".brand-logo",
+              { x: dx, y: dy, scale: scaleRatio, opacity: 1 },
+              { duration: 0 }
+            );
+
+            // Fade-in sfondo + logo si muove al centro simultaneamente
+            animate(".overlay-bg", { opacity: 1 }, { duration: 0.3 });
+            await animate(
+              ".brand-logo",
+              { x: 0, y: 0, scale: 1 },
+              { duration: 0.5, ease: "easeInOut" }
+            );
+          } else {
+            // Fallback: comportamento originale
+            await animate(".overlay-bg", { opacity: 1 }, { duration: 0 });
+            await animate(
+              ".brand-logo",
+              { scale: [0.9, 1.05, 1], opacity: [0, 1] },
+              { duration: 0.45, ease: "easeOut" }
+            );
+          }
+        } else {
+          // Nessun sourceRect: comportamento originale (scale-in al centro)
+          await animate(
+            ".brand-logo",
+            { scale: [0.9, 1.05, 1], opacity: [0, 1] },
+            { duration: 0.45, ease: "easeOut" }
+          );
+        }
+
+        // ── Fase 2: Spinner appare ──
         await animate(
           ".brand-spinner",
           { opacity: [0, 1] },
@@ -67,11 +174,14 @@ export function LoginTransitionOverlay({
           await new Promise((r) => setTimeout(r, remaining));
         }
 
-        // Fase 4: Rileva desktop (sidebar visibile) o mobile (header visibile)
+        // ── Fase 3: Rileva desktop (sidebar visibile) o mobile (header visibile) ──
         const sidebarLogo = document.getElementById("sidebar-brand-logo");
         const mobileLogo = document.getElementById("mobile-brand-logo");
-        const overlayLogo = scope.current?.querySelector(".brand-logo") as HTMLElement | null;
-        const sidebarVisible = sidebarLogo && sidebarLogo.getBoundingClientRect().width > 0;
+        const overlayLogo = scope.current?.querySelector(
+          ".brand-logo"
+        ) as HTMLElement | null;
+        const sidebarVisible =
+          sidebarLogo && sidebarLogo.getBoundingClientRect().width > 0;
 
         if (sidebarVisible && overlayLogo) {
           // — DESKTOP: "Video_clip" intero si scala e si sposta verso la sidebar —
@@ -93,7 +203,9 @@ export function LoginTransitionOverlay({
           );
         } else if (mobileLogo && overlayLogo) {
           // — MOBILE: dissolvi "ideo_clip", poi posiziona "V" sull'header —
-          const restEl = scope.current?.querySelector(".brand-letters-rest") as HTMLElement | null;
+          const restEl = scope.current?.querySelector(
+            ".brand-letters-rest"
+          ) as HTMLElement | null;
           if (restEl) {
             const currentWidth = restEl.getBoundingClientRect().width;
             restEl.style.display = "inline-block";
@@ -133,8 +245,7 @@ export function LoginTransitionOverlay({
           );
         }
 
-        // Fase 5: Overlay fade-out — lo sfondo opaco si dissolve rivelando
-        // naturalmente il logo della sidebar già posizionato sotto
+        // ── Fase 4: Overlay fade-out — rivela la UI sottostante ──
         await animate(scope.current, { opacity: 0 }, { duration: 0.3 });
 
         onTransitionEndRef.current();
@@ -161,21 +272,33 @@ export function LoginTransitionOverlay({
   return (
     <motion.div
       ref={scope}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background"
+      className="fixed inset-0 z-50"
       initial={{ opacity: 1 }}
       aria-label="Transizione in corso"
     >
-      <motion.h1
-        className="brand-logo text-4xl font-bold sm:text-5xl"
-        initial={{ opacity: 0, scale: 0.9 }}
-      ><span className="brand-letter-first gradient-text">V</span><span className="brand-letters-rest"><span style={{ color: 'var(--gradient-end)' }}>ideo_cli</span><span className="gradient-text-reverse">p</span></span></motion.h1>
+      {/* Background — trasparente se parte dal logo auth, opaco altrimenti */}
+      <div
+        className="overlay-bg absolute inset-0 bg-background"
+        style={{ opacity: sourceRect ? 0 : 1 }}
+      />
 
-      <motion.div
-        className="brand-spinner mt-6"
-        initial={{ opacity: 0 }}
-      >
-        <GradientSpinner size={32} />
-      </motion.div>
+      {/* Contenuto centrato */}
+      <div className="relative z-10 flex h-full flex-col items-center justify-center">
+        <motion.h1
+          className="brand-logo text-4xl font-bold sm:text-5xl"
+          initial={{ opacity: 0 }}
+        >
+          <span className="brand-letter-first gradient-text">V</span>
+          <span className="brand-letters-rest">
+            <span style={{ color: "var(--gradient-end)" }}>ideo_cli</span>
+            <span className="gradient-text-reverse">p</span>
+          </span>
+        </motion.h1>
+
+        <motion.div className="brand-spinner mt-6" initial={{ opacity: 0 }}>
+          <GradientSpinner size={32} />
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

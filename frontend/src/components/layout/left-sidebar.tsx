@@ -48,6 +48,7 @@ export function LeftSidebar() {
         "flex h-14 items-center justify-between",
         collapsed ? "px-2" : "px-4"
       )}>
+        {/* Brand logo — target desktop della transizione post-login. Vedi login-transition-overlay.tsx */}
         <Link href="/home" className="flex items-center gap-2">
           <span id="sidebar-brand-logo" className="text-xl font-bold">{collapsed ? <span className="gradient-text">V</span> : <><span className="gradient-text">V</span><span style={{ color: 'var(--gradient-end)' }}>ideo_cli</span><span className="gradient-text-reverse">p</span></>}</span>
         </Link>
