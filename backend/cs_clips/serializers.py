@@ -1,4 +1,5 @@
 # DTOs for the API
+import os
 from moviepy import VideoFileClip
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -7,7 +8,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password as django_validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import default_storage
+from django.db import transaction
 
+# Costanti di validazione upload video
+ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
+MAX_VIDEO_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+MIN_VIDEO_DURATION = 10   # secondi
+MAX_VIDEO_DURATION = 60   # secondi
 
 User = get_user_model()
 
@@ -147,26 +154,56 @@ class VideoSerializer(serializers.ModelSerializer):
         """Restituisce il numero di like del video."""
         return getattr(obj, 'annotated_like_count', obj.likes.count())
 
+    def validate_file(self, value):
+        """Validazione pre-save: dimensione, estensione e content-type."""
+        # Controllo dimensione
+        if value.size > MAX_VIDEO_FILE_SIZE:
+            raise serializers.ValidationError("Il file supera la dimensione massima di 500MB")
+        # Controllo estensione
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ALLOWED_VIDEO_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM"
+            )
+        # Controllo content-type
+        if not value.content_type.startswith('video/'):
+            raise serializers.ValidationError("Il file selezionato non è un video")
+        return value
+
     def create(self, validated_data):
-            """
-            Override del metodo create per impostare automaticamente la durata del video.
-            Prima salva il modello,
-            poi calcola la durata e aggiorna il campo duration.
-            """
-            # Salva il modello
+        """
+        Override del metodo create per impostare automaticamente la durata del video.
+        Wrappato in transaction.atomic() per rollback sicuro se la validazione durata fallisce.
+        """
+        with transaction.atomic():
             instance = super().create(validated_data)
 
-            # Calcola la durata usando il path reale del file già salvato
             try:
-                absolute_path = instance.file.path  # Path del file in /media/videos/...
+                absolute_path = instance.file.path
                 with VideoFileClip(absolute_path) as clip:
-                    instance.duration = int(clip.duration)
-                    instance.save(update_fields=["duration"])
+                    duration = int(clip.duration)
             except Exception as e:
-                # In caso di errore, elimina il record per non lasciare dati inconsistenti
-                instance.delete()
-                raise serializers.ValidationError({'file': f"Impossibile calcolare la durata del video: {str(e)}"})
-            return instance
+                try:
+                    instance.delete()
+                except Exception:
+                    pass
+                raise serializers.ValidationError(
+                    {'file': [f"Impossibile calcolare la durata del video: {str(e)}"]}
+                )
+
+            if duration < MIN_VIDEO_DURATION or duration > MAX_VIDEO_DURATION:
+                try:
+                    instance.delete()
+                except Exception:
+                    pass
+                raise serializers.ValidationError(
+                    {'file': ["Il video deve durare tra 10 secondi e 1 minuto"]}
+                )
+
+            instance.duration = duration
+            instance.save(update_fields=["duration"])
+
+        return instance
 
 
 class RatingSerializer(serializers.ModelSerializer):

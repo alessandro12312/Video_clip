@@ -108,6 +108,10 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Upload file grandi (video fino a 500MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB — file più grandi vanno su disco temporaneo
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB — limite corpo richiesta
+
 # Static & Media files
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { GradientSpinner } from "@/components/shared/gradient-spinner";
 import { useUploadVideo } from "@/lib/hooks/use-videos";
@@ -15,6 +14,12 @@ import { TAG_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { VideoTag } from "@/types";
+import type { AxiosError } from "axios";
+
+const ALLOWED_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+const ACCEPTED_FORMATS =
+  "video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.avi,.mkv,.webm";
 
 type Step = "dropzone" | "metadata" | "uploading" | "done";
 
@@ -27,18 +32,26 @@ export default function CaricaPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [tag, setTag] = useState<VideoTag>("clutch");
+  const [allowDownload, setAllowDownload] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleFileSelect = useCallback((selectedFile: File) => {
+    const ext = selectedFile.name.substring(selectedFile.name.lastIndexOf(".")).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      toast.error("Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM");
+      return;
+    }
     if (!selectedFile.type.startsWith("video/")) {
-      toast.error("Seleziona un file video valido.");
+      toast.error("Il file selezionato non è un video");
       return;
     }
-    if (selectedFile.size > 100 * 1024 * 1024) {
-      toast.error("Il file non può superare i 100 MB.");
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error("Il file supera la dimensione massima di 500MB");
       return;
     }
+    setUploadError(null);
     setFile(selectedFile);
     setStep("metadata");
   }, []);
@@ -58,32 +71,47 @@ export default function CaricaPage() {
 
     setStep("uploading");
     setProgress(0);
+    setUploadError(null);
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title.trim());
     formData.append("tag", tag);
+    formData.append("allow_download", String(allowDownload));
 
     uploadVideo(
       { data: formData, onProgress: setProgress },
       {
         onSuccess: () => {
           setStep("done");
-          toast.success("Clip caricata con successo!");
+          toast.success("La tua clip è live!");
         },
-        onError: () => {
+        onError: (error) => {
           setStep("metadata");
-          toast.error("Errore durante il caricamento.");
+          const axiosError = error as AxiosError<{ detail?: string; file?: string[] }>;
+          const data = axiosError.response?.data;
+          let message = "Errore durante il caricamento";
+          if (data) {
+            if (typeof data.detail === "string") {
+              message = data.detail;
+            } else if (Array.isArray(data.file)) {
+              message = data.file[0];
+            }
+          }
+          setUploadError(message);
+          toast.error(message);
         },
       }
     );
-  }, [file, title, tag, uploadVideo]);
+  }, [file, title, tag, allowDownload, uploadVideo]);
 
   const handleReset = useCallback(() => {
     setFile(null);
     setTitle("");
     setTag("clutch");
+    setAllowDownload(true);
     setProgress(0);
+    setUploadError(null);
     setStep("dropzone");
   }, []);
 
@@ -123,14 +151,14 @@ export default function CaricaPage() {
                   Trascina qui il tuo video o clicca per selezionarlo
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  MP4, WebM, MOV — max 100 MB
+                  MP4, MOV, AVI, MKV, WebM — max 500 MB
                 </p>
               </div>
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept="video/*"
+              accept={ACCEPTED_FORMATS}
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -145,6 +173,16 @@ export default function CaricaPage() {
       {step === "metadata" && file && (
         <Card>
           <CardContent className="p-6 space-y-5">
+            {/* Errore backend */}
+            {uploadError && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                {uploadError}
+              </div>
+            )}
+
             {/* File preview */}
             <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
               <Film className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -171,7 +209,7 @@ export default function CaricaPage() {
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Dai un titolo alla tua clip..."
+                placeholder="Clutch impossibile a Valorant"
                 maxLength={100}
               />
             </div>
@@ -198,6 +236,19 @@ export default function CaricaPage() {
               </div>
             </div>
 
+            {/* Allow download */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="allow-download"
+                checked={allowDownload}
+                onChange={(e) => setAllowDownload(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+                aria-label="Consenti il download della clip"
+              />
+              <Label htmlFor="allow-download">Consenti il download</Label>
+            </div>
+
             {/* Submit */}
             <Button
               className="w-full gradient-bg"
@@ -220,7 +271,19 @@ export default function CaricaPage() {
               <p className="text-sm font-medium">Caricamento in corso...</p>
               <p className="text-2xl font-bold gradient-text mt-1">{progress}%</p>
             </div>
-            <Progress value={progress} className="w-full max-w-xs" />
+            <div
+              className="h-2 w-full max-w-xs rounded-full bg-muted overflow-hidden"
+              role="progressbar"
+              aria-label="Progresso caricamento"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="h-full rounded-full gradient-bg transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </CardContent>
         </Card>
       )}
@@ -233,7 +296,7 @@ export default function CaricaPage() {
               <Check className="h-8 w-8 text-white" />
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold">Clip caricata!</p>
+              <p className="text-lg font-bold">La tua clip è live!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 La tua clip è ora visibile a tutti
               </p>
