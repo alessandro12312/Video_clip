@@ -1,4 +1,5 @@
 # DTOs for the API
+import logging
 import os
 from moviepy import VideoFileClip
 from rest_framework import serializers
@@ -7,8 +8,9 @@ from .models import Contest, Video, Rating, Comment, VideoLike, CommentLike, Not
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password as django_validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.files.storage import default_storage
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 # Costanti di validazione upload video
 ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm'}
@@ -185,8 +187,8 @@ class VideoSerializer(serializers.ModelSerializer):
             except Exception as e:
                 try:
                     instance.delete()
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.warning("Cleanup file upload fallito: %s", cleanup_err)
                 raise serializers.ValidationError(
                     {'file': [f"Impossibile calcolare la durata del video: {str(e)}"]}
                 )
@@ -194,8 +196,8 @@ class VideoSerializer(serializers.ModelSerializer):
             if duration < MIN_VIDEO_DURATION or duration > MAX_VIDEO_DURATION:
                 try:
                     instance.delete()
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.warning("Cleanup file upload fallito: %s", cleanup_err)
                 raise serializers.ValidationError(
                     {'file': ["Il video deve durare tra 10 secondi e 1 minuto"]}
                 )

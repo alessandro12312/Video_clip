@@ -66,7 +66,7 @@ def handle_exception_with_serializer(exc):
         # Se l'errore riguarda un campo specifico
         if hasattr(exc, "detail") and isinstance(exc.detail, dict):
             field, errors = next(iter(exc.detail.items()))
-            detail_message = f"Campo '{field}': {', '.join([str(e) for e in errors])}"
+            detail_message = ', '.join([str(e) for e in errors])
         # Se è una lista di errori
         elif hasattr(exc, "detail") and isinstance(exc.detail, list):
             detail_message = '; '.join([str(error) for error in exc.detail])

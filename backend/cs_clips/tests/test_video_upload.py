@@ -61,7 +61,7 @@ class VideoUploadValidationTest(APITestCase):
             'tag': 'clutch',
         }, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('10 secondi', response.data['detail'])
+        self.assertEqual(response.data['detail'], 'Il video deve durare tra 10 secondi e 1 minuto')
 
     @patch('cs_clips.serializers.VideoFileClip')
     def test_upload_duration_too_long_returns_400(self, mock_clip_class):
@@ -79,7 +79,7 @@ class VideoUploadValidationTest(APITestCase):
             'tag': 'funny',
         }, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('10 secondi', response.data['detail'])
+        self.assertEqual(response.data['detail'], 'Il video deve durare tra 10 secondi e 1 minuto')
 
     def test_upload_unsupported_format_returns_400(self):
         """Upload con formato non supportato (.txt) → 400 con messaggio specifico (AC #3)."""
@@ -90,7 +90,7 @@ class VideoUploadValidationTest(APITestCase):
             'tag': 'clutch',
         }, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('Formato non supportato', response.data['detail'])
+        self.assertEqual(response.data['detail'], 'Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM')
 
     def test_upload_pdf_format_returns_400(self):
         """Upload con formato .pdf → 400 con messaggio specifico (AC #3)."""
@@ -113,7 +113,7 @@ class VideoUploadValidationTest(APITestCase):
             'tag': 'fail',
         }, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('500MB', response.data['detail'])
+        self.assertEqual(response.data['detail'], 'Il file supera la dimensione massima di 500MB')
 
     def test_upload_unauthenticated_returns_401(self):
         """Upload senza autenticazione → 401."""

@@ -56,7 +56,7 @@ development_status:
   # RETRO Epic 1 (2026-02-15): Riordinato prima di Epic 3. Epic 3 dipende da clip esistenti (Epic 2).
   # Story 2-0 (setup infrastruttura) da creare prima dello sprint planning.
   epic-2: in-progress
-  2-1-upload-clip-con-validazione: review
+  2-1-upload-clip-con-validazione: done                           # DONE: validazione upload backend (dimensione/formato/durata) + frontend (allow_download, a11y, UX errori). 9 test. Code review passed (7 fix applied)
   2-2-conversione-video-e-storage-vercel-blob: backlog
   2-3-gestione-errori-upload-e-retry: backlog
   2-4-download-clip: backlog

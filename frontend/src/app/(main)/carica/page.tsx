@@ -88,15 +88,11 @@ export default function CaricaPage() {
         },
         onError: (error) => {
           setStep("metadata");
-          const axiosError = error as AxiosError<{ detail?: string; file?: string[] }>;
+          const axiosError = error as AxiosError<{ detail?: string }>;
           const data = axiosError.response?.data;
           let message = "Errore durante il caricamento";
-          if (data) {
-            if (typeof data.detail === "string") {
-              message = data.detail;
-            } else if (Array.isArray(data.file)) {
-              message = data.file[0];
-            }
+          if (data?.detail) {
+            message = data.detail;
           }
           setUploadError(message);
           toast.error(message);
@@ -129,6 +125,9 @@ export default function CaricaPage() {
         <Card>
           <CardContent className="p-8">
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Seleziona un file video da caricare"
               className={cn(
                 "flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-12 transition-colors cursor-pointer",
                 isDragging
@@ -142,6 +141,12 @@ export default function CaricaPage() {
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
             >
               <div className="gradient-bg rounded-full p-4">
                 <Upload className="h-8 w-8 text-white" />
@@ -197,6 +202,7 @@ export default function CaricaPage() {
                 size="icon"
                 className="h-8 w-8 shrink-0"
                 onClick={handleReset}
+                aria-label="Rimuovi file selezionato"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -216,12 +222,14 @@ export default function CaricaPage() {
 
             {/* Tag selection */}
             <div className="space-y-2">
-              <Label>Categoria</Label>
-              <div className="flex gap-2">
+              <Label id="tag-group-label">Categoria</Label>
+              <div className="flex gap-2" role="radiogroup" aria-labelledby="tag-group-label">
                 {(Object.keys(TAG_COLORS) as VideoTag[]).map((t) => (
                   <button
                     key={t}
                     type="button"
+                    role="radio"
+                    aria-checked={tag === t}
                     className={cn(
                       "rounded-full px-4 py-1.5 text-sm font-medium transition-all border-2",
                       tag === t

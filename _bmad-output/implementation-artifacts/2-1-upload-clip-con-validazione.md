@@ -417,15 +417,37 @@ Claude Opus 4.6
 ### File List
 
 - `backend/project_clip/settings.py` — MODIFICATO: aggiunto FILE_UPLOAD_MAX_MEMORY_SIZE e DATA_UPLOAD_MAX_MEMORY_SIZE
-- `backend/cs_clips/serializers.py` — MODIFICATO: aggiunto validate_file(), costanti validazione, transaction.atomic() in create(), validazione durata 10s-60s
-- `frontend/src/types/video.ts` — MODIFICATO: aggiunto allow_download a Video e VideoUploadData
-- `frontend/src/app/(main)/carica/page.tsx` — MODIFICATO: checkbox allow_download, validazione 500MB + estensione, accept formati, UX errori specifici, a11y, gaming placeholder, progress bar gradient
-- `backend/cs_clips/tests/test_video_upload.py` — CREATO: 9 test APITestCase per validazione upload
+- `backend/cs_clips/serializers.py` — MODIFICATO: aggiunto validate_file(), costanti validazione, transaction.atomic() in create(), validazione durata 10s-60s; [review] aggiunto logging, rimosso import inutilizzato
+- `backend/cs_clips/views.py` — MODIFICATO: [review] rimosso prefix "Campo 'field': " da handle_exception_with_serializer()
+- `frontend/src/types/video.ts` — MODIFICATO: aggiunto allow_download e like_count a Video, allow_download a VideoUploadData
+- `frontend/src/app/(main)/carica/page.tsx` — MODIFICATO: checkbox allow_download, validazione 500MB + estensione, accept formati, UX errori specifici, a11y, gaming placeholder, progress bar gradient; [review] dropzone a11y, ARIA radiogroup, aria-label X button, rimosso dead code
+- `backend/cs_clips/tests/test_video_upload.py` — CREATO: 9 test APITestCase per validazione upload; [review] assertEqual esatti su messaggi errore
 
 ### Change Log
 
 - 2026-02-21: Implementata Story 2-1 — validazione upload video backend (dimensione, formato, durata) + frontend (allow_download, validazione client-side, UX errori gaming, a11y). 9 nuovi test, 94/94 suite completa.
+- 2026-02-21: Code review fix — (H1) dropzone a11y: role="button", tabIndex, onKeyDown, aria-label; (H2) rimosso prefix "Campo 'file': " da error handler, messaggi ora corrispondono agli AC; (H3) rimosso dead code branch `data.file` nel frontend; (M1) aggiunto `like_count` a tipo TypeScript Video; (M2) ARIA radiogroup su tag selection; (M3) aria-label su bottone rimuovi file; (M4) logging su cleanup fallito; (L1) rimosso import inutilizzato `default_storage`. Test aggiornati con assertEqual esatti. Build 0 errori, 9/9 test OK.
+
+## Senior Developer Review (AI)
+
+**Reviewer:** AcchippameQuisso — 2026-02-21
+**Outcome:** Approve (con fix applicati)
+
+### Finding risolti
+| # | Sev | Issue | Fix |
+|---|-----|-------|-----|
+| H1 | HIGH | Dropzone senza a11y keyboard (role, tabIndex, onKeyDown) | Aggiunto role="button", tabIndex={0}, onKeyDown, aria-label |
+| H2 | HIGH | Messaggi errore con prefix "Campo 'file': " non corrispondono agli AC | Rimosso prefix da `handle_exception_with_serializer()` |
+| H3 | HIGH | Dead code `data.file` branch irraggiungibile nel frontend | Rimosso branch, semplificato tipo AxiosError |
+| M1 | MEDIUM | `like_count` mancante da tipo TypeScript Video | Aggiunto campo all'interfaccia |
+| M2 | MEDIUM | Tag selection senza ARIA radiogroup | Aggiunto role="radiogroup", role="radio", aria-checked, aria-labelledby |
+| M3 | MEDIUM | Bottone X senza aria-label | Aggiunto aria-label="Rimuovi file selezionato" |
+| M4 | MEDIUM | Orphan file silenzioso su delete failure | Sostituito `pass` con `logger.warning()` |
+
+### Finding non risolti (LOW — non bloccanti)
+- L1: Import `default_storage` inutilizzato in serializers.py
+- L2: Interfaccia `VideoUploadData` non usata nel flow di upload attuale
 
 ## Status
 
-review
+done

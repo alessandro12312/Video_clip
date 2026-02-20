@@ -6,6 +6,7 @@ export interface Video {
   file: string;
   uploader: string;
   average_rating: number;
+  like_count: number;
   views: number;
   tag: VideoTag;
   duration: number;
