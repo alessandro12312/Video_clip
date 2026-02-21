@@ -1,0 +1,96 @@
+# generated: 2026-02-14
+# project: Video_clip
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-14
+project: Video_clip
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # --- Epic 1: Autenticazione & Profili Utente ---
+  # AUDIT 2026-02-14: Stories 1-2..1-5 hanno struttura funzionale ma gap UX/polish.
+  # FIX 2026-02-15: 1-2..1-5 riportate a ready-for-dev — nessun file story creato, status "review" era errato.
+  # Il codice esiste nel codebase ma il workflow BMAD non è stato seguito (mancano story file con task/AC/file list).
+  epic-1: done
+  1-1-evoluzione-backend-migration-prd-alignment: done          # DONE: backend models, endpoints, migrations, tests. Code review passed (6 fix applied)
+  1-2-registrazione-utente: done                                  # DONE: gruppo toconfirm, validazione password, UniqueValidator IT, 13 test, a11y. Code review passed (4 fix applied)
+  1-3-login-e-gestione-sessione-jwt: done                        # DONE: 5 fix applicati (gitignore, logout redirect, isAuthenticating, non-null, Secure cookie). 47 test OK. Residui: 2 MEDIUM + 2 LOW non bloccanti
+  1-4-profilo-utente-pubblico: done                              # DONE: 10 task completati, 58 test OK, build OK. Code review passed (7 fix applied: N+1 query, error state, type mismatch, email privacy, isFollowing, double get_object, staleTime)
+  1-5-follow-e-unfollow: done                                      # DONE: 6 task completati, 13 test backend, optimistic UI + rollback + toast, 85 test OK, build OK. Code review passed (6 fix applied)
+  1-6-liste-follower-e-following: done                           # DONE: 7 task completati, build OK, 85 test OK. Code review passed (6 fix applied: enabled guard hooks, error handling pages, PAGE_SIZE constant, click target WCAG, wrapper div cleanup)
+  1-9-ricerca-utenti-e-scoperta-profili: done                    # DONE: SearchFilter backend, UserSearchBar frontend, 7 test. Code review passed (4 fix applied)
+  1-7-header-utente-desktop-con-menu-profilo: done                # DONE: 5 AC implementati, DesktopNavbar + DesktopUserMenu + /impostazioni placeholder. Code review passed (7 fix: 1 code + 6 docs)
+  1-8-spinner-animato-del-brand-e-transizione-post-login: done    # DONE: Code review passed (6 fix: variant="full" PageLoader+landing, MIN_DISPLAY_TIME ricalcolo, ARIA role, File List). Build OK
+  epic-1-retrospective: done                                        # DONE: 2026-02-15. 9/9 stories, 85+ test, 0 regressioni, 51 fix review. Retro doc: epic-1-retro-2026-02-15.md
+
+  # --- Epic 2: Creazione & Gestione Clip ---
+  # RETRO Epic 1 (2026-02-15): Riordinato prima di Epic 3. Epic 3 dipende da clip esistenti (Epic 2).
+  # Story 2-0 (setup infrastruttura) da creare prima dello sprint planning.
+  epic-2: in-progress
+  2-1-upload-clip-con-validazione: done                           # DONE: validazione upload backend (dimensione/formato/durata) + frontend (allow_download, a11y, UX errori). 9 test. Code review passed (7 fix applied)
+  2-2-conversione-video-e-storage-vercel-blob: backlog
+  2-3-gestione-errori-upload-e-retry: backlog
+  2-4-download-clip: backlog
+  2-5-feed-home-following: backlog
+  2-6-pagina-dettaglio-clip-con-player-base: backlog
+  2-7-link-preview-ssr-per-condivisione-esterna: backlog
+  epic-2-retrospective: optional
+
+  # --- Epic 3: Commenti Temporizzati & Popup ---
+  # RETRO Epic 1 (2026-02-15): Spostato dopo Epic 2. Richiede clip nel sistema per commenti/like/popup.
+  epic-3: backlog
+  3-3-like-su-clip-e-commenti: backlog                         # PRIORITÀ ALTA: sblocca test like/unlike endpoints (Story 1-1)
+  3-1-commenti-normali-su-clip: backlog
+  3-2-commenti-temporizzati-con-timestamp-pre-compilato: backlog
+  3-4-viste-commenti-tutti-nel-video: backlog
+  3-5-popup-overlay-temporizzati-nel-player: backlog           # sblocca test popup-comments endpoint (Story 1-1)
+  3-6-comment-markers-sulla-timeline-e-sidebar-dinamica: backlog
+  3-7-cta-contestuale-per-visitatori-e-ricalcolo-popup-post-moderazione: backlog
+  epic-3-retrospective: optional
+
+  # --- Epic 4: Notifiche & Amministrazione ---
+  epic-4: backlog
+  4-1-notifiche-in-app: backlog
+  4-2-pagina-notifiche-e-badge: backlog
+  4-3-moderazione-commenti: backlog
+  4-4-gestione-utenti-e-contenuti-admin: backlog
+  4-5-layout-dashboard-admin-interfaccia-frontend-e-protezione-route: backlog
+  epic-4-retrospective: optional
+
+  # --- Epic 5: Sistema Contest ---
+  epic-5: backlog
+  5-1-evoluzione-backend-contest-bracket-e-matchup: backlog
+  5-2-creazione-contest-e-iscrizione-partecipanti: backlog
+  5-3-bracket-eliminazione-diretta-e-albero-interattivo: backlog
+  5-4-votazione-matchup-1-5-stelle: backlog
+  5-5-avanzamento-turno-e-risultati-contest: backlog
+  epic-5-retrospective: optional

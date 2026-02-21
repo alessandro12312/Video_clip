@@ -7,11 +7,14 @@ from rest_framework.exceptions import ValidationError, NotAuthenticated, Permiss
 from django.contrib.auth import get_user_model
 from django.db import models, IntegrityError
 from django.db.models import Avg
-from .models import Video, Rating, Comment, Contest
+from .models import Video, Rating, Comment, Contest, VideoLike, CommentLike
 from .serializers import (
-    ErrorResponseSerializer, UserSerializer, VideoSerializer,
-    UserRegistrationSerializer, RatingSerializer, CommentSerializer
+    ErrorResponseSerializer, UserSerializer, UserProfileUpdateSerializer,
+    VideoSerializer, UserRegistrationSerializer, RatingSerializer,
+    CommentSerializer, PopupCommentSerializer
 )
+from django.db.models import Count
+from rest_framework.filters import SearchFilter
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
@@ -63,7 +66,7 @@ def handle_exception_with_serializer(exc):
         # Se l'errore riguarda un campo specifico
         if hasattr(exc, "detail") and isinstance(exc.detail, dict):
             field, errors = next(iter(exc.detail.items()))
-            detail_message = f"Campo '{field}': {', '.join([str(e) for e in errors])}"
+            detail_message = ', '.join([str(e) for e in errors])
         # Se è una lista di errori
         elif hasattr(exc, "detail") and isinstance(exc.detail, list):
             detail_message = '; '.join([str(error) for error in exc.detail])
@@ -108,61 +111,133 @@ def handle_exception_with_serializer(exc):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('username')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filter_backends = [SearchFilter]
+    search_fields = ['username']
+
+    def get_queryset(self):
+        return User.objects.annotate(
+            annotated_followers_count=Count('followers', distinct=True),
+            annotated_following_count=Count('following', distinct=True),
+        ).order_by('username')
 
     def get_permissions(self):
         return [AllowAny()] if self.action == 'create' else super().get_permissions()
 
     def get_serializer_class(self):
-        return UserRegistrationSerializer if self.action == 'create' else UserSerializer
+        if self.action == 'create':
+            return UserRegistrationSerializer
+        if self.action in ('update', 'partial_update'):
+            return UserProfileUpdateSerializer
+        return UserSerializer
+
+    def perform_update(self, serializer):
+        """Solo il proprietario può modificare il proprio profilo."""
+        if self.request.user.id != serializer.instance.id:
+            raise PermissionDenied("Non puoi modificare il profilo di un altro utente.")
+        serializer.save()
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Assegna automaticamente l'utente al gruppo 'toconfirm'
-        group, created = Group.objects.get_or_create(name='toconfirm')
+        # Assegna automaticamente l'utente al gruppo 'toconfirm' (read-only fino a promozione)
+        group, _ = Group.objects.get_or_create(name='toconfirm')
         user.groups.add(group)
 
     @action(detail=True, methods=['post'], url_path='follow', permission_classes=[OnlyUsersPermission])
     def follow(self, request, pk=None):
         """
         Permette all'utente autenticato di seguire un altro utente.
+        Restituisce is_followed e followers_count aggiornato.
+        Idempotente: se già segui, restituisce 200 con stato attuale.
         """
         target_user = self.get_object()
         if request.user == target_user:
-            return Response({"detail": "Non puoi seguire te stesso."}, status=400)
+            raise ValidationError("Non puoi seguire te stesso.")
 
+        already_following = request.user.following.filter(pk=target_user.pk).exists()
         request.user.following.add(target_user)
-        return Response({"detail": f"Hai iniziato a seguire {target_user.username}."})
+        followers_count = target_user.followers.count()
+
+        if already_following:
+            return Response({
+                "detail": f"Stai già seguendo {target_user.username}.",
+                "is_followed": True,
+                "followers_count": followers_count,
+            })
+
+        return Response({
+            "detail": f"Hai iniziato a seguire {target_user.username}.",
+            "is_followed": True,
+            "followers_count": followers_count,
+        })
     
     @action(detail=True, methods=['post'], url_path='unfollow', permission_classes=[OnlyUsersPermission])
     def unfollow(self, request, pk=None):
         """
         Permette all'utente autenticato di smettere di seguire un altro utente.
+        Restituisce is_followed e followers_count aggiornato.
+        Idempotente: se non segui, restituisce 200 con stato attuale.
         """
         target_user = self.get_object()
+        was_following = request.user.following.filter(pk=target_user.pk).exists()
         request.user.following.remove(target_user)
-        return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
+        followers_count = target_user.followers.count()
+
+        if not was_following:
+            return Response({
+                "detail": f"Non stavi seguendo {target_user.username}.",
+                "is_followed": False,
+                "followers_count": followers_count,
+            })
+
+        return Response({
+            "detail": f"Hai smesso di seguire {target_user.username}.",
+            "is_followed": False,
+            "followers_count": followers_count,
+        })
 
     @action(detail=True, methods=['get'], url_path='followers')
     def get_followers(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che seguono questo utente.
+        Restituisce la lista paginata degli utenti che seguono questo utente.
+        Usa il queryset annotato per evitare N+1 su followers_count/following_count.
         """
         target_user = self.get_object()
-        followers = target_user.followers.all()
-        serializer = UserSerializer(followers, many=True)
+        followers = self.get_queryset().filter(pk__in=target_user.followers.all())
+        page = self.paginate_queryset(followers)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(followers, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'], url_path='following')
     def get_following(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che questo utente sta seguendo.
+        Restituisce la lista paginata degli utenti che questo utente sta seguendo.
+        Usa il queryset annotato per evitare N+1 su followers_count/following_count.
         """
         target_user = self.get_object()
-        following = target_user.following.all()
-        serializer = UserSerializer(following, many=True)
+        following = self.get_queryset().filter(pk__in=target_user.following.all())
+        page = self.paginate_queryset(following)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(following, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='by-username/(?P<username>[^/.]+)')
+    def by_username(self, request, username=None):
+        """
+        Restituisce il profilo di un utente cercato per username.
+        """
+        try:
+            user = self.get_queryset().get(username=username)
+        except User.DoesNotExist:
+            raise NotFound(f"Utente '{username}' non trovato.")
+        serializer = self.get_serializer(user)
         return Response(serializer.data)
 
     def handle_exception(self, exc):
@@ -170,9 +245,15 @@ class UserViewSet(viewsets.ModelViewSet):
     
 
 class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all().order_by('-created_at')  # Ordina dal più recente al meno recente
+    queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ['allow_download']
+
+    def get_queryset(self):
+        return Video.objects.annotate(
+            annotated_like_count=Count('likes', distinct=True)
+        ).order_by('-created_at')
 
     def perform_create(self, serializer):
         tag = self.request.data.get('tag')
@@ -205,9 +286,11 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         # Applica paginazione globale
         page = self.paginate_queryset(videos)
-        serializer = self.get_serializer(page or videos, many=True)
-
-        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(videos, many=True)
+        return Response(serializer.data)
 
     # Documentazione OpenAPI per l'endpoint top_rated
     @extend_schema(
@@ -253,8 +336,11 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         # Paginazione
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page or queryset, many=True)
-        return self.get_paginated_response(serializer.data) if page else Response(serializer.data)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='views')
     def views(self, request, pk=None):
@@ -268,6 +354,59 @@ class VideoViewSet(viewsets.ModelViewSet):
         video.save(update_fields=['views'])
         video.refresh_from_db()  # aggiorna il valore da DB
         return Response({'views': video.views}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='popup-comments', permission_classes=[IsAuthenticated])
+    def popup_comments(self, request, pk=None):
+        """
+        Restituisce i commenti popup per il video: per ogni timestamp unico,
+        solo il commento con più like (minimo 1 like), ordinati per timestamp crescente.
+        """
+        video = self.get_object()
+        comments = (
+            Comment.objects
+            .filter(video=video, is_disabled=False, timestamp_second__gt=0)
+            .select_related('user')
+            .annotate(like_count=Count('likes'))
+            .filter(like_count__gte=1)
+            .order_by('timestamp_second', '-like_count')
+        )
+        # Raggruppamento Python: per ogni timestamp, prendi solo il top comment
+        seen = {}
+        for c in comments:
+            if c.timestamp_second not in seen:
+                seen[c.timestamp_second] = c
+        result = [
+            {
+                "timestamp": c.timestamp_second,
+                "comment_id": c.id,
+                "text": c.content,
+                "author": c.user.username,
+                "like_count": c.like_count,
+            }
+            for c in seen.values()
+        ]
+        serializer = PopupCommentSerializer(result, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='like', permission_classes=[OnlyUsersPermission])
+    def like(self, request, pk=None):
+        """Aggiunge un like al video dall'utente autenticato."""
+        video = self.get_object()
+        like, created = VideoLike.objects.get_or_create(user=request.user, video=video)
+        if not created:
+            return Response({"detail": "Hai già messo like"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": video.likes.count()})
+
+    @action(detail=True, methods=['post'], url_path='unlike', permission_classes=[OnlyUsersPermission])
+    def unlike(self, request, pk=None):
+        """Rimuove il like dal video dell'utente autenticato."""
+        video = self.get_object()
+        try:
+            like = VideoLike.objects.get(user=request.user, video=video)
+            like.delete()
+        except VideoLike.DoesNotExist:
+            return Response({"detail": "Non hai messo like a questo video"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": video.likes.count()})
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
@@ -288,9 +427,36 @@ class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ['video']
+
+    def get_queryset(self):
+        """Esclude i commenti disabilitati per gli utenti normali."""
+        return Comment.objects.filter(is_disabled=False).annotate(
+            annotated_like_count=Count('likes', distinct=True)
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='like', permission_classes=[OnlyUsersPermission])
+    def like(self, request, pk=None):
+        """Aggiunge un like al commento dall'utente autenticato."""
+        comment = self.get_object()
+        like, created = CommentLike.objects.get_or_create(user=request.user, comment=comment)
+        if not created:
+            return Response({"detail": "Hai già messo like"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": comment.likes.count()})
+
+    @action(detail=True, methods=['post'], url_path='unlike', permission_classes=[OnlyUsersPermission])
+    def unlike(self, request, pk=None):
+        """Rimuove il like dal commento dell'utente autenticato."""
+        comment = self.get_object()
+        try:
+            like = CommentLike.objects.get(user=request.user, comment=comment)
+            like.delete()
+        except CommentLike.DoesNotExist:
+            return Response({"detail": "Non hai messo like a questo commento"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"like_count": comment.likes.count()})
 
     def handle_exception(self, exc):
         return handle_exception_with_serializer(exc)
