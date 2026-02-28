@@ -1,10 +1,11 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from cs_clips.api.videos.video_views import VideoViewSet
 
 router = DefaultRouter()
-router.register(r'videos', VideoViewSet, basename='video')
+router.register(r"videos", VideoViewSet, basename="video")
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]

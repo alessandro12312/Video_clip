@@ -230,7 +230,8 @@ _Questo file contiene regole critiche e pattern che gli agenti AI devono seguire
 - `related_name` sempre specificato nelle ForeignKey
 - `on_delete` esplicito: `CASCADE` per relazioni forti, `SET_NULL` per relazioni deboli
 - `unique_together` per vincoli di unicita' compositi
-- Nessun linter/formatter configurato (no flake8, black, isort, ruff, prettier)
+- **Linter/formatter backend**: `ruff` configurato in `backend/pyproject.toml` (line-length 88, py310, rules E/F/I/DJ/UP, double quotes, isort). Eseguire `ruff check backend/` e `ruff format backend/` prima di ogni commit. Migrations escluse via `extend-exclude`
+- `.editorconfig` alla root del progetto: indent 4 Python, indent 2 JS/TS/JSON/YAML, LF line endings
 
 ### Documentazione
 - TODO inline: `#TODO` (formato senza spazio dopo #)

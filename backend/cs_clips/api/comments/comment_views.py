@@ -1,11 +1,11 @@
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from cs_clips.permissions import RoleBasedPermission
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+
+from cs_clips.api.comments.comment_serializers import CommentSerializer
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.models import Comment
-from cs_clips.api.comments.comment_serializers import CommentSerializer
-
+from cs_clips.permissions import RoleBasedPermission
 
 
 class CommentViewSet(viewsets.ModelViewSet):
@@ -15,8 +15,15 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         parameters=[
-            OpenApiParameter(name='page', type=int, required=False, description='Numero della pagina'),
-            OpenApiParameter(name='page_size', type=int, required=False, description='Numero di risultati per pagina')
+            OpenApiParameter(
+                name="page", type=int, required=False, description="Numero della pagina"
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=int,
+                required=False,
+                description="Numero di risultati per pagina",
+            ),
         ]
     )
     def list(self, request, *args, **kwargs):

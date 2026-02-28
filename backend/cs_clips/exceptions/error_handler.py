@@ -1,29 +1,35 @@
 import logging
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.exceptions import (
-    ValidationError, NotAuthenticated, PermissionDenied, NotFound, APIException
-)
-from django.core.exceptions import ObjectDoesNotExist
-from django.http import Http404
-from django.db import IntegrityError
 from collections import namedtuple
+
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError
+from django.http import Http404
+from rest_framework import status
+from rest_framework.exceptions import (
+    APIException,
+    NotAuthenticated,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
+from rest_framework.response import Response
+
 from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
 
-
-logger = logging.getLogger('exception_handler')
-ErrorInfo = namedtuple('ErrorInfo', ['code', 'status'])
+logger = logging.getLogger("exception_handler")
+ErrorInfo = namedtuple("ErrorInfo", ["code", "status"])
 
 # Mappa delle eccezioni
 ERROR_MAP = {
-    ValidationError: ErrorInfo('ValidationError', status.HTTP_400_BAD_REQUEST),
-    NotAuthenticated: ErrorInfo('NotAuthenticated', status.HTTP_401_UNAUTHORIZED),
-    PermissionDenied: ErrorInfo('PermissionDenied', status.HTTP_403_FORBIDDEN),
-    NotFound: ErrorInfo('NotFound', status.HTTP_404_NOT_FOUND),
-    Http404: ErrorInfo('NotFound', status.HTTP_404_NOT_FOUND),
-    ObjectDoesNotExist: ErrorInfo('NotFound', status.HTTP_404_NOT_FOUND),
-    IntegrityError: ErrorInfo('Conflict', status.HTTP_409_CONFLICT),
+    ValidationError: ErrorInfo("ValidationError", status.HTTP_400_BAD_REQUEST),
+    NotAuthenticated: ErrorInfo("NotAuthenticated", status.HTTP_401_UNAUTHORIZED),
+    PermissionDenied: ErrorInfo("PermissionDenied", status.HTTP_403_FORBIDDEN),
+    NotFound: ErrorInfo("NotFound", status.HTTP_404_NOT_FOUND),
+    Http404: ErrorInfo("NotFound", status.HTTP_404_NOT_FOUND),
+    ObjectDoesNotExist: ErrorInfo("NotFound", status.HTTP_404_NOT_FOUND),
+    IntegrityError: ErrorInfo("Conflict", status.HTTP_409_CONFLICT),
 }
+
 
 def handle_exception_with_serializer(exc):
     """
@@ -54,16 +60,16 @@ def handle_exception_with_serializer(exc):
                 # Controlla se 'field_errors' è una lista o una singola stringa
                 if isinstance(field_errors, list):
                     # Se è una lista, unisci i messaggi di errore
-                    error_text = ', '.join(map(str, field_errors))
+                    error_text = ", ".join(map(str, field_errors))
                 else:
                     # Se è una singola stringa, usala direttamente
                     error_text = str(field_errors)
-                
+
                 messages.append(f"Campo '{field}': {error_text}")
 
             detail_message = " | ".join(messages)
         elif isinstance(exc.detail, list):
-            detail_message = '; '.join([str(error) for error in exc.detail])
+            detail_message = "; ".join([str(error) for error in exc.detail])
 
     # Gestione generica per APIException (non mappata sopra)
     elif isinstance(exc, APIException):
@@ -72,9 +78,6 @@ def handle_exception_with_serializer(exc):
         detail_message = getattr(exc, "detail", detail_message)
 
     # Serializzazione della risposta di errore
-    error_serializer = ErrorResponseSerializer({
-        'code': code,
-        'detail': detail_message
-    })
+    error_serializer = ErrorResponseSerializer({"code": code, "detail": detail_message})
 
     return Response(error_serializer.data, status=status_code)

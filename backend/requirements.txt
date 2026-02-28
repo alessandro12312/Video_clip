@@ -17,6 +17,7 @@ Django==5.1.6
 django-apscheduler==0.7.0
 django-cleanup==9.0.0
 django-cors-headers==4.7.0
+django-debug-toolbar==6.2.0
 django-environ==0.12.0
 django-minio-backend==3.8.0
 django-minio-storage==0.5.8
@@ -54,6 +55,7 @@ PyYAML==6.0.2
 referencing==0.36.2
 requests==2.32.4
 rpds-py==0.22.3
+ruff==0.15.4
 s3transfer==0.13.0
 six==1.17.0
 sqlparse==0.5.3

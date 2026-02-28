@@ -1,12 +1,15 @@
-from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-from cs_clips.models import Contest, Video, Rating, Comment
-from cs_clips.utils.desempate import desempate_ponderato
-from cs_clips.exceptions.error_response_serializer import VideoSerializer
-from django.utils import timezone
 import tempfile
 
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+
+from cs_clips.api.videos.video_serializers import VideoOutputSerializer
+from cs_clips.models import Comment, Contest, Rating, Video
+from cs_clips.utils.desempate import desempate_ponderato
+
 User = get_user_model()
+
 
 class Command(BaseCommand):
     help = "Crea dati di test per la normalizzazione dello spareggio tra due video."
@@ -20,17 +23,14 @@ class Command(BaseCommand):
         Contest.objects.all().delete()
 
         # 1. Creazione utenti
-        user1 = User.objects.create_user(username='user1', password='pass')
-        user2 = User.objects.create_user(username='user2', password='pass')
-        user3 = User.objects.create_user(username='user3', password='pass')
+        user1 = User.objects.create_user(username="user1", password="pass")
+        user2 = User.objects.create_user(username="user2", password="pass")
+        user3 = User.objects.create_user(username="user3", password="pass")
 
         # 2. Contest settimanale attivo
         today = timezone.now().date()
         contest = Contest.objects.create(
-            name='Contest Test',
-            start_date=today,
-            end_date=today,
-            is_closed=False
+            name="Contest Test", start_date=today, end_date=today, is_closed=False
         )
 
         # 3. Crea file fittizi per i video
@@ -39,16 +39,10 @@ class Command(BaseCommand):
 
         # 4. Crea due video
         video1 = Video.objects.create(
-            title="Video Uno",
-            uploader=user1,
-            contest=contest,
-            file=temp_file1.name
+            title="Video Uno", uploader=user1, contest=contest, file=temp_file1.name
         )
         video2 = Video.objects.create(
-            title="Video Due",
-            uploader=user2,
-            contest=contest,
-            file=temp_file2.name
+            title="Video Due", uploader=user2, contest=contest, file=temp_file2.name
         )
 
         # 5. Voti (media uguale: 7.5)
@@ -78,17 +72,23 @@ class Command(BaseCommand):
 
         print("---- DATI DEI VIDEO FINALISTI ----")
         for v in finalisti:
-            print(f"{v.title}: media voto={sum(r.value for r in v.ratings.all())/v.ratings.count():.2f}, "
-                  f"n_voti={v.ratings.count()}, n_commenti={v.comments.count()}, views={v.views}")
+            avg = sum(r.value for r in v.ratings.all()) / v.ratings.count()
+            print(
+                f"{v.title}: media voto={avg:.2f}, "
+                f"n_voti={v.ratings.count()}, "
+                f"n_commenti={v.comments.count()}, "
+                f"views={v.views}"
+            )
 
         # Serializza tutti i finalisti
-        finalists_serialized = [VideoSerializer(v).data for v in finalisti]
+        finalists_serialized = [VideoOutputSerializer(v).data for v in finalisti]
         print("\nDati serializzati dei finalisti (formato dict):")
         for v in finalists_serialized:
             print(v)
 
         # Stampa anche in formato JSON pretty
         import json
+
         print("\nDati serializzati dei finalisti (formato JSON pretty):")
         print(json.dumps(finalists_serialized, indent=2, ensure_ascii=False))
 
@@ -97,6 +97,6 @@ class Command(BaseCommand):
         print("\n***** VIDEO VINCITORE SECONDO L'ALGORITMO *****")
         print(f"{vincitore.title}\n")
         print("Dati serializzati del vincitore:")
-        print(VideoSerializer(vincitore).data)
+        print(VideoOutputSerializer(vincitore).data)
 
         self.stdout.write(self.style.SUCCESS(f"Vincitore: {vincitore.title}"))

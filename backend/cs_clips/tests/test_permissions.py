@@ -15,23 +15,23 @@ class RoleBasedPermissionTests(TestCase):
 
     def setUp(self):
         self.permission = RoleBasedPermission()
-        self.user_group, _ = Group.objects.get_or_create(name='user')
+        self.user_group, _ = Group.objects.get_or_create(name="user")
 
         self.owner = User.objects.create_user(
-            username='owner', password='testpass', email='owner@test.com'
+            username="owner", password="testpass", email="owner@test.com"
         )
         self.owner.groups.add(self.user_group)
 
         self.other_user = User.objects.create_user(
-            username='other', password='testpass', email='other@test.com'
+            username="other", password="testpass", email="other@test.com"
         )
         self.other_user.groups.add(self.user_group)
 
         self.superuser = User.objects.create_superuser(
-            username='admin', password='testpass', email='admin@test.com'
+            username="admin", password="testpass", email="admin@test.com"
         )
 
-    def _make_request(self, user, method='DELETE'):
+    def _make_request(self, user, method="DELETE"):
         request = Mock()
         request.user = user
         request.method = method
@@ -45,9 +45,7 @@ class RoleBasedPermissionTests(TestCase):
         del video.user
 
         request = self._make_request(self.owner)
-        self.assertTrue(
-            self.permission.has_object_permission(request, None, video)
-        )
+        self.assertTrue(self.permission.has_object_permission(request, None, video))
 
     def test_other_user_cannot_delete_video(self):
         """Utente 'user' NON puo' eliminare Video di un altro utente."""
@@ -56,29 +54,23 @@ class RoleBasedPermissionTests(TestCase):
         del video.user
 
         request = self._make_request(self.other_user)
-        self.assertFalse(
-            self.permission.has_object_permission(request, None, video)
-        )
+        self.assertFalse(self.permission.has_object_permission(request, None, video))
 
     def test_owner_can_delete_comment(self):
         """Utente 'user' puo' eliminare il proprio Comment (campo user)."""
-        comment = Mock(spec=['user'])
+        comment = Mock(spec=["user"])
         comment.user = self.owner
 
         request = self._make_request(self.owner)
-        self.assertTrue(
-            self.permission.has_object_permission(request, None, comment)
-        )
+        self.assertTrue(self.permission.has_object_permission(request, None, comment))
 
     def test_other_user_cannot_delete_comment(self):
         """Utente 'user' NON puo' eliminare Comment di un altro utente."""
-        comment = Mock(spec=['user'])
+        comment = Mock(spec=["user"])
         comment.user = self.owner
 
         request = self._make_request(self.other_user)
-        self.assertFalse(
-            self.permission.has_object_permission(request, None, comment)
-        )
+        self.assertFalse(self.permission.has_object_permission(request, None, comment))
 
     def test_superuser_can_delete_anything(self):
         """Superuser puo' eliminare qualsiasi oggetto."""
@@ -86,6 +78,4 @@ class RoleBasedPermissionTests(TestCase):
         video.uploader = self.owner
 
         request = self._make_request(self.superuser)
-        self.assertTrue(
-            self.permission.has_object_permission(request, None, video)
-        )
+        self.assertTrue(self.permission.has_object_permission(request, None, video))

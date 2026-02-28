@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import os
 import sys
+
 from django.core.files.storage import default_storage
 from minio_storage.storage import MinioMediaStorage
-
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "project_clip.settings")
