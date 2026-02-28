@@ -1,11 +1,46 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Video, Rating, Comment, Contest, VideoLike, CommentLike, Notification
+from django.utils.html import format_html
+from cs_clips.models import User, Video, Rating, Comment, Contest
+
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    # Visualizza questi campi nella lista utenti
-    list_display = ('username', 'email', 'is_staff', 'is_superuser', 'role')
+    model = User
+
+    # Colonne nella lista utenti
+    list_display = ('username', 'email', 'is_staff', 'is_superuser', 'role', 'followers_count', 'following_count')
+    list_filter = ('is_staff', 'is_superuser', 'groups')
+    search_fields = ('username', 'email')
+    ordering = ('username',)
+
+    # Rende readonly le liste follower/following
+    readonly_fields = ['followers_list', 'following_list', 'last_login', 'date_joined']
+
+    # Campi organizzati in sezioni
+    fieldsets = (
+        ("Informazioni account", {
+            'fields': ('username', 'email', 'password')
+        }),
+        ("Permessi", {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
+        }),
+        ("Date e accessi", {
+            'fields': ('last_login', 'date_joined')
+        }),
+        ("Relazioni social", {
+            'fields': ('followers_list', 'following_list')
+        }),
+    )
+
+    # Gruppi visibili al momento della creazione
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'email', 'password1', 'password2', 'is_staff', 'is_superuser', 'groups'),
+        }),
+    )
 
     def role(self, obj):
         if obj.is_superuser:
@@ -14,19 +49,50 @@ class UserAdmin(BaseUserAdmin):
         return groups[0].name if groups else '-'
     role.short_description = 'Ruolo'
 
-    readonly_fields = ['followers_list', 'following_list']
-
     def followers_list(self, obj):
-        return ", ".join(u.username for u in obj.followers.all())
+        return ", ".join([u.username for u in obj.followers.all()])
+    followers_list.short_description = "Followers"
 
     def following_list(self, obj):
-        return ", ".join(u.username for u in obj.following.all())
+        return ", ".join([u.username for u in obj.following.all()])
+    following_list.short_description = "Following"
+
+    def followers_count(self, obj):
+        return obj.followers.count()
+    followers_count.short_description = "N° Followers"
+
+    def following_count(self, obj):
+        return obj.following.count()
+    following_count.short_description = "N° Following"
 
 
-admin.site.register(Video)
-admin.site.register(Rating)
-admin.site.register(Comment)
-admin.site.register(Contest)
-admin.site.register(VideoLike)
-admin.site.register(CommentLike)
-admin.site.register(Notification)
+@admin.register(Video)
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ('title', 'uploader', 'tag', 'views', 'created_at', 'contest')
+    list_filter = ('tag', 'created_at')
+    search_fields = ('title', 'uploader__username')
+    autocomplete_fields = ['uploader', 'contest']
+    readonly_fields = ('created_at', 'updated_at', 'duration')
+
+
+@admin.register(Rating)
+class RatingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'video', 'value', 'created_at')
+    list_filter = ('value',)
+    search_fields = ('user__username', 'video__title')
+    autocomplete_fields = ['user', 'video']
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'video', 'timestamp_second', 'created_at')
+    search_fields = ('user__username', 'video__title', 'content')
+    autocomplete_fields = ['user', 'video']
+
+
+@admin.register(Contest)
+class ContestAdmin(admin.ModelAdmin):
+    list_display = ('name', 'tag', 'start_date', 'end_date', 'is_closed', 'winner')
+    list_filter = ('tag', 'is_closed')
+    search_fields = ('name',)
+    autocomplete_fields = ['winner']

@@ -1,8 +1,9 @@
-# generated: 2026-02-14
+# generated: 2026-02-28
 # project: Video_clip
 # project_key: NOKEY
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
+# epics_source: _bmad-output/planning-artifacts/epics.md
 
 # STATUS DEFINITIONS:
 # ==================
@@ -28,69 +29,87 @@
 # - Stories can be worked in parallel if team capacity allows
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Definition of Done globale in epics.md: test passanti, nuovo test per logica critica,
+#   ruff check, build senza errori, error handling frontend, a11y base, no segreti committati
 
-generated: 2026-02-14
+generated: 2026-02-28
 project: Video_clip
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 
-development_status:
-  # --- Epic 1: Autenticazione & Profili Utente ---
-  # AUDIT 2026-02-14: Stories 1-2..1-5 hanno struttura funzionale ma gap UX/polish.
-  # FIX 2026-02-15: 1-2..1-5 riportate a ready-for-dev — nessun file story creato, status "review" era errato.
-  # Il codice esiste nel codebase ma il workflow BMAD non è stato seguito (mancano story file con task/AC/file list).
-  epic-1: done
-  1-1-evoluzione-backend-migration-prd-alignment: done          # DONE: backend models, endpoints, migrations, tests. Code review passed (6 fix applied)
-  1-2-registrazione-utente: done                                  # DONE: gruppo toconfirm, validazione password, UniqueValidator IT, 13 test, a11y. Code review passed (4 fix applied)
-  1-3-login-e-gestione-sessione-jwt: done                        # DONE: 5 fix applicati (gitignore, logout redirect, isAuthenticating, non-null, Secure cookie). 47 test OK. Residui: 2 MEDIUM + 2 LOW non bloccanti
-  1-4-profilo-utente-pubblico: done                              # DONE: 10 task completati, 58 test OK, build OK. Code review passed (7 fix applied: N+1 query, error state, type mismatch, email privacy, isFollowing, double get_object, staleTime)
-  1-5-follow-e-unfollow: done                                      # DONE: 6 task completati, 13 test backend, optimistic UI + rollback + toast, 85 test OK, build OK. Code review passed (6 fix applied)
-  1-6-liste-follower-e-following: done                           # DONE: 7 task completati, build OK, 85 test OK. Code review passed (6 fix applied: enabled guard hooks, error handling pages, PAGE_SIZE constant, click target WCAG, wrapper div cleanup)
-  1-9-ricerca-utenti-e-scoperta-profili: done                    # DONE: SearchFilter backend, UserSearchBar frontend, 7 test. Code review passed (4 fix applied)
-  1-7-header-utente-desktop-con-menu-profilo: done                # DONE: 5 AC implementati, DesktopNavbar + DesktopUserMenu + /impostazioni placeholder. Code review passed (7 fix: 1 code + 6 docs)
-  1-8-spinner-animato-del-brand-e-transizione-post-login: done    # DONE: Code review passed (6 fix: variant="full" PageLoader+landing, MIN_DISPLAY_TIME ricalcolo, ARIA role, File List). Build OK
-  epic-1-retrospective: done                                        # DONE: 2026-02-15. 9/9 stories, 85+ test, 0 regressioni, 51 fix review. Retro doc: epic-1-retro-2026-02-15.md
+# =============================================================================
+# HISTORICAL: Iterazione precedente (pre-reset backend 2026-02-28)
+# =============================================================================
+# Il backend è stato sostituito con repo Skikky/Video_clip (struttura modulare).
+# Le epiche/storie seguenti sono state completate nella vecchia struttura.
+# Il codice frontend prodotto è ancora valido e attivo nel codebase.
+# Le nuove epiche (0-6) tengono conto di ciò che è già implementato.
+#
+# old-epic-1 (Autenticazione & Profili Utente): done — 9/9 stories, 85+ test, 51 fix review
+# old-epic-2-story-2-1 (Upload clip con validazione): done — validazione backend+frontend, 9 test
+# old-epic-1-retrospective: done — epic-1-retro-2026-02-15.md
+# =============================================================================
 
-  # --- Epic 2: Creazione & Gestione Clip ---
-  # RETRO Epic 1 (2026-02-15): Riordinato prima di Epic 3. Epic 3 dipende da clip esistenti (Epic 2).
-  # Story 2-0 (setup infrastruttura) da creare prima dello sprint planning.
-  epic-2: in-progress
-  2-1-upload-clip-con-validazione: done                           # DONE: validazione upload backend (dimensione/formato/durata) + frontend (allow_download, a11y, UX errori). 9 test. Code review passed (7 fix applied)
-  2-2-conversione-video-e-storage-vercel-blob: backlog
-  2-3-gestione-errori-upload-e-retry: backlog
-  2-4-download-clip: backlog
-  2-5-feed-home-following: backlog
-  2-6-pagina-dettaglio-clip-con-player-base: backlog
-  2-7-link-preview-ssr-per-condivisione-esterna: backlog
+development_status:
+  # --- Epic 0: Fondamenta di Sviluppo e Admin ---
+  # Bug fix bloccanti, linting, testing baseline, CI/CD, Django Admin moderazione.
+  # PARALLELIZZAZIONE: 0.1 → 0.2 → 0.4 → (0.3 || Epic 1)
+  epic-0: backlog
+  0-1-bug-fix-configurazione-settings-e-verifica-ambiente: backlog       # FIX-1..FIX-10, D7 (rimozione celery/redis), npm run dev verifica
+  0-2-linting-formatting-e-developer-tools: backlog                       # D5 (ruff), D6 (throttling), .editorconfig, Debug Toolbar
+  0-3-testing-baseline-e-ci-cd: backlog                                   # D4 (conftest 5 fixture, MSW 5 handlers), CI GitHub Actions. Nota: CI non bloccante
+  0-4-django-admin-per-moderazione-e-gestione-contest: backlog            # FR45-49, FR55, campo is_disabled su Comment
+  epic-0-retrospective: optional
+
+  # --- Epic 1: Core Platform — Allineamento Backend ---
+  # Auth end-to-end, profilo con bio, by-username, follow/unfollow paginato, filtro video per uploader.
+  # Il frontend esiste già — queste storie allineano il backend.
+  epic-1: backlog
+  1-1-registrazione-e-login-end-to-end: backlog                           # FR1, FR2, JWT refresh rotation, errori in italiano
+  1-2-profilo-utente-completo-con-bio-e-by-username: backlog              # FR3, FR53, campo bio, endpoint by-username, Count annotation
+  1-3-follow-unfollow-e-liste-paginate: backlog                           # FR4, FR5, FR6, paginazione followers/following (fix array piatti)
+  1-4-filtro-video-per-uploader-backend: backlog                          # filterset_fields uploader, fix useUserVideos client-side
+  epic-1-retrospective: optional
+
+  # --- Epic 2: Upload, Player e Commenti ---
+  # Upload con validazione completa, download, presigned URL refresh, feed, commenti dual-view, delete video.
+  epic-2: backlog
+  2-1-upload-clip-con-validazione-completa: backlog                       # FR7-9, FR11-12, FR15-16, FR54, allow_download, MoviePy edge case
+  2-2-download-clip-e-presigned-url-refresh: backlog                      # FR13, FR14, D3 (lazy re-fetch onerror → spinner → retry max 2)
+  2-3-feed-home-e-navigazione-clip: backlog                               # FR17-22, OG tags SSR, EmptyState
+  2-4-commenti-dual-layer-con-timestamp: backlog                          # FR23-26, FR29-30, dual-view "Tutti"/"Nel video", useDeleteComment
+  2-5-delete-video-e-operazioni-crud-mancanti: backlog                    # useDeleteVideo, useUpdateRating
   epic-2-retrospective: optional
 
-  # --- Epic 3: Commenti Temporizzati & Popup ---
-  # RETRO Epic 1 (2026-02-15): Spostato dopo Epic 2. Richiede clip nel sistema per commenti/like/popup.
+  # --- Epic 3: Like, Popup e Engagement Loop ---
+  # Modelli VideoLike/CommentLike, UI like, popup overlay, sidebar dinamica, spareggio contest.
   epic-3: backlog
-  3-3-like-su-clip-e-commenti: backlog                         # PRIORITÀ ALTA: sblocca test like/unlike endpoints (Story 1-1)
-  3-1-commenti-normali-su-clip: backlog
-  3-2-commenti-temporizzati-con-timestamp-pre-compilato: backlog
-  3-4-viste-commenti-tutti-nel-video: backlog
-  3-5-popup-overlay-temporizzati-nel-player: backlog           # sblocca test popup-comments endpoint (Story 1-1)
-  3-6-comment-markers-sulla-timeline-e-sidebar-dinamica: backlog
-  3-7-cta-contestuale-per-visitatori-e-ricalcolo-popup-post-moderazione: backlog
+  3-1-modelli-videolike-e-commentlike-backend: backlog                     # FR27, FR28, like_count/is_liked_by_me annotation
+  3-2-ui-like-su-clip-e-commenti-frontend: backlog                        # Optimistic update, double-tap like, animazione cuore
+  3-3-popup-overlay-con-dati-reali-e-sidebar-dinamica: backlog            # FR31-36, pre-caricamento popup, fade-out 3s, soglia 1 like
+  3-4-aggiornamento-algoritmo-spareggio-contest-con-like: backlog         # FR42a, peso 20% like reali
+  3-5-comment-markers-sulla-timeline-del-player: backlog                  # OPZIONALE: dot sulla progress bar, hover preview, click-to-seek
   epic-3-retrospective: optional
 
-  # --- Epic 4: Notifiche & Amministrazione ---
+  # --- Epic 4: Contest Settimanale ---
+  # Listing contest, auto-creazione settimanale, votazione 1-5 stelle, classifica, chiusura automatica.
   epic-4: backlog
-  4-1-notifiche-in-app: backlog
-  4-2-pagina-notifiche-e-badge: backlog
-  4-3-moderazione-commenti: backlog
-  4-4-gestione-utenti-e-contenuti-admin: backlog
-  4-5-layout-dashboard-admin-interfaccia-frontend-e-protezione-route: backlog
+  4-1-backend-contest-settimanale-endpoint-e-listing: backlog             # FR37-39b, FR41a-42a, APScheduler close_contests
+  4-2-votazione-contest-e-classifica-frontend: backlog                    # FR40a, FR43a, NFR13 (un voto per utente per clip)
   epic-4-retrospective: optional
 
-  # --- Epic 5: Sistema Contest ---
+  # --- Epic 5: Notifiche In-App ---
+  # Modello Notification (7 tipi, FK espliciti), API REST, polling 15s, campanella badge, pagina notifiche.
   epic-5: backlog
-  5-1-evoluzione-backend-contest-bracket-e-matchup: backlog
-  5-2-creazione-contest-e-iscrizione-partecipanti: backlog
-  5-3-bracket-eliminazione-diretta-e-albero-interattivo: backlog
-  5-4-votazione-matchup-1-5-stelle: backlog
-  5-5-avanzamento-turno-e-risultati-contest: backlog
+  5-1-modello-notification-e-api-backend: backlog                         # FR50-52, D1 (polling, no GenericFK), 7 tipi notifica
+  5-2-frontend-notifiche-pagina-badge-e-polling: backlog                  # Campanella, badge, /notifiche, refetchInterval 15s
   epic-5-retrospective: optional
+
+  # --- Epic 6: Contest Bracket Champions League ---
+  # Modelli Bracket/ContestEntry/Matchup, API /api/brackets/, votazione matchup, albero interattivo.
+  epic-6: backlog
+  6-1-modelli-bracket-backend-e-logica-turni: backlog                     # D2 (modelli separati), eliminazione diretta, bye
+  6-2-api-bracket-e-votazione-matchup: backlog                            # FR39c, FR42b-43b, FR44, dominio /api/brackets/
+  6-3-ui-bracket-albero-interattivo-e-pagina-torneo: backlog              # FR41b, FR44b, libreria React bracket, premio vincitore
+  epic-6-retrospective: optional

@@ -1,24 +1,29 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 inputDocuments:
-  - _bmad-output/planning-artifacts/product-brief-Video_clip-2026-02-14.md
   - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/product-brief-Video_clip-2026-02-14.md
   - _bmad-output/planning-artifacts/ux-design-specification.md
+  - _bmad-output/implementation-artifacts/1-1-evoluzione-backend-migration-prd-alignment.md
   - _bmad-output/project-context.md
   - docs/index.md
   - docs/project-overview.md
-  - docs/architecture.md
-  - docs/data-models.md
-  - docs/api-contracts.md
+  - docs/architecture-backend.md
+  - docs/architecture-frontend.md
+  - docs/integration-architecture.md
+  - docs/api-contracts-backend.md
+  - docs/data-models-backend.md
+  - docs/component-inventory-frontend.md
+  - docs/state-management-frontend.md
   - docs/source-tree-analysis.md
   - docs/development-guide.md
 workflowType: 'architecture'
 project_name: 'Video_clip'
 user_name: 'AcchippameQuisso'
-date: '2026-02-14'
+date: '2026-02-28'
 lastStep: 8
 status: 'complete'
-completedAt: '2026-02-14'
+completedAt: '2026-02-28'
 ---
 
 # Architecture Decision Document
@@ -27,1052 +32,1300 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ## Project Context Analysis
 
-### Requirements Overview
+### Panoramica Requisiti
 
-**Requisiti Funzionali (52 FR in 7 categorie):**
+**Requisiti Funzionali (55 FR):**
 
-| Categoria | FR | Implicazioni architetturali |
-|---|---|---|
-| **Gestione Utenti** (FR1-FR6) | 6 | Auth JWT, profilo, follow/unfollow — integrazione con backend esistente |
-| **Creazione & Gestione Contenuti** (FR7-FR16) | 10 | Pipeline video (upload→validazione→conversione ffmpeg→storage Vercel Blob), **doppio canale**: upload diretto a Django (bypass Next.js 4MB limit), API normali via CORS |
-| **Scoperta & Fruizione** (FR17-FR22) | 6 | Feed Home (following), card-to-detail navigation, SSR per link preview OG tags |
-| **Commenti & Interazioni** (FR23-FR30) | 8 | Dual-layer commenting (normali + temporizzati), timestamp pre-compilato alla pausa, due viste commenti, like su clip e commenti. **Optimistic UI** per scrittura commenti (feedback immediato, sync in background) |
-| **Popup & Engagement Loop** (FR31-FR36) | 6 | Pre-caricamento popup — **decisione architetturale**: endpoint backend dedicato per top comments per timestamp vs calcolo client-side. Overlay sincronizzato al player, soglia minima 1 like, ricalcolo popup post-moderazione |
-| **Contest System** (FR37-FR44) | 8 | Bracket eliminazione diretta con albero grafico interattivo — **pattern architetturale distinto** dal resto dell'app (libreria React dedicata, struttura dati ad albero, stato complesso). Release B separata |
-| **Admin & Moderazione** (FR45-FR52) | 8 | Interfaccia admin frontend, disabilita commenti, elimina video, sospendi account, notifiche in-app con badge |
+Il PRD definisce 55 requisiti funzionali organizzati in 7 categorie. Per ciascuna categoria si riportano i FR con il relativo impatto architetturale.
+
+**Gestione Utenti (6 FR):**
+- FR1: Registrazione con username, email, password — richiede Custom User Model (`cs_clips/models/user.py`, estende `AbstractUser`), gruppo `toconfirm` assegnato automaticamente in `perform_create()`
+- FR2: Autenticazione con credenziali — JWT stateless via SimpleJWT (`/api/token/`, `/api/token/refresh/`), access token 12h, refresh 1d, rotation attiva
+- FR3: Visualizzazione e modifica profilo pubblico — `UserViewSet` con serializer multipli (`UserSerializer`, `UserRegistrationSerializer`), campo `bio` mancante
+- FR4: Follow utente — `@action` su `UserViewSet`, relazione M2M asimmetrica `User.following` con `related_name='followers'`
+- FR5: Unfollow utente — `@action` su `UserViewSet`, optimistic updates lato frontend con rollback in React Query
+- FR6: Visualizzazione liste follower/following — endpoint `GET /api/users/{id}/followers/` e `/following/` esistono ma paginazione non implementata (array piatto)
+
+**Creazione e Gestione Contenuti (10 FR):**
+- FR7: Upload clip 10s-1min — `VideoViewSet` con `MultiPartParser`/`FormParser`, salvataggio su MinIO, estrazione durata via MoviePy
+- FR8: Validazione durata clip — attualmente solo estrazione durata senza reject automatico (pianificato FR54)
+- FR9: Validazione formato clip — whitelist: MP4, MOV, AVI, MKV, WebM, limite 500MB
+- FR10: Conversione H.264/MP4 — pianificato, non implementato; file originale su MinIO
+- FR11: Titolo e tag per clip — `VideoInputSerializer` con campi `title` (max 100 char), `tag` (clutch/funny/fail)
+- FR12: Impostazione allow_download — campo `allow_download` mancante nel modello `Video`
+- FR13-FR14: Download clip proprie e altrui — dipende da FR12
+- FR15: Storage con URL autenticati — presigned URL MinIO con scadenza 1h, generazione via `minio` client Python con `@lru_cache(maxsize=1)` in `VideoOutputSerializer`
+- FR16: Modale errore upload con retry — implementata lato frontend
+
+**Scoperta e Fruizione Contenuti (6 FR):**
+- FR17: Feed Home (following) — `GET /api/videos/following/`, paginato, ordinato per `-created_at`, frontend usa `useInfiniteQuery`
+- FR18: Pagina dettaglio clip — `/clip/[id]/page.tsx` e' l'unica RSC (SSR), fetch server-side + `generateMetadata` per SEO
+- FR19: URL diretto per condivisione — route pubblica `/clip/[id]`
+- FR20: Link preview SSR (OG tags) — `generateMetadata` in `/clip/[id]/page.tsx`
+- FR21-FR22: Card nel feed con navigazione a dettaglio — componenti `ClipCard` (`clip-card.tsx`), `FeedGrid` (`feed-grid.tsx`), pattern card-to-detail
+
+**Sistema Commenti e Interazioni (8 FR):**
+- FR23-FR24: Commenti normali e temporizzati — `CommentViewSet`, campo `timestamp_second` (default=0), validazione `0 <= timestamp_second <= video.duration`
+- FR25-FR26: Timestamp pre-compilato alla pausa — logica frontend nel `CommentForm` (`comment-form.tsx`)
+- FR27: Like su commenti — modello `CommentLike` mancante, bloccante per il sistema popup
+- FR28: Like su clip — modello `VideoLike` mancante
+- FR29-FR30: Vista commenti gerarchica e dual-view ("Tutti"/"Nel video") — componenti `CommentSection` (`comment-section.tsx`), `CommentList` (`comment-list.tsx`) con tab via shadcn/ui `Tabs`
+
+**Popup e Loop di Engagement (6 FR):**
+- FR31-FR32: Popup overlay durante riproduzione — `PopupOverlay` (`popup-overlay.tsx`), dati pre-caricati in singola chiamata API; `useComments` fa fetch eager di tutte le pagine per costruire `popupMap` (by design)
+- FR33: Popup con fade-out dopo 3s — animazione Framer Motion
+- FR34: Soglia minima 1 like per promozione — richiede `CommentLike` (mancante)
+- FR35: Sidebar Dinamica — `DynamicSidebar` (`dynamic-sidebar.tsx`), commenti piu likati della clip
+- FR36: Ricalcolo popup dopo moderazione — richiede campo `is_disabled` su Comment (mancante)
+
+**Sistema Contest (11 FR):**
+- FR37: Backoffice admin per creazione contest — da implementare nel frontend
+- FR38: Visualizzazione contest disponibili — pagina `/contest/page.tsx` esistente
+- FR39a-FR43a (Settimanale auto-gestito): modello `Contest` (`cs_clips/models/contest.py`) con tag, `get_or_create_current_contest()`, APScheduler per chiusura automatica (giovedi 11:33), algoritmo spareggio in `cs_clips/utils/desempate.py` con numpy
+- FR39c-FR44b (Bracket Champions League): nessuna infrastruttura esistente — modelli `Bracket`, `Matchup`, `ContestEntry` da progettare da zero
+
+**Amministrazione e Moderazione (8 FR):**
+- FR45: Disabilita commenti — richiede campo `is_disabled` (mancante)
+- FR46: Elimina video — `DELETE /api/videos/{id}/`, `django-cleanup` gestisce file su MinIO
+- FR47: Sospensione account — via campo `is_active` di AbstractUser
+- FR48: Promozione ruoli — modifica gruppi Django (`toconfirm` -> `user` -> `admin`)
+- FR49: Lista video per utente nell'admin — `VideoAdmin` con filtri, ma manca endpoint `?uploader=` per il frontend
+- FR50-FR52: Notifiche in-app — modello `Notification` mancante, nessuna infrastruttura delivery
+- FR53: Profilo per username — endpoint `by-username` mancante nel backend, frontend lo chiama gia
+- FR54: Validazione durata al reject — da implementare
+- FR55: Gestione contest da backoffice frontend — da implementare
+
+---
+
+**Gerarchizzazione per Impatto Architetturale:**
+
+**Tier 1 — Core Loop (fondamenta, senza questi niente app):**
+- Auth JWT — funzionante (SimpleJWT, `CustomTokenObtainPairView`, interceptor Axios con mutex/queue per refresh concorrenti)
+- Upload video + storage MinIO — funzionante (pipeline upload -> MoviePy durata -> MinIO storage -> presigned URL 1h)
+- Feed + visualizzazione — funzionante (`/api/videos/following/`, `/api/videos/top-rated/`, infinite queries React Query)
+- Rating/Commenti — parziale (modelli `Rating` e `Comment` esistono e funzionano, ma `CommentLike` e `VideoLike` mancanti rendono il sistema popup non operativo)
+
+**Tier 2 — Social Layer (senza questi, niente engagement):**
+- Follow/unfollow — funzionante con bug noti (`Response` import mancante in `user_views.py`), manca endpoint `by-username` (il frontend in `profilo/[username]/page.tsx` lo chiama e riceve 404)
+- Notifiche — nulla implementato, DECISIONE ARCHITETTURALE PENDENTE: real-time WebSocket vs polling vs SSE. Il modello `Notification` e' da creare da zero. La scelta tra WebSocket e polling impatta l'intera infrastruttura (Channels/Redis vs endpoint REST periodico)
+- VideoLike/CommentLike — modelli mancanti, bloccano FR27, FR28, FR31, FR34, FR35
+
+**Tier 3 — Differenziatori (senza questi, app generica):**
+- Contest settimanali — parziale (modello `Contest`, `close_contests`, APScheduler funzionano; mancano backoffice frontend, validazione durata con reject)
+- Champions League bracket — da zero, componente architetturale distinto con modelli, logica di progressione turni e UI bracket visualization
+- Classifica top-rated — funzionante (`GET /api/videos/top-rated/` con annotazione `Avg`, query param `range`)
+
+---
 
 **Requisiti Non-Funzionali:**
 
-| Area | Target chiave | Implicazione architetturale |
-|---|---|---|
-| **Performance** | FCP <1.5s, TTI <3s, video start <2s, popup latency <200ms, API reads <500ms | SSR per pagine pubbliche, pre-caricamento dati popup, lazy loading feed, formato video ottimizzato |
-| **Security** | JWT, CORS restrittivo, input validation, vote integrity, file whitelist, max 500MB | Validazione doppia (frontend + backend), constraint DB per unicità voto, sanitizzazione XSS |
-| **Resilienza** | Retry ffmpeg (1 retry auto), upload diretto a Django per file grandi | Error boundary frontend, modale retry, gestione upload interrotto |
-| **Scalabilità** | 50 utenti concorrenti, 100GB Vercel Blob | Architettura che permette evoluzione verso async (Celery), proxy API, WebSocket senza riscritture maggiori |
-| **Accessibilità** | WCAG 2.1 AA base | Radix UI primitives (shadcn/ui), focus management, keyboard nav, alt text, label form |
-| **Integrazione** | Django REST, Vercel Blob, ffmpeg, OpenGraph | 4 sistemi esterni, ciascuno con pattern di integrazione specifico |
+**Performance:**
+- First Contentful Paint < 1.5s su pagine pubbliche SSR (`/clip/[id]`)
+- Time to Interactive < 3s con priorita al player video
+- Video Start Playback < 2s via presigned URL MinIO
+- Risposta API lettura < 500ms, scrittura < 1s
+- Upload video < 30s per 500MB su connessione stabile
+- Latenza popup overlay vs timestamp < 200ms (dati popup pre-caricati al page load)
+- Strategia pre-caricamento popup: `useComments` fa fetch eager di tutte le pagine per costruire `popupMap` e `markerPositions` — nessuna chiamata API on-demand durante la riproduzione
 
-**Scala & Complessità:**
+**Sicurezza:**
+- JWT stateless con refresh token rotation (SimpleJWT 5.3.1), migrazione pianificata a Keycloak
+- CORS: `CORS_ALLOW_ALL_ORIGINS = True` — da restringere a origini specifiche prima del deploy
+- Validazione input su tutti gli endpoint (DRF serializers + validators)
+- Vincolo integrita voto contest: un voto per utente per clip/matchup, enforced backend (`unique_together`) e frontend (UI disabilitata)
+- Upload limitato a formati whitelist (MP4, MOV, AVI, MKV, WebM), max 500MB
+- Limiti lunghezza input: commenti max 500 char, titolo max 100 char
+- Password con requisiti minimi via `create_user()`
+- `SECRET_KEY` in `.env` (attualmente presente ma credenziali MinIO hardcoded in `settings.py` — TODO da risolvere)
+- `CorsMiddleware` posizionato dopo `CommonMiddleware` — bug noto, dovrebbe essere prima secondo la documentazione `django-cors-headers`
 
-- Dominio primario: **Full-stack web application** (social network gaming verticale)
-- Livello complessità: **Medio-alto**
-- Componenti architetturali stimati: **~15-20** (auth, video pipeline, player micro-system, feed system, comment system, contest system, notification system, admin system, layout system, SSR/routing, state management, API layer, storage layer, design system, error handling)
+**Resilienza:**
+- Error handler centralizzato (`cs_clips/exceptions/error_handler.py`) con formato standard `{code, detail}` via `ErrorResponseSerializer`
+- Mapping errori: ValidationError->400, NotAuthenticated->401, PermissionDenied->403, NotFound->404, IntegrityError->409
+- Frontend: ogni pagina deve avere `isError` + `<ErrorMessage onRetry={refetch} />` (lezione Epic 1)
+- Upload: modale errore con retry e messaggi specifici (durata, formato, connessione)
+- Nessun target di uptime rigido per la fase amici
 
-### Technical Constraints & Dependencies
+**Scalabilita:**
+- MVP: fino a 50 utenti concorrenti con risposta API < 1s
+- Storage MinIO self-hosted, file originali senza transcoding — monitorare utilizzo
+- Architettura predisposta per Celery + Redis (pacchetti installati, non configurati) e proxy API pattern (Fase 2)
+- **Vincolo presigned URL MinIO (scadenza 1h)**: rischio operativo per sessioni di navigazione lunghe. Se un utente tiene aperta una pagina per oltre 1 ora senza ricaricare, le URL dei video scadono e il playback fallisce silenziosamente. Richiede strategia di refresh URL lato frontend (re-fetch periodico o lazy re-fetch al play) — non implementata
+- **Vincolo APScheduler single-instance**: APScheduler gira in-process dentro `CsClipsConfig.ready()`. Con scaling orizzontale (multiple istanze Django), lo scheduler eseguirebbe job duplicati. Mitigation richiede lock distribuito (Redis lock, database advisory lock) o migrazione a Celery Beat con Redis broker
 
-**Vincoli backend esistente (brownfield):**
-- Django 5.1.6 + DRF 3.15.1 con pattern consolidati (ViewSet + DefaultRouter, error handling centralizzato, permessi role-based)
-- Custom User Model (`cs_clips.User` — SEMPRE `get_user_model()`)
-- PostgreSQL 16 (Docker), psycopg 3.x (NON psycopg2)
-- moviepy 2.x per calcolo durata (import v2 syntax)
-- Contest creati implicitamente da `get_or_create_current_contest()` — nessun CRUD
-- Django gira in locale, NON in Docker
-- Paginazione globale PageNumberPagination (PAGE_SIZE=10)
-- 87 regole documentate per agenti AI in project-context.md
+**Accessibilita:**
+- WCAG 2.1 livello AA base per MVP
+- Contrasti colore su dark theme gaming (oklch palette)
+- Navigazione keyboard completa (tab, enter, escape)
+- Radix UI Primitives (sotto shadcn/ui) garantiscono focus management, ARIA attributes
+- Lezione Epic 1: ARIA/a11y deve essere inclusa al primo commit, non retrofittata
 
-**Gap backend critici (modelli/endpoint mancanti per il PRD):**
+**Integrazione:**
+- Frontend <-> Backend: REST API JSON, CORS diretto (Fase 2: proxy API pattern)
+- Backend <-> PostgreSQL: psycopg 3.2.4, Django ORM
+- Backend <-> MinIO: `django-minio-storage` + client `minio` Python
+- Backend scheduler: APScheduler in-process
+- Frontend <-> MinIO: indiretto via presigned URL nel payload JSON delle risposte backend
 
-| Gap | Impatto | Priorità |
-|---|---|---|
-| **Modello CommentLike** | Blocca: like sui commenti, calcolo popup, sidebar dinamica — il cuore del prodotto | Critica |
-| **Modello Notification** | Blocca: notifiche in-app, badge, engagement loop | Alta |
-| **Campo allow_download su Video** | Blocca: download clip da altri utenti | Media |
-| **Endpoint top comments per timestamp** | Blocca: popup overlay nel player | Critica |
-| **Like sulle clip (modello ClipLike)** | Blocca: FR28 like su clip | Alta |
-| **Disabilitazione commenti (soft delete/flag)** | Blocca: moderazione commenti (FR45) | Media |
+---
 
-**Disallineamento backend esistente ↔ PRD:**
+**Scala e Complessita:**
+- Dominio primario: full-stack (Django REST Framework + Next.js React)
+- Livello complessita: medio-alto
+- Componenti architetturali stimati: ~15-18 (5 modelli backend + 7 moduli API + scheduler + storage + auth + error handling + frontend SPA + SSR layer)
+- Frontend: 52 componenti (in 8 categorie: layout 5, feed 3, video 5, comments 5, rating 1, user 7, shared 8, ui/shadcn 18), 6 hook files (in `src/lib/hooks/`), 13 pagine (in `src/app/`), 7 moduli API
+- Backend: 5 modelli (in `cs_clips/models/`), 35 endpoint (in 5 domini: users, videos, comments, ratings, contests), struttura modulare `api/{dominio}/` (brownfield)
 
-| Aspetto | Backend attuale | PRD richiede | Azione |
-|---|---|---|---|
-| **Rating clip** | Rating 1-5 stelle su clip normali | "N/A — non previsto" nel feed. Rating solo nei contest (1-5 stelle per matchup) | Ripensare uso modello Rating |
-| **Contest** | Settimanali automatici, calcolo vincitore per media voto | Bracket eliminazione diretta, votazione per matchup, albero interattivo | Evoluzione significativa modello Contest |
-| **Like clip** | Non esiste | FR28: like su clip (binary, non rating) | Nuovo modello |
-| **Like commenti** | Non esiste | FR27 + cuore del sistema popup | Nuovo modello CommentLike |
+### Vincoli Tecnici e Dipendenze
 
-**Vincoli frontend (greenfield):**
-- Next.js 16 (Turbopack) + React 19 + TypeScript 5
-- App Router (SSR per pagine pubbliche, client components per interattività)
-- Tailwind CSS v4 + shadcn/ui (Radix UI) + Framer Motion + Lucide React
-- TanStack React Query + Axios + jwt-decode + next-themes
-- Deploy target: Vercel (Vercel Blob per storage video)
+1. **Backend brownfield con struttura modulare esistente** — Il backend proviene dal repo Skikky/Video_clip (reset del 2026-02-28), con convenzioni gia stabilite: package `cs_clips/models/` (1 file per modello), `cs_clips/api/{dominio}/` (views + serializers + urls per dominio), `cs_clips/exceptions/` per error handling centralizzato. Ogni modifica deve rispettare questi pattern.
 
-**Vincoli di integrazione — Doppio canale:**
-- **Canale 1 (API)**: CORS diretto Django ↔ Next.js per chiamate API standard (JWT in header Authorization)
-- **Canale 2 (Upload)**: Upload video diretto a Django (bypass Next.js API Routes, limite body size 4MB). JWT inviato direttamente a Django
-- Video processing sincrono (Celery + Redis rimandato a Fase 2)
-- Nessun real-time (fetch-based, polling manuale — WebSocket/SSE rimandato a Fase 2)
+2. **Frontend greenfield GIA SVILUPPATO (asimmetria frontend-avanti)** — Il frontend e' stato sviluppato durante l'Epic 1 e compila correttamente, ma le chiamate API falliranno a runtime per endpoint mancanti (`by-username`, `followers_count`, `is_followed_by_me`, etc.). Questa asimmetria e' strutturale: **il frontend funge da specifica vivente** — ogni hook che chiama un'API inesistente e' un requisito implicito documentato nel codice. I tipi TypeScript in `src/types/` definiscono la shape attesa delle risposte backend. La priorita delle story backend deve essere guidata da cio che il frontend gia chiama.
 
-**Debito tecnico consapevole MVP:**
-- CORS diretto con `CORS_ALLOWED_ORIGINS` restrittivo
-- Processing video sincrono
-- Nessuna test suite formale
-- Nessuna CI/CD
-- Bug noti: `RoleBasedPermission.has_object_permission()` e `VideoSerializer.create()` senza `transaction.atomic()`
+3. **MinIO S3-compatible per storage** — Self-hosted via Docker Compose, bucket `video` e `video-backup`. Presigned URL con scadenza 1h generate in `VideoOutputSerializer`. Init automatico via `scripts/minio_init.sh` nel container `minio-init`. `django-cleanup 9.0.0` gestisce auto-delete file su model delete.
 
-### Cross-Cutting Concerns Identified
+4. **PostgreSQL 16** — Driver `psycopg 3.2.4` (non psycopg2). Configurazione via `dj-database-url` in settings. 5 tabelle + 3 tabelle M2M. Indici automatici su FK + indici compositi `unique_together` su `Rating(user, video)` e `Contest(start_date, end_date, tag)`.
 
-| Concern | Componenti impattati | Priorità |
-|---|---|---|
-| **Autenticazione JWT cross-layer** | Ogni componente frontend, API layer, stato globale, SSR vs client, **doppio canale upload** | Critica |
-| **Pipeline video (doppio canale)** | Upload component, API layer diretto Django, backend processing, storage, error handling, progress tracking | Critica |
-| **Player come micro-sistema** | VideoPlayer, PopupOverlay, CommentMarkers (timeline), CommentSidebar, CommentForm (pre-rendered), controlli player — **6 sotto-componenti sincronizzati** | Critica |
-| **Optimistic UI** | Scrittura commenti, like, follow — feedback immediato con sync background (React Query mutation + optimistic update) | Alta |
-| **Dual-layout (auth vs public)** | Routing, layout components, middleware, SSR, conditional rendering | Alta |
-| **Responsive desktop-first → mobile** | Ogni componente UI, layout system, navigation pattern | Alta |
-| **Error handling unificato** | API calls, upload, video processing, form validation, toast notifications | Alta |
-| **State management** | Auth state (Context), server state (React Query), UI state (local), player state (refs + local) | Alta |
-| **Design system consistency** | Tutti i componenti (dark mode, gradient DNA, glassmorphism, 3-tier animations) | Media |
-| **Notifiche in-app** | Backend events, frontend badge, notification page, cross-component updates | Media |
-| **SEO/OG meta tags** | Pagine clip pubbliche SSR, metadata generation | Media |
-| **Release A→B compatibility** | Contest system deve innestarsi senza riscritture; pattern architetturali distinti (bracket tree vs feed/player) | Media |
+5. **JWT stateless (SimpleJWT)** — Access token 12h, refresh 1d, rotation attiva. `CustomTokenObtainPairView` aggiorna `last_login`. Frontend: access token in-memory (variabile modulo), refresh in localStorage, cookie `session_active=1` per awareness SSR/middleware. Interceptor Axios con pattern mutex/queue per gestione 401 concorrenti.
+
+6. **APScheduler in-process (single-instance)** — Avvio automatico in `CsClipsConfig.ready()`, cron job `close_contests` ogni giovedi 11:33 UTC. Vincolo: non scalabile orizzontalmente senza lock distribuito. Celery 5.5.3 + Redis 5.2.1 installati ma **non configurati** — non usare.
+
+7. **118 regole AI agent in `project-context.md`** — File di governance per agenti AI con regole critiche su: Custom User Model (`get_user_model()` obbligatorio), struttura modulare, error handling centralizzato, anti-pattern (no `obj.campo += 1`, no import `User` diretto, no Celery), linguaggio (codice in inglese, messaggi UI in italiano, commenti in italiano), testing (Django TestCase, PostgreSQL richiesto, MinIO per test con file).
+
+8. **Monorepo con orchestrazione NPM** — `package.json` root con `concurrently` + `wait-on`, comando `npm run dev` avvia Docker + backend + frontend. Django gira in locale (non in container), PostgreSQL e MinIO in Docker.
+
+9. **Nessun linter/formatter configurato** — No flake8, black, isort, ruff per Python. No Prettier per frontend. ESLint 9 FlatConfig presente ma solo `core-web-vitals`. Nessuna CI/CD.
+
+10. **Framework frontend vincolante** — Framer Motion 12.34.0 (import da `"framer-motion"`, NON `"motion/react"`), TailwindCSS v4 con config-in-CSS (`@theme inline` in `globals.css`), Next.js 16.1.6 App Router con route groups `(auth)/` e `(main)/`.
+
+### Gap Backend — Categorizzazione per Impatto
+
+**Critico (blocca Tier 2):**
+
+- **Modello `Notification` + infrastruttura delivery** — Nessun modello, nessun endpoint, nessuna infrastruttura. La PRD definisce 7 tipi di notifica (commento ricevuto, like ricevuto, commento promosso a popup, contest aperto, invito bracket, turno disponibile, risultati contest). DECISIONE ARCHITETTURALE PENDENTE: WebSocket (Django Channels + Redis — infrastruttura pesante ma real-time vero), polling REST (endpoint `GET /api/notifications/` chiamato periodicamente dal frontend — semplice ma carico su server), oppure SSE (Server-Sent Events — compromesso). Per l'MVP la PRD indica esplicitamente "nessun real-time, fetch-based", suggerendo polling come scelta iniziale.
+
+- **Endpoint `by-username` mancante** — Il frontend in `profilo/[username]/page.tsx` chiama un endpoint per risolvere utenti per username. L'endpoint non esiste nel backend. Risultato: 404 a runtime su ogni navigazione a profilo utente. Impatto diretto sulla funzionalita core di navigazione social.
+
+**Alto (funzionalita core incompleta):**
+
+- **Modelli `VideoLike` e `CommentLike` mancanti** — Bloccano: like su clip (FR28), like su commenti (FR27), sistema popup (FR31, FR34 — il commento con piu like per timestamp non e' calcolabile senza `CommentLike`), Sidebar Dinamica (FR35), algoritmo spareggio (attualmente usa commenti come fallback per il peso 20% che dovrebbe essere "like"). Richiedono: 2 nuovi modelli con `unique_together(user, target)`, endpoint CRUD, migrazione, aggiornamento serializer e views.
+
+- **Endpoint `followers_count`, `following_count`, `is_followed_by_me` mancanti** — Il `UserSerializer` attuale serializza `followers` e `following` come liste complete di utenti. Il frontend si aspetta campi calcolati `followers_count` (intero), `following_count` (intero), `is_followed_by_me` (booleano rispetto all'utente autenticato). Richiede `SerializerMethodField` nel `UserSerializer` con annotazioni `Count()` (con `distinct=True` — lezione Epic 1 su N+1 queries).
+
+- **Sistema Champions League bracket (da zero)** — Modelli necessari: `Bracket` (o estensione di `Contest`), `Matchup` (coppia di video + risultati), `ContestEntry` (iscrizione partecipante con clip). Logica di progressione turni, calcolo vincitore per matchup (per media voti interni), generazione albero bracket. UI: libreria React per bracket visualization. Nessuna infrastruttura esistente.
+
+**Medio (funzionalita presente ma con limitazioni):**
+
+- **`useUserVideos` filtra client-side** — Il hook React scarica tutti i video e filtra per `uploader` in JavaScript. Manca endpoint backend `GET /api/videos/?uploader={id}`. Con crescita dei video, performance degrada linearmente. Richiede aggiunta di `filterset_fields = ['uploader']` al `VideoViewSet` (django-filter gia installato).
+
+- **Hook `useDeleteComment`, `useDeleteVideo`, `useUpdateRating` mancanti** — Gli endpoint backend `DELETE /api/comments/{id}/`, `DELETE /api/videos/{id}/`, `PATCH /api/ratings/{id}/` esistono e funzionano. Mancano i corrispondenti hook React Query nel frontend (`src/lib/hooks/`). Non bloccanti ma necessari per completare il CRUD frontend.
+
+- **Contest settimanali parzialmente implementati** — Funzionano: creazione implicita (`get_or_create_current_contest`), chiusura automatica (APScheduler), algoritmo spareggio (`desempate.py`), endpoint vincitori (`/api/contests/winners/`). Mancano: validazione durata video con reject automatico (FR54), backoffice admin frontend per creazione/monitoraggio contest (FR55), pagina contest completa nel frontend.
+
+- **Paginazione `followers/following` non implementata** — Gli endpoint dichiarano paginazione in OpenAPI ma il codice ritorna array piatti. Il frontend con `normalizePaginated<T>()` potrebbe gestire l'inconsistenza, ma il contratto API e' violato.
+
+**Basso (miglioramenti e debt tecnico):**
+
+- Campo `bio` su `User` — `TextField` opzionale, il frontend ha gia `ProfileEditForm` che si aspetta il campo. Migrazione semplice.
+- Campo `allow_download` su `Video` — `BooleanField` default True/False, necessario per FR12-FR14. Migrazione semplice.
+- Campo `is_disabled` su `Comment` — `BooleanField` default False, necessario per FR45 (moderazione) e FR36 (ricalcolo popup). Richiede filtro `is_disabled=False` in tutte le query commenti.
+- `ApiError` tipo definito ma mai usato — In `src/types/`, error handling attuale via toast inline con Sonner. Dead code.
+- `PAGE_SIZE` costante mai usata — Definita in constants ma non utilizzata nelle chiamate API. Dead code.
+- Bug `RoleBasedPermission.has_object_permission()` — Controlla `obj.user` ma `Video` ha `obj.uploader` — bug su delete Video. Fix: controllare `getattr(obj, 'uploader', None) or getattr(obj, 'user', None)`.
+- Bug import `Response` in `user_views.py` — Follow/unfollow actions crashano a runtime. Fix: aggiungere `from rest_framework.response import Response`.
+- `CorsMiddleware` posizionato dopo `CommonMiddleware` — Deve essere prima per funzionamento corretto. Fix: riordinare in `MIDDLEWARE` in `settings.py`.
+
+### Due Sistemi di Contest — Componenti Architetturali Distinti
+
+**Sistema 1: Contest Settimanali (parzialmente implementato)**
+
+- **Modello**: `Contest` (`cs_clips/models/contest.py`) con campi `name`, `tag` (clutch/funny/fail), `start_date`, `end_date`, `is_closed`, `closed_at`, `winner` (FK a Video)
+- **Vincolo unicita**: `unique_together = ('start_date', 'end_date', 'tag')` — un contest per tag per settimana
+- **Creazione implicita**: `get_or_create_current_contest(tag)` in `cs_clips/utils/get_date_util.py` — il contest viene creato al primo upload della settimana per quel tag, non via CRUD esplicito
+- **Settimana contest**: lunedi -> sabato (non domenica)
+- **APScheduler**: cron trigger ogni giovedi 11:33 UTC, `close_contests` management command (`cs_clips/management/commands/close_contests.py`)
+- **Algoritmo spareggio**: `cs_clips/utils/desempate.py` con numpy — normalizzazione min-max (percentile) su 3 metriche: numero voti 50%, visualizzazioni 30%, numero commenti 20% (commenti come fallback per like fino a implementazione `VideoLike`)
+- **Chiusura manuale**: `POST /api/contests/end/` con `OnlyAdminsPermission`
+- **Idempotenza**: sia APScheduler che `EndContestView` verificano `is_closed` prima di chiudere
+- **Edge case**: contest chiuso nella stessa settimana genera nuovo contest con suffisso numerico (`(2)`, `(3)`)
+- **Endpoint lettura**: `GET /api/contests/winners/` — ritorna Video vincitori (non oggetti Contest), paginato
+
+**Sistema 2: Champions League Bracket (da progettare da zero)**
+
+- **Modelli necessari** (non esistenti):
+  - `Bracket` o estensione di `Contest` con tipologia bracket — configurazione torneo (numero partecipanti, numero turni)
+  - `ContestEntry` — iscrizione partecipante con clip associata
+  - `Matchup` — coppia di entry per turno con risultati (voti per ciascuna clip, vincitore)
+- **Logica di progressione turni**: il vincitore di ogni matchup (per media voti interni, nessun fattore esterno) avanza al turno successivo. Generazione automatica bracket a eliminazione diretta
+- **UI bracket visualization**: albero grafico interattivo con scontri, clip embedded, voti e risultati per turno. Richiede libreria React dedicata o componente custom SVG/Canvas
+- **Backoffice admin**: creazione manuale da admin, monitoraggio progressione, chiusura turni
+- **Premi**: Fase 1 premi finanziati Video_clip (skins, crediti in-game shop); Fase 2 partnership con publisher
+- **Nessuna infrastruttura esistente** — componente architetturale completamente distinto dal Sistema 1
+
+### Cross-Cutting Concerns Identificati
+
+1. **Autenticazione/Autorizzazione (JWT + Role-Based Permissions)**
+   Sistema trasversale a tutti gli endpoint. SimpleJWT genera token, `RoleBasedPermission` controlla accesso per gruppo Django (`toconfirm` read-only, `user` CRUD proprio, `admin` tutto), `OnlyUsersPermission` e `OnlyAdminsPermission` per azioni specifiche. Frontend: `AuthProvider` React Context, interceptor Axios con mutex/queue per 401, cookie `session_active` per middleware Next.js. Il JWT attraversa l'intera catena: frontend (in-memory) -> header HTTP -> backend (autenticazione) -> serializer (utente corrente in `perform_create`).
+
+2. **Gestione errori centralizzata (error_handler.py + ErrorMessage frontend)**
+   Backend: `handle_exception_with_serializer` configurato globalmente in `REST_FRAMEWORK['EXCEPTION_HANDLER']`, formato standard `{code, detail}` via `ErrorResponseSerializer`. Mapping: ValidationError->400, NotAuthenticated->401, PermissionDenied->403, NotFound->404, IntegrityError->409. Frontend: componente `ErrorMessage` (`src/components/shared/error-message.tsx`) con props `message`, `onRetry`, `className`. Lezione Epic 1: error handling mancante in 5+ story — ogni pagina con fetch DEVE avere `isError` + `<ErrorMessage onRetry={refetch} />`.
+
+3. **Paginazione (DRF PageNumberPagination + React Query infinite queries)**
+   Backend: `PageNumberPagination` globale con `PAGE_SIZE=10`, formato `{count, next, previous, results}`. Frontend: `useInfiniteQuery` con `getNextPageParam` via `extractPageFromUrl()` (parsa URL `next` dal payload Django). Helper `normalizePaginated<T>()` per risposte backend inconsistenti (es. followers/following che ritornano array piatto). Le custom actions nei ViewSet devono usare `self.paginate_queryset()` + `self.get_paginated_response()`.
+
+4. **Cache invalidation (React Query — lezione Epic 1: chiavi precise)**
+   Pattern appreso durante Epic 1: MAI invalidare chiavi generiche come `["users"]`. Le chiavi React Query devono essere precise e mirate (es. `["users", userId, "followers"]`). `staleTime` differenziato: 30s default, 60s commenti, 5min utenti. Optimistic updates completi su follow/unfollow con `onMutate` -> `onError` rollback -> `onSettled` invalidate. `placeholderData: (prev) => prev` per paginazione senza layout shift.
+
+5. **Upload e storage media (MinIO presigned URL con vincolo 1h)**
+   Pipeline: FormData frontend -> `MultiPartParser` Django -> file temporaneo -> estrazione durata MoviePy -> salvataggio MinIO -> presigned URL in risposta. `django-cleanup` auto-delete file orfani. **Vincolo presigned URL 1h**: rischio operativo per sessioni lunghe. URL video scadono dopo 1 ora — se l'utente tiene aperta una pagina senza ricaricare, il playback fallisce silenziosamente. `@lru_cache(maxsize=1)` sul client MinIO potrebbe restituire URL gia scadute in cache. Nessuna strategia di refresh implementata lato frontend. Richiede decisione architetturale: re-fetch periodico, lazy re-fetch al play, o estensione TTL presigned URL.
+
+6. **Real-time/Notifiche (decisione architetturale pendente)**
+   MVP esplicitamente "nessun real-time, fetch-based". La Sidebar Dinamica crea l'illusione di attivita senza WebSocket. Le notifiche (7 tipi definiti nella PRD) richiedono infrastruttura delivery. Opzioni: (a) polling REST — semplice, compatibile con architettura attuale, ma carico su server con molti utenti; (b) WebSocket via Django Channels + Redis — real-time vero, richiede infrastruttura aggiuntiva; (c) SSE — compromesso leggero. La decisione impatta: modello Notification, endpoint API, infrastruttura (Redis, Channels), frontend (EventSource o WebSocket client), Docker Compose.
+
+7. **Accessibilita (ARIA, keyboard nav — lezione Epic 1)**
+   Radix UI Primitives (sotto shadcn/ui) forniscono focus management, keyboard navigation, ARIA attributes di base. Lezione Epic 1: a11y retrofittata in 4+ story — deve essere inclusa al primo commit. Requisiti: WCAG 2.1 AA, contrasti su dark theme, navigazione keyboard completa (tab/enter/escape), alt text su thumbnail, player con controlli keyboard, label su tutti i form. Componente `focus:ring` via CSS variable `--ring` del design system.
+
+8. **Responsive design (desktop sidebar + mobile bottom bar)**
+   Due layout distinti gestiti da breakpoint `lg` (1024px). Desktop: `LeftSidebar` (240px, collassabile a 64px) + `DesktopNavbar` + opzionale `DynamicSidebar` (>=1280px). Mobile: `Header` (logo "V" + search + avatar) + `MobileBottomBar` (Home, Esplora, Upload, Profilo). Hook `useMediaQuery` (`use-media-query.ts`) per logica condizionale. Login transition con animazione differenziata: desktop (logo intero scala + sposta verso sidebar), mobile ("ideo_clip" dissolve, "V" vola verso header).
+
+9. **Internazionalizzazione (UI in italiano, nessun framework i18n)**
+   Regola critica da `project-context.md`: codice (classi, variabili, URL) in inglese, commenti/docstring Python in italiano, messaggi API e `help_text` in italiano, UI frontend (label, placeholder, testi) in italiano. Nessun framework i18n (next-intl, react-i18next) — le stringhe sono hardcoded in italiano nel codice. Se in futuro si richiedesse il multilingua, sarebbe un refactoring significativo.
+
+10. **Validazione input (frontend + backend — DRF serializers)**
+    Doppia validazione: frontend (form validation, limiti lunghezza) + backend (DRF serializer `validate()`, `MinValueValidator`/`MaxValueValidator` su Rating, validazione `timestamp_second <= video.duration` su Comment). Business logic sempre nel serializer, mai nella view. `VideoInputSerializer.create()` gestisce assegnazione contest e calcolo durata. Pattern: `perform_create()` per iniettare utente autenticato (`serializer.save(user=request.user)` per Rating/Comment, `serializer.save(uploader=request.user)` per Video).
+
+11. **Logging e monitoring (non implementato)**
+    Nessun sistema di logging strutturato configurato. Prometheus 0.22.1 e Flower 2.0.1 presenti in requirements ma non configurati. APScheduler logga su stdout. Nessun error tracking (Sentry, etc.), nessun APM, nessuna dashboard. Per la fase amici non e' bloccante, ma rende il debugging di problemi in produzione significativamente piu difficile.
+
+12. **Testing (nessun test automatizzato — sia backend che frontend)**
+    Backend: directory `cs_clips/tests/` cancellata nel reset, da ricreare. `test_spareggio.py` e' un management command manuale, non un test Django. Nessun pytest, conftest.py, coverage, CI. Test richiedono PostgreSQL + MinIO attivi (Docker). Regole: `django.test.TestCase` come base, `APITestCase` + `APIClient` per test API, `force_authenticate()` per JWT, setup utente con gruppo obbligatorio. Frontend: nessun test (Vitest + RTL da implementare). L'assenza di test automatizzati e' un rischio trasversale che impatta ogni modifica futura.
+
+13. **Asimmetria frontend-avanti (frontend come specifica vivente)**
+    Concern trasversale unico di questo progetto: il frontend e' piu avanzato del backend. Ogni hook in `src/lib/hooks/` che chiama un endpoint inesistente (es. `by-username`), ogni tipo TypeScript in `src/types/` che definisce campi non presenti nell'API (es. `bio`, `followers_count`, `is_followed_by_me`), ogni componente che renderizza dati non disponibili (es. like count su commenti) e' di fatto un requisito implicito. Il backend deve essere sviluppato "inseguendo" il frontend. Questo inverte il flusso tradizionale (API-first) e richiede che le story backend siano prioritizzate in base a cio che il frontend gia consuma. Il rischio e' che il frontend accumuli workaround (filtri client-side, fallback a valori default, endpoint finti) che poi diventano debito tecnico.
 
 ## Starter Template Evaluation
 
-### Primary Technology Domain
+### Dominio Tecnologico Primario
 
-**Full-stack web application** — Frontend Next.js (greenfield, già inizializzato) + Backend Django REST (brownfield esistente)
+Full-stack brownfield: Django REST API (backend) + Next.js React App (frontend). Entrambi i lati sono gia inizializzati e operativi con codice in produzione-sviluppo.
 
-### Starter già applicato
+### Valutazione Starter — Progetto Brownfield
 
-Il frontend è stato inizializzato con `create-next-app` (Next.js 16, App Router, TypeScript, Tailwind CSS) e successivamente integrato con `npx shadcn init`. Il progetto è in fase di sviluppo attivo con implementazione significativa.
+Questo progetto **non richiede un nuovo starter template**. Entrambi gli stack sono gia inizializzati:
 
-### Stato versioni (verificato Feb 2026)
+**Backend — Inizializzato manualmente (non da starter):**
+- `django-admin startproject project_clip` + `startapp cs_clips` con ristrutturazione manuale verso architettura modulare
+- Nessun starter CLI usato — struttura custom `models/` package, `api/{dominio}/`, `exceptions/`
 
-| Tecnologia | Versione | Ultima stabile | Stato |
-|---|---|---|---|
-| Next.js | 16.1.6 | 16.1.6 LTS | Aggiornato |
-| React | 19.2.3 | 19.2.4 | Patch security disponibile |
-| TypeScript | ^5 | 5.x | Aggiornato |
-| TailwindCSS | ^4 | 4.x (CSS-first) | Aggiornato |
-| shadcn/ui | 3.8.4 (new-york, RSC, unified radix-ui) | 3.8.x | Aggiornato |
-| TanStack React Query | ^5.90.21 | 5.90.21 | Aggiornato |
-| Framer Motion | ^12.34.0 | 12.34.0 | Aggiornato |
-| Axios | ^1.13.5 | 1.13.x | Aggiornato |
+**Frontend — Inizializzato con `create-next-app`:**
+- `npx create-next-app@latest` con opzioni: TypeScript, App Router, TailwindCSS, ESLint, `src/` directory, import alias `@/*`
+- Successivamente arricchito con: shadcn/ui (`npx shadcn@latest init`), React Query, Axios, Framer Motion
 
-### Decisioni architetturali stabilite dallo starter
+### Stack Tecnologico Stabilito
 
-**Language & Runtime:** TypeScript 5 strict mode, target ES2017, module resolution bundler, path alias `@/*`
+**Decisioni Architetturali gia Prese dal Codebase:**
 
-**Styling:** Tailwind CSS v4 (CSS-first config, `@tailwindcss/postcss`), CSS variables per theming, shadcn/ui base color neutral
+**Linguaggio e Runtime:**
+- Backend: Python 3.x, Django 5.1.6, DRF 3.15.1
+- Frontend: TypeScript 5 strict, React 19, Next.js 16.1.6
+- Nessuna possibilita di cambio senza riscrittura completa
 
-**UI Component Strategy:** shadcn/ui (copy-paste, zero lock-in) con Radix UI unified package per accessibilità. Style new-york. Lucide React per iconografia.
+**Soluzione Styling:**
+- TailwindCSS v4 con configurazione in-CSS (`@theme inline` in `globals.css`)
+- shadcn/ui (variante New York, tema neutral, icone Lucide)
+- Palette oklch dark-theme oriented con variabili CSS custom
+- `cn()` utility (clsx + tailwind-merge) per merge classi
 
-**Animazioni:** Framer Motion 12 (Tier 1+2) + tw-animate-css per micro-animazioni Tailwind (Tier 3)
+**Build Tooling:**
+- Frontend: Turbopack (Next.js built-in), `next build` per produzione
+- Backend: nessun build step (Python interpretato)
+- Docker Compose per infrastruttura (PostgreSQL, MinIO, pgAdmin)
 
-**State Management:** TanStack React Query per server state, React Context per auth/global state (providers/)
+**Testing Framework:**
+- Backend: nessuno configurato (Django TestCase + APITestCase raccomandati da project-context.md)
+- Frontend: nessuno configurato (Vitest + React Testing Library raccomandati)
+- Deficit critico — da colmare come cross-cutting concern
 
-**HTTP Client:** Axios con API layer organizzato in `lib/api/`
+**Organizzazione Codice:**
+- Backend: `cs_clips/models/{modello}.py`, `cs_clips/api/{dominio}/{dominio}_{tipo}.py`, barrel exports via `__init__.py`
+- Frontend: `src/app/(auth|main)/`, `src/components/{dominio}/`, `src/lib/api/`, `src/lib/hooks/`, `src/types/`
 
-**Routing:** Next.js App Router con route groups — `(auth)` per login/registrazione, `(main)` per app autenticata, `clip/` per pagine pubbliche SSR
+**Esperienza Sviluppo:**
+- Hot reload: Django `runserver` (auto-reload), Next.js Fast Refresh (Turbopack)
+- Debug: Django Debug Toolbar non installato, React DevTools + React Query DevTools non configurati
+- Linting: ESLint 9 FlatConfig (core-web-vitals) per frontend, nessun linter Python
+- Nessun pre-commit hook, nessun Prettier, nessun formatter automatico
 
-**Organizzazione codice:** Componenti organizzati per dominio (comments, contest, feed, layout, rating, shared, ui, user, video), non per tipo
+**Nota:** Non e' necessaria una story di inizializzazione progetto. La prima story implementativa deve invece colmare i gap infrastrutturali (testing, linting) come parte del setup di sviluppo.
 
-**Font:** Geist (sans-serif moderno)
+### Gap Infrastruttura Sviluppo — "Story 0" Prerequisiti
 
-**Linting:** ESLint 9 + eslint-config-next
+I seguenti gap infrastrutturali devono essere colmati **prima** di qualsiasi feature story. Non sono feature — sono acceleratori che rendono ogni story successiva piu veloce e sicura.
 
-**Nota:** Aggiornare React da 19.2.3 a 19.2.4 (patch security del 26 gennaio 2026).
+**Linting e Formatting (backend):**
+- **ruff** come linter + formatter Python — sostituisce flake8, black, isort in un unico tool
+- Configurazione in `pyproject.toml` con regole allineate alle 118 regole di `project-context.md`
+- Senza enforcement automatico, ogni agente AI produce codice con stili diversi
 
-## Core Architectural Decisions
+**Linting e Formatting (frontend):**
+- ESLint 9 FlatConfig gia presente ma solo `core-web-vitals` — estendere con regole React hooks, import order
+- Prettier non configurato — aggiungere per formatting consistente di TSX/CSS
 
-### Decision Priority Analysis
+**Editor Configuration:**
+- `.editorconfig` alla root — tab vs spaces, line endings, trailing whitespace
+- Particolarmente critico su Windows (piattaforma di sviluppo)
 
-**Decisioni critiche (bloccano implementazione):**
-- Top comments: endpoint backend dedicato
-- JWT storage: access in memory + refresh in localStorage
-- Player micro-sistema: VideoPlayerProvider con ref pattern
-- Vercel Blob: integrato in Fase 1, upload via Django → Blob
-- Evoluzione backend: batch migration per nuovi modelli (CommentLike, ClipLike, Notification, allow_download, is_disabled)
+**Debug Tools (dev-only):**
+- **Django Debug Toolbar** — visibility su query SQL, N+1 detection, cache hits. Con N+1 queries come problema ricorrente (Epic 1 retro), e' uno strumento essenziale. Richiede 5 righe di config in `settings.py`
+- **React Query DevTools** — gia installato come dipendenza di `@tanstack/react-query`, basta un import nel `QueryProvider`. Indispensabile per debugging cache invalidation, stale data, refetch patterns
 
-**Decisioni importanti (modellano architettura):**
-- Route protection: Middleware + AuthProvider con stato "authenticating"
-- API client: Axios interceptors con refresh mutex/queue
-- Optimistic UI: React Query mutation pattern
-- Server/Client Components boundary con "Server fetch, Client render"
-- React Query caching strategy
+**Validazione Environment:**
+- Validazione env vars al build time — `env.ts` con Zod (`z.string().url()`) per catturare config mancanti. Attualmente `NEXT_PUBLIC_API_URL` fallback silenzioso a `http://127.0.0.1:8000` senza warning
 
-**Decisioni differite (Post-MVP):**
-- Proxy API pattern (Next.js API Routes → Django)
-- Processing video asincrono (Celery + Redis)
-- Real-time (WebSocket/SSE)
-- CI/CD pipeline
+### Strategia Testing Risk-Based
 
-### Data Architecture
+**Principio**: test a livello piu basso sono i piu preziosi. Unit > Integration > E2E.
 
-**Calcolo top comments per timestamp: Backend endpoint dedicato**
-- Endpoint `GET /api/videos/{id}/popup-comments/` restituisce lista pre-calcolata `{timestamp, comment_id, text, author, like_count}`
-- Rationale: NFR popup latency <200ms, payload minimo, query SQL ottimizzabile (`GROUP BY timestamp, ORDER BY like_count`), logica centralizzata (utile per ricalcolo post-moderazione)
-- Impatta: VideoPlayer, PopupOverlay, moderazione commenti
+**Backend — Baseline Critica (5 test che, se falliscono, l'app e' rotta):**
 
-**Evoluzione backend — Batch migration unica "PRD alignment":**
+1. **Auth flow** — registrazione crea utente con gruppo `toconfirm`, login ritorna JWT valido, refresh rinnova token
+2. **Permissions** — `RoleBasedPermission` enforces gruppi (`toconfirm` read-only, `user` CRUD proprio, `admin` tutto), `has_object_permission` funziona su Video (campo `uploader`, non `user`)
+3. **Upload pipeline** — upload video -> estrazione durata MoviePy -> salvataggio MinIO -> presigned URL valido in risposta
+4. **Contest closure** — `close_contests` chiude solo contest scaduti, assegna vincitore corretto, e' idempotente
+5. **Algoritmo spareggio** — `desempate.py` con dati noti produce vincitore atteso, gestisce parita, gestisce contest senza video
 
-| Modello | Struttura | Pattern |
-|---|---|---|
-| **CommentLike** | `user` FK + `comment` FK, `unique_together`, CASCADE | Stesso pattern di Rating |
-| **ClipLike** (VideoLike) | `user` FK + `video` FK, `unique_together`, CASCADE | Binary like (no valore) |
-| **Notification** | `recipient` FK, `type` enum, `content` text, `related_object_id`, `read` bool, `created_at` | Generico per tutti gli eventi |
-| **allow_download** | Campo booleano su Video, default True | Aggiunta campo |
-| **is_disabled** | Campo booleano su Comment, default False | Soft-delete moderazione |
+**Prerequisito test backend:**
+- `conftest.py` con fixture riusabili: `authenticated_user` (utente con gruppo `user` + token), `admin_user`, `sample_video` (con file MinIO), `api_client_authenticated` (APIClient con `force_authenticate`)
+- Docker (PostgreSQL + MinIO) necessario per test — non SQLite
 
-Tutti i nuovi modelli creati in un'unica batch migration ben pianificata per evitare conflitti. Includere data migration per eventuali nuovi gruppi utente (moderatore).
+**Frontend — Baseline Critica (hook con logica complessa):**
+- `useFollow`/`useUnfollow` — optimistic update su 4+ query keys con rollback in `onError`
+- `useUploadVideo` — gestione FormData, progress, invalidazione `videos.all`
+- `useComments` — fetch eager multi-pagina per costruzione `popupMap`
 
-**Rating esistente: Mantenuto per contest (Release B), ClipLike aggiunto per feed (Release A)**
-- Rating 1-5 rimane per votazione matchup contest (Fase B)
-- ClipLike binary aggiunto per like clip nel feed (Fase A)
-- Due modelli separati, due scopi distinti
+**Prerequisito test frontend:**
+- Vitest + React Testing Library
+- MSW (Mock Service Worker) per mock API senza dipendenza dal backend
 
-**React Query caching strategy:**
+### CI/CD Minimale Raccomandato
 
-| Risorsa | staleTime | Rationale |
-|---|---|---|
-| Popup data | `5min` | Safety net per tab multipli, invalidazione esplicita dopo like |
-| Feed (home/esplora) | `30s` | Aggiornamento frequente |
-| Profilo/user | `5min` | Dati stabili |
-| Commenti clip | `1min` | Aggiornamento moderato |
-| Notifiche | `30s` | Feedback tempestivo |
-
-Invalidazione dopo mutation: like → popup + commenti; commento → lista commenti; upload → feed; follow → profilo
-
-### Authentication & Security
-
-**JWT token storage: Access in memory + Refresh in localStorage**
-- Access token: conservato in React state (memory-only). Perso al refresh pagina, mai esposto a XSS persistente
-- Refresh token: conservato in localStorage per persistenza sessione
-- Al caricamento pagina: chiamata `/api/token/refresh/` per ottenere nuovo access token
-- **Stato "authenticating"**: AuthProvider espone uno stato intermedio durante il refresh iniziale → mostra GradientSpinner (UX spec) invece di flash redirect o contenuto vuoto
-- Impatta: AuthProvider, Axios interceptor, tutte le API calls, UX primo caricamento
-
-**Route protection: Middleware + AuthProvider**
-- `middleware.ts`: intercetta richieste a route `(main)/*`, verifica presenza refresh token, redirect a `/login` se assente
-- `AuthProvider` (React Context): gestisce stato utente (profilo, ruolo, token in memory), espone `login()`, `logout()`, `isAuthenticated`, `isAuthenticating`
-- Doppio layer: middleware per redirect server-side, AuthProvider per stato client-side
-
-### API & Communication Patterns
-
-**API client: Axios instance con interceptors + refresh mutex**
-- `lib/api/client.ts`: Axios instance con `baseURL = NEXT_PUBLIC_API_URL` (unico URL per API e upload)
-- Request interceptor: inietta `Authorization: Bearer {access_token}` da AuthProvider
-- Response interceptor: su 401 → **mutex/queue pattern**: la prima 401 triggera il refresh, le chiamate successive si accodano e attendono il nuovo token. Previene race condition con refresh token rotation
-- Upload: stessa istanza Axios con `Content-Type: multipart/form-data` + `onUploadProgress` callback, stesso `NEXT_PUBLIC_API_URL`
-
-**Optimistic UI: React Query mutation standard**
-- Pattern: `useMutation` con `onMutate` (update cache locale ottimistico) → `onError` (rollback snapshot) → `onSettled` (invalidate query)
-- Applicato a: commenti, like (clip e commenti), follow/unfollow
-- Feedback: commento appare immediatamente, cuore cambia stato al tap, toast Sonner su errore con rollback
-
-### Frontend Architecture
-
-**Player micro-sistema: VideoPlayerProvider con ref pattern**
+Pipeline GitHub Actions con quality gates:
 
 ```
-<VideoPlayerProvider>          ← Context: isPlaying, isPaused, duration, seekTo(), popupData[]
-  <VideoPlayer>                ← HTML5 <video> + controlli custom, ref al video element
-    <PopupOverlay />           ← Glassmorphism popup, legge currentTimeRef via rAF interno
-    <CommentMarkers />         ← Dot gradiente sulla progress bar, legge currentTimeRef via rAF interno
-  </VideoPlayer>
-  <CommentSidebar />           ← Sidebar destra desktop, commenti top likati (no currentTime needed)
-  <CommentForm />              ← Pre-rendered (nascosto), legge currentTimeRef solo al momento della pausa (evento)
-</VideoPlayerProvider>
+trigger: push su main + pull request
+
+jobs:
+  backend:
+    - ruff check (lint)
+    - ruff format --check (formatting)
+    - python manage.py test (con PostgreSQL + MinIO in services)
+
+  frontend:
+    - npm run lint (ESLint)
+    - npx vitest run (test)
+    - npm run build (verifica compilazione)
 ```
 
-- **`currentTime` come ref, NON come state** — elimina re-render a cascata (~360/sec). Solo PopupOverlay e CommentMarkers leggono il ref via `requestAnimationFrame` interno
-- `popupData[]` caricati in singola API call al mount del provider
-- `CommentForm` sempre nel DOM (pre-rendered), toggle visibilità con CSS/Framer Motion per zero latenza emotiva
-- CommentSidebar e CommentForm non sottoscrivono currentTime — leggono il ref solo su evento (pausa, submit)
+Nessun deploy automatico nella fase attuale — solo quality gates per prevenire regressioni.
 
-**Server Components vs Client Components — "Server fetch, Client render" pattern:**
+## Decisioni Architetturali Core
 
-| Componente | Tipo | Motivazione |
-|---|---|---|
-| Root layout | Server | Shell HTML, metadata |
-| Layout `(auth)` | Server | Form statici |
-| Layout `(main)` | Client (`"use client"`) | AuthProvider, React Query, interattività |
-| `/clip/[id]` page | **Server** (SSR) | Fa data fetch (clip metadata + popup data), genera OG meta tags, passa props al Client player via `<Suspense>` |
-| Player + commenti | **Client** | Riceve dati iniziali da Server parent, gestisce stato e interazioni |
-| Feed pages | Client | React Query, infinite scroll, interazioni |
-| Card clip | Client | Hover, lazy loading, like |
-| Admin pages | Client | CRUD interattivo |
+### Analisi Priorità Decisioni
 
-**Bundle optimization:**
-- `dynamic()` + `ssr: false` per componenti Framer Motion pesanti (PopupOverlay, page transitions)
-- Code splitting automatico per route (App Router)
-- `next/image` per thumbnail con lazy loading
-- `<video preload="metadata">` per video (no preload full su feed)
-- Font Geist: caricamento ottimizzato via `next/font`
+**Decisioni Già Prese (dal codebase e Step 3):**
+- Auth: JWT stateless SimpleJWT (access 12h, refresh 1d, rotation attiva)
+- Storage: MinIO S3-compatible (presigned URL 1h)
+- Database: PostgreSQL 16 + psycopg 3.2.4
+- API: REST con DRF 3.15.1
+- Frontend framework: Next.js 16.1.6 App Router + React 19
+- State management: React Query + Axios (interceptor mutex/queue per 401)
+- Styling: TailwindCSS v4 + shadcn/ui (New York, neutral, Lucide)
+- Error handling: centralizzato (`error_handler.py` + `ErrorMessage` frontend)
+- Paginazione: `PageNumberPagination` PAGE_SIZE=10 + `useInfiniteQuery`
+- Deploy: Docker Compose (PostgreSQL, MinIO, pgAdmin)
+- Contest settimanali: APScheduler in-process (cron giovedì 11:33 UTC)
+- Responsive: dual layout desktop (sidebar) / mobile (bottom bar)
+- i18n: italiano hardcoded, nessun framework i18n
 
-### Infrastructure & Deployment
+**Decisioni Critiche Risolte: 6**
 
-**Vercel Blob integrato in Fase 1 (con story upload):**
+---
 
-```
-Frontend                    Django (backend)                Vercel Blob
-   │                            │                              │
-   │── POST /api/videos/ ──────►│ (multipart, file + metadata) │
-   │   (upload diretto CORS)    │                              │
-   │                            │── validate (durata, formato) │
-   │                            │── ffmpeg convert             │
-   │                            │── PUT blob (retry x3) ──────►│ (REST API, token)
-   │                            │◄── blob_url ─────────────────│
-   │                            │── save Video(file_url=blob)  │
-   │                            │── delete temp files          │
-   │◄── 201 {video, file_url} ──│                              │
-   │                            │                              │
-   │── GET blob_url ────────────┼──────────────────────────────►│ (CDN streaming)
-```
+### D1: Notifiche Delivery → Polling REST
 
-- **Retry con backoff esponenziale** sull'upload a Vercel Blob (3 tentativi). Se tutto fallisce: mantieni file convertito locale come fallback, logga errore per retry manuale
-- **Playback**: streaming diretto da Vercel Blob CDN (performance globale)
-- Singolo `NEXT_PUBLIC_API_URL` per API e upload (stesso host Django, stessa config CORS)
+- **Decisione**: Endpoint `GET /api/notifications/` con polling periodico dal frontend
+- **Intervallo**: 15 secondi (non 30s — feedback loop più rapido, carico trascurabile per 50 utenti: ~200 req/min)
+- **Rationale**: Zero infrastruttura aggiuntiva — nessun Redis, nessun Channels, nessun WebSocket. Compatibile con l'architettura attuale (SimpleJWT + REST). Per 50 utenti concorrenti il carico è trascurabile
+- **Modello `Notification`**: campi `recipient` (FK User), `sender` (FK User nullable), `type` (7 tipi PRD: commento ricevuto, like ricevuto, commento promosso a popup, contest aperto, invito bracket, turno disponibile, risultati contest), `is_read` (BooleanField), `created_at` (DateTimeField), **FK espliciti nullable** (`video` FK, `comment` FK, `contest` FK, `bracket` FK) — NO `GenericForeignKey` per evitare N+1 queries, join impossibili e complessità nei test
+- **Alternativa scartata (GenericFK)**: `GenericForeignKey` richiederebbe query extra per risolvere `content_object`, niente `select_related`, setup `ContentType` nei test fragile e verbose. Con FK espliciti o JSONField i test sono triviali e le query performanti
+- **Migrazione futura**: se il polling diventa un bottleneck (>500 utenti), migrazione a SSE o WebSocket. L'endpoint REST rimane comunque per lettura/mark-as-read
+- **Impatta**: nuovo modello `Notification`, endpoint API `notifications/`, hook React Query `useNotifications` con `refetchInterval: 15000`
 
-**Environment variables:**
+### D2: Champions League Bracket → Modelli Separati (Opzione B)
 
-| Variabile | Dove | Valore |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Frontend (.env.local) | URL Django (API + upload) |
-| `BLOB_READ_WRITE_TOKEN` | Backend (.env) | Token Vercel Blob |
-| `DATABASE_URL` | Backend (.env) | PostgreSQL connection |
+- **Decisione**: Modelli `Bracket`, `ContestEntry`, `Matchup` completamente indipendenti da `Contest`
+- **Rationale**: I due sistemi (settimanale auto-gestito vs bracket eliminazione diretta) hanno cicli di vita, regole di business e UI completamente diversi. Condividere un modello base creerebbe complessità inutile
+- **Struttura file**: `cs_clips/models/bracket.py`, `cs_clips/models/contest_entry.py`, `cs_clips/models/matchup.py`
+- **Dominio API separato**: `cs_clips/api/brackets/` con views, serializers e urls propri — NON sotto `/api/contests/`. I due sistemi non condividono nulla, trattarli come domini API distinti previene confusione nelle URL e nei permessi
+- **Impatta**: 3 nuovi modelli, nuovo dominio API `/api/brackets/`, UI bracket visualization, backoffice admin
 
-### Testing Strategy (pianificazione architetturale)
+### D3: Presigned URL Refresh → Lazy Re-fetch al Play
 
-Non è prevista una test suite completa per MVP, ma l'architettura deve garantire testabilità in queste aree critiche:
+- **Decisione**: Al fallimento del `<video>`, il frontend ri-chiama `videos.detail(id)` per ottenere una nuova presigned URL
+- **Retry cap**: massimo 2 tentativi. Se entrambi falliscono, mostrare messaggio "Video non disponibile, ricarica la pagina"
+- **UX re-fetch silenzioso**: durante il re-fetch il player mostra un mini-spinner (lo stesso del caricamento iniziale), MAI un flash di errore. L'utente non deve percepire il problema tecnico
+- **Implementazione**: catch `onerror` nel player video → mostra spinner → `refetch()` React Query → nuovo URL → retry playback → se fallisce dopo 2 tentativi → messaggio fallback
+- **Vincolo `@lru_cache`**: verificare che `@lru_cache(maxsize=1)` sul client MinIO in `VideoOutputSerializer` non restituisca URL stantie. Il re-fetch deve produrre una URL effettivamente nuova — potrebbe essere necessario invalidare la cache o rimuovere `@lru_cache` dal metodo di generazione URL
+- **Impatta**: componente player video, hook `useVideo`, `VideoOutputSerializer` (verifica lru_cache)
 
-| Area | Tipo test | Cosa testare |
-|---|---|---|
-| Pipeline video (Django → ffmpeg → Blob) | Integration test | Upload, conversione, upload Blob, cleanup |
-| Axios refresh interceptor con mutex | Unit test | Race condition 401, queue, retry |
-| Optimistic UI rollback | React Testing Library | Mutation → error → rollback cache → toast |
-| Endpoint popup-comments | API test | Correttezza calcolo top comment per timestamp |
-| Auth flow (refresh al load) | Integration test | Stato authenticating → authenticated → redirect |
+### D4: Testing Stack
 
-### Decision Impact Analysis
+- **Backend**: `django.test.TestCase` + `APITestCase` con `conftest.py` per fixture condivise
+- **Frontend**: Vitest + React Testing Library + MSW (Mock Service Worker)
+- **Rationale**: Stack raccomandato da `project-context.md`, compatibile con infrastruttura esistente (PostgreSQL + MinIO per backend), zero dipendenza backend per test frontend (MSW intercetta HTTP)
+- **Scope preciso Story 0 — conftest.py con esattamente 5 fixture**:
+  1. `authenticated_user` — utente con gruppo `user` + token JWT
+  2. `admin_user` — utente con gruppo `admin` + token JWT
+  3. `sample_video` — video con file MinIO reale caricato
+  4. `api_client_authenticated` — `APIClient` con `force_authenticate()`
+  5. `sample_contest` — contest attivo con tag e date validi
+- **Scope preciso Story 0 — MSW handlers per 5 endpoint critici**:
+  1. `POST /api/token/` (login)
+  2. `POST /api/users/` (register)
+  3. `GET /api/videos/` (videos list)
+  4. `GET /api/videos/{id}/` (video detail)
+  5. `GET /api/users/{id}/` (user profile)
+- **Altre fixture e handlers si aggiungono incrementalmente**, story-by-story
+- **Impatta**: Story 0 prerequisiti, CI/CD pipeline
 
-**Sequenza implementazione:**
-1. Evoluzione backend (batch migration + nuovi endpoint) → sblocca tutto il frontend
-2. Auth flow (JWT storage + AuthProvider + interceptors con mutex) → sblocca pagine protette
-3. API client + React Query setup → sblocca data fetching
-4. Upload pipeline con Vercel Blob → sblocca pagina carica
-5. Player micro-sistema (VideoPlayerProvider con ref pattern) → sblocca cuore del prodotto
-6. Feed + card-to-detail → sblocca navigazione
-7. Commenti + like + optimistic UI → sblocca engagement
-8. Notifiche + admin → completa Release A
+### D5: Linter Backend → ruff
 
-**Dipendenze cross-componente:**
-- Auth flow → necessario per ogni componente che fa API calls
-- Backend evolution → necessario prima del frontend (endpoint mancanti)
-- Player Provider → necessario prima di PopupOverlay, CommentMarkers, CommentForm, CommentSidebar
-- Vercel Blob → necessario per upload funzionante, ma non blocca sviluppo player (mockabile)
+- **Decisione**: `ruff` come unico linter + formatter Python
+- **Configurazione**: `pyproject.toml` con regole allineate alle 118 regole `project-context.md`
+- **Rationale**: Sostituisce flake8 + black + isort in un singolo tool. Performance 10-100x superiore. Configurazione unificata
+- **Impatta**: Story 0, CI/CD pipeline
+
+### D6: Rate Limiting API → DRF Throttling Built-in
+
+- **Decisione**: `REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']` con classi built-in
+- **Rates**: `anon: 100/hour`, `user: 1000/hour`, `upload: 10/hour` (custom `ScopedRateThrottle` su `VideoViewSet`)
+- **Rationale**: Zero dipendenze aggiuntive, configurazione in `settings.py`. Per 50 utenti concorrenti è più che sufficiente
+- **Timing**: configurare i throttle rates in `settings.py` subito in Story 0 — non differire al deploy. Costa 5 righe di configurazione e serve come documentazione vivente dei limiti del sistema. Differire al deploy rischia che venga dimenticato
+- **Migrazione futura**: se necessario rate limiting distribuito, migrazione a `django-ratelimit` + Redis
+- **Impatta**: `settings.py` (Story 0), `VideoViewSet` (scope custom per upload)
+
+### D7: Rimozione Dipendenze Inutilizzate — Celery e Redis
+
+- **Decisione**: Rimuovere `celery==5.5.3` e `redis==5.2.1` da `requirements.txt`
+- **Rationale**: APScheduler gira in-process senza dipendenze esterne. Celery e Redis sono installati ma non configurati — nessun `celery.py`, nessun `@shared_task`, nessun `CELERY_BROKER_URL`. Peso morto che genera confusione ("perché ci sono se non li usiamo?")
+- **Quando reinstallare**: se in futuro servono task asincroni pesanti (transcoding H.264, notifiche push, elaborazione batch), si reinstallano con la configurazione appropriata (`celery.py`, broker URL, worker separato)
+- **Impatta**: `requirements.txt` (Story 0)
+
+---
+
+### Decisioni Differite (Post-MVP)
+
+- **Transcoding H.264**: rimandato fino a quando non si presentano problemi di compatibilità browser con formati originali
+- **Keycloak migration**: JWT SimpleJWT sufficiente per MVP, Keycloak per multi-tenant/SSO
+- **CDN**: presigned URL MinIO dirette per ora, CDN quando latenza diventa un problema
+- **Logging strutturato**: Prometheus/Flower presenti in requirements ma non configurati — da attivare al deploy
+- **Scaling orizzontale APScheduler**: lock distribuito (Redis lock o database advisory lock) necessario solo con multiple istanze Django
+- **WebSocket/SSE notifiche**: migrazione da polling REST solo se polling diventa bottleneck (>500 utenti)
+
+### Analisi Impatto Decisioni
+
+**Sequenza Implementazione:**
+1. D5 (ruff) + D4 (testing fixtures) + D6 (throttle rates) + D7 (rimozione celery/redis) → **Story 0 prerequisiti**
+2. D1 (notifiche polling) → richiede modello `Notification` con FK espliciti + endpoint + hook frontend con `refetchInterval: 15000`
+3. D3 (presigned URL refresh) → modifica player video (spinner + retry cap 2 + verifica lru_cache)
+4. D2 (bracket) → Epic dedicato, indipendente — può procedere in parallelo con Tier 2
+
+**Dipendenze Cross-Componente:**
+- D1 (notifiche) dipende da `VideoLike` e `CommentLike` per i tipi "like ricevuto" e "commento promosso a popup"
+- D2 (bracket) è completamente indipendente — dominio API separato, modelli separati, può procedere in parallelo
+- D4 (testing), D5 (ruff), D6 (throttle), D7 (cleanup) sono prerequisiti per tutte le altre decisioni — compongono Story 0
+- D3 (presigned URL) è autocontenuto nel player video, nessuna dipendenza da altre decisioni
 
 ## Implementation Patterns & Consistency Rules
 
+**Punti di conflitto potenziali identificati: 12 aree** dove agenti AI diversi potrebbero fare scelte incompatibili. Tutti i pattern sono estratti dal codebase esistente e dalle 118 regole di `project-context.md`.
+
 ### Naming Patterns
 
-**Frontend file naming (conflitto: PascalCase vs kebab-case):**
+**Database (Django ORM — già stabiliti, non modificare):**
+- Tabelle: Django auto-genera in `snake_case` plurale (`cs_clips_video`, `cs_clips_contest`)
+- Colonne: `snake_case` (`created_at`, `timestamp_second`, `is_closed`)
+- FK: `{relation}_id` auto (`uploader_id`, `contest_id`)
+- M2M: tabella ponte auto (`cs_clips_user_following`)
+- Indici compositi: `unique_together` (`('user', 'video')` su Rating)
+- Enum: `TextChoices` con valori lowercase (`'clutch'`, `'funny'`, `'fail'`)
 
-Un agente potrebbe creare `UserCard.tsx`, un altro `user-card.tsx`. La regola:
+**API Endpoint (già stabiliti):**
+- Risorse: plurale, kebab-case (`/api/videos/`, `/api/contests/winners/`)
+- Actions: kebab-case nel `url_path` (`url_path='top-rated'`, `url_path='following'`)
+- Query params: snake_case (`?page=1`, `?range=week`)
+- Nuovi domini: `/api/{dominio_plurale}/` — es. `/api/brackets/`, `/api/notifications/`
 
-| Tipo file | Convenzione | Esempio |
-|---|---|---|
-| Componenti React | `kebab-case.tsx` | `clip-card.tsx`, `popup-overlay.tsx` |
-| Pagine (App Router) | `page.tsx` / `layout.tsx` | (Next.js convention) |
-| Hooks custom | `use-kebab-case.ts` | `use-auth.ts`, `use-clip-like.ts` |
-| Tipi/interfacce | `kebab-case.ts` | `clip.ts`, `user.ts` |
-| Utility | `kebab-case.ts` | `format-date.ts`, `cn.ts` |
-| Costanti | `kebab-case.ts` | `query-keys.ts`, `constants.ts` |
-| API functions | `kebab-case.ts` | `clips.ts`, `comments.ts` |
+**File Backend (già stabiliti):**
+- Modelli: `cs_clips/models/{modello_singolare}.py` — es. `video.py`, `notification.py`
+- Views: `cs_clips/api/{dominio}/{dominio}_views.py` — es. `video_views.py`
+- Serializers: `cs_clips/api/{dominio}/{dominio}_serializers.py`
+- Routing: SOLO in `cs_clips/urls.py` — **NON creare `{dominio}_urls.py` nelle subdirectory** (i file esistenti sono dead code)
+- Utils: `cs_clips/utils/{funzione}.py` — un file per funzione
+- Test: `cs_clips/tests/test_{modulo}.py`
 
-Questo segue la convenzione shadcn/ui e Next.js (kebab-case per file, PascalCase per export).
+**File Frontend (già stabiliti):**
+- Componenti: `kebab-case.tsx` — es. `clip-card.tsx`, `follow-button.tsx`
+- Hook: `use-{feature}.ts` — es. `use-videos.ts`, `use-notifications.ts`
+- API modules: `{dominio}.ts` singolare — es. `videos.ts`, `notifications.ts`
+- Types: `src/types/{dominio}.ts` + barrel export da `index.ts`
+- Test componenti: `src/components/{dominio}/__tests__/{componente}.test.tsx` (kebab-case, coerente con naming sorgente)
+- Test hook: `src/lib/hooks/__tests__/use-{feature}.test.ts`
+- MSW handlers: `src/test/handlers.ts` (centralizzato)
 
-**Frontend export naming (conflitto: named vs default):**
-
-| Tipo | Export | Esempio |
-|---|---|---|
-| Componenti React | **Named export** | `export function ClipCard() {}` |
-| Hooks | **Named export** | `export function useAuth() {}` |
-| Tipi/interfacce | **Named export** | `export interface Clip {}` |
-| Utility | **Named export** | `export function formatDate() {}` |
-| Pagine Next.js | **Default export** | `export default function HomePage() {}` (richiesto da Next.js) |
-
-Regola: **MAI default export** tranne dove Next.js lo richiede (page, layout, error, not-found). Named exports per tutto il resto — permette auto-import e tree shaking migliore.
-
-**Frontend-backend field mapping (conflitto: snake_case vs camelCase):**
-
-Il backend Django restituisce `snake_case` (`created_at`, `timestamp_second`, `like_count`). Il frontend potrebbe:
-- A) Usare snake_case ovunque (nessuna trasformazione)
-- B) Trasformare in camelCase all'ingresso (`createdAt`, `timestampSecond`)
-
-Decisione: **Opzione A — snake_case ovunque** nel frontend. Nessuna trasformazione, nessun layer di mapping, nessun rischio di inconsistenza. I tipi TypeScript usano snake_case per matchare la risposta API. Più semplice per un solo developer.
-
-```typescript
-// ✅ Corretto
-interface Clip {
-  id: number;
-  title: string;
-  file_url: string;
-  created_at: string;
-  timestamp_second: number;
-}
-
-// ❌ Evitare
-interface Clip {
-  id: number;
-  title: string;
-  fileUrl: string;
-  createdAt: string;
-  timestampSecond: number;
-}
-```
-
----
+**Classi e Funzioni (già stabiliti):**
+- Classi Python: `PascalCase` + suffisso ruolo (`VideoViewSet`, `VideoOutputSerializer`, `OnlyAdminsPermission`)
+- Funzioni Python: `snake_case` (`get_or_create_current_contest`, `handle_exception_with_serializer`)
+- Componenti React: `PascalCase` con named export (`export function ClipCard`)
+- Props interface: `{ComponentName}Props` (`ClipCardProps`, `ErrorMessageProps`)
 
 ### Structure Patterns
 
-**Hook organization (conflitto: dove mettere gli hook custom):**
+**Creazione Nuovo Modello — Checklist Obbligatoria:**
 
-| Tipo hook | Posizione | Esempio |
-|---|---|---|
-| Hook globali (auth, theme) | `src/lib/hooks/` | `use-auth.ts`, `use-theme.ts` |
-| Hook per dominio (clip, commenti) | `src/lib/hooks/` | `use-clip-like.ts`, `use-comments.ts` |
-| Hook React Query (queries/mutations) | `src/lib/hooks/` | `use-clip-query.ts`, `use-like-mutation.ts` |
+1. Creare file `cs_clips/models/{modello}.py`
+2. Aggiungere export in `cs_clips/models/__init__.py`
+3. Usare `get_user_model()` per FK a User, MAI `from django.contrib.auth.models import User`
+4. Specificare `related_name` su ogni FK
+5. Specificare `on_delete` esplicito: `CASCADE` per relazioni forti, `SET_NULL` per deboli
+6. `help_text` in italiano su ogni campo
+7. Creare migrazione: `python manage.py makemigrations`
+8. Registrare in `cs_clips/admin.py`
+9. Se il modello richiede gruppi/permessi: creare via data migration, NON solo runtime
 
-Regola: **tutti gli hooks in `src/lib/hooks/`**, flat (no sotto-cartelle). Un file per hook. Nome che inizia con `use-`.
+**Creazione Nuovo Dominio API — Checklist Obbligatoria:**
 
-**API layer organization:**
+1. Creare directory `cs_clips/api/{dominio}/` con `__init__.py`
+2. Creare `{dominio}_views.py` con ViewSet o APIView
+3. Creare `{dominio}_serializers.py` con Input/Output serializer separati
+4. Registrare route in `cs_clips/urls.py` — **NON creare `{dominio}_urls.py` separato**
+5. `permission_classes` espliciti su ogni ViewSet
+6. `read_only_fields` dichiarati in ogni serializer `Meta`
+7. Documentare con `@extend_schema` su ViewSet e ogni `@action`
+8. Per ViewSet CRUD: implementare `get_serializer_class()` con serializer diversi per azione
 
-```
-src/lib/api/
-├── client.ts          ← Axios instance + interceptors + refresh mutex
-├── clips.ts           ← getClips(), getClip(), uploadClip(), deleteClip()
-├── comments.ts        ← getComments(), createComment(), deleteComment()
-├── likes.ts           ← likeClip(), unlikeClip(), likeComment(), unlikeComment()
-├── auth.ts            ← login(), register(), refreshToken()
-├── users.ts           ← getUser(), followUser(), unfollowUser()
-├── notifications.ts   ← getNotifications(), markAsRead()
-└── upload.ts          ← uploadVideo() con progress callback
-```
+**Creazione Nuovo Dominio Frontend — Checklist Simmetrica:**
 
-Regola: un file per dominio, funzioni pure che usano l'Axios instance da `client.ts`. Nessuna logica di stato — solo chiamate HTTP.
-
-**Type definition organization:**
-
-```
-src/types/
-├── clip.ts            ← Clip, ClipCard, ClipDetail, CreateClipPayload
-├── comment.ts         ← Comment, CreateCommentPayload, PopupComment
-├── user.ts            ← User, UserProfile, AuthTokens
-├── notification.ts    ← Notification, NotificationType
-├── contest.ts         ← Contest, Bracket, Matchup, Vote
-├── api.ts             ← PaginatedResponse<T>, ApiError, ApiResponse
-└── index.ts           ← re-export tutto
-```
-
-Regola: un file per dominio, `index.ts` per re-export. Usare `interface` per forme di dati (API responses), `type` per union/utility types.
-
----
+1. Creare modulo API `src/lib/api/{dominio}.ts` con pattern standard (import `apiClient`, export oggetto con metodi CRUD, `normalizePaginated<T>()` per liste)
+2. Creare hook `src/lib/hooks/use-{dominio}.ts`
+3. Aggiungere query keys in `src/lib/query-keys.ts` — pattern: `dominio.all`, `dominio.list(page)`, `dominio.detail(id)`. MAI stringhe inline
+4. Creare type `src/types/{dominio}.ts` e aggiungere barrel export in `src/types/index.ts`
+5. MSW handler in `src/test/handlers.ts` per gli endpoint del dominio
 
 ### Format Patterns
 
-**API response handling (conflitto: come wrappare le risposte):**
+**Risposte API (NON deviare):**
+- Liste: `{count, next, previous, results}` — SEMPRE paginato, MAI array piatto
+- Detail: oggetto singolo diretto (nessun wrapper)
+- Errori: `{code, detail}` via `ErrorResponseSerializer`
+- Successo azioni: `{detail: "Messaggio in italiano."}` con HTTP 200
+- Creazione: oggetto creato con HTTP 201
+- Delete: HTTP 204 No Content
+- JSON fields: `snake_case` (DRF default)
+- Date: ISO 8601 string (`"2026-02-28T11:33:00Z"`)
 
-Il backend Django restituisce risposte paginate nel formato DRF:
-```json
-{ "count": 10, "next": "url", "previous": "url", "results": [...] }
+**Custom Actions con paginazione — Pattern obbligatorio:**
+
+```python
+@extend_schema(parameters=[...])
+@action(detail=False, methods=['get'], url_path='my-action')
+def my_action(self, request):
+    queryset = self.get_queryset().filter(...)
+    page = self.paginate_queryset(queryset)
+    serializer = self.get_serializer(page, many=True)
+    return self.get_paginated_response(serializer.data)
 ```
 
-E errori nel formato centralizzato:
-```json
-{ "code": "ValidationError", "detail": "messaggio" }
+MAI ritornare `Response(serializer.data)` da un'action che ritorna liste.
+
+**Serializer Multipli — Pattern `get_serializer_class()`:**
+
+```python
+class MyViewSet(viewsets.ModelViewSet):
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return MyInputSerializer
+        if self.action in ('update', 'partial_update'):
+            return MyUpdateSerializer
+        return MyOutputSerializer
 ```
 
-Frontend type:
-```typescript
-interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-}
-
-interface ApiError {
-  code: string;
-  detail: string;
-}
-```
-
-Regola: **nessun wrapper aggiuntivo** lato frontend. Le risposte API si usano come arrivano. L'Axios interceptor gestisce gli errori globalmente.
-
-**Date handling (conflitto: format, libreria, timezone):**
-
-- Backend: ISO 8601 strings (`2026-02-14T10:30:00Z`)
-- Frontend: **nessuna libreria date** per MVP. `new Date(iso_string)` + `Intl.DateTimeFormat` per formattazione locale
-- Formato display: relativo per recente ("2 ore fa"), assoluto per vecchio ("14 feb 2026")
-- Timezone: UTC dal backend, conversione locale nel browser
-
----
-
-### Communication Patterns
-
-**React Query key convention (conflitto: stringhe libere vs strutturate):**
-
-```typescript
-// src/lib/query-keys.ts
-export const queryKeys = {
-  clips: {
-    all: ['clips'] as const,
-    lists: () => [...queryKeys.clips.all, 'list'] as const,
-    list: (filters: Record<string, unknown>) => [...queryKeys.clips.lists(), filters] as const,
-    details: () => [...queryKeys.clips.all, 'detail'] as const,
-    detail: (id: number) => [...queryKeys.clips.details(), id] as const,
-    popups: (id: number) => [...queryKeys.clips.all, 'popups', id] as const,
-  },
-  comments: {
-    all: ['comments'] as const,
-    byClip: (clipId: number) => [...queryKeys.comments.all, 'clip', clipId] as const,
-  },
-  users: {
-    all: ['users'] as const,
-    detail: (id: number) => [...queryKeys.users.all, id] as const,
-    me: () => [...queryKeys.users.all, 'me'] as const,
-  },
-  notifications: {
-    all: ['notifications'] as const,
-  },
-  feed: {
-    home: () => ['feed', 'home'] as const,
-    explore: () => ['feed', 'explore'] as const,
-  },
-} as const;
-```
-
-Regola: **factory pattern** per query keys. Tutte le chiavi generate da `queryKeys`. MAI stringhe hardcoded nelle query/mutations.
-
-**Toast/notification pattern (conflitto: quando e come mostrare toast):**
-
-| Evento | Toast | Tipo |
-|---|---|---|
-| Commento inviato | No (optimistic UI, già visibile) | — |
-| Like/unlike | No (feedback visivo immediato) | — |
-| Upload completato | "La tua clip è live!" | success |
-| Upload fallito | "Upload fallito. Riprova?" con azione | error |
-| Errore API generico | Messaggio dal backend (`detail`) | error |
-| 401 → logout forzato | "Sessione scaduta, effettua di nuovo l'accesso" | warning |
-| Follow | No (feedback visivo bottone) | — |
-
-Regola: toast Sonner per **errori e conferme importanti**. MAI toast per azioni optimistic che hanno già feedback visivo.
-
----
+Ogni ViewSet CRUD deve avere almeno `InputSerializer` (campi scrivibili) e `OutputSerializer` (campi leggibili + calcolati). MAI un singolo serializer per tutto.
 
 ### Process Patterns
 
-**Error handling frontend (conflitto: dove e come gestire errori):**
+**Serializer Validation — Quando usare cosa:**
+- `validate_{field}()` → validazione singolo campo isolato (whitelist valori)
+- `validate()` → validazione cross-field (`timestamp_second <= video.duration`)
+- `validators=[MinValueValidator()]` → vincoli numerici semplici
+- Business logic complessa → in `create()`/`update()` del serializer, MAI nella view
 
-```
-Livello 1: Axios interceptor (globale)
-  → 401: refresh + retry + logout se fallisce
-  → 5xx: toast generico "Errore del server"
-  → Network error: toast "Connessione persa"
+**`perform_create()` — Iniezione utente:**
 
-Livello 2: React Query onError (per query)
-  → Errori specifici business logic gestiti nel componente
-  → Toast con messaggio dal backend (detail)
+```python
+# Rating, Comment: campo `user`
+def perform_create(self, serializer):
+    serializer.save(user=self.request.user)
 
-Livello 3: Error Boundary (per route)
-  → error.tsx per errori React non gestiti
-  → Mostra messaggio user-friendly + "Riprova"
-
-Livello 4: Form validation (locale)
-  → Validazione inline prima dell'invio
-  → Errori API di validazione mappati ai campi
+# Video: campo `uploader`
+def perform_create(self, serializer):
+    serializer.save(uploader=self.request.user)
 ```
 
-Regola: gli errori si gestiscono **al livello più appropriato**. L'interceptor gestisce auth e network. React Query gestisce errori business. Error boundary è l'ultimo fallback.
+MAI passare l'utente come campo del serializer input.
 
-**Loading state pattern (conflitto: skeleton vs spinner vs nulla):**
+**Incrementi atomici:**
 
-| Contesto | Pattern | Componente |
-|---|---|---|
-| Primo caricamento app | GradientSpinner (stato authenticating) | `AuthProvider` |
-| Feed/liste | Skeleton cards (shimmer) | `ClipCardSkeleton` |
-| Pagina dettaglio clip | Skeleton player + skeleton commenti | Dedicati |
-| Azioni utente (like, commento) | Nessun loading (optimistic UI) | — |
-| Upload video | Progress bar con percentuale | `UploadProgress` |
-| Navigazione pagine | Nessun loading visibile (App Router prefetch) | — |
+```python
+# CORRETTO
+video.views = F('views') + 1
+video.save(update_fields=['views'])
+video.refresh_from_db()
 
-Regola: **skeleton per contenuto**, **spinner solo per auth iniziale**, **nessun loading per azioni optimistic**.
+# VIETATO — race condition
+video.views += 1
+video.save()
+```
 
----
+**Loading States Frontend — Pattern standard:**
 
-### Enforcement Guidelines
+```tsx
+const { data, isLoading, isError, refetch } = useQuery({...});
+if (isLoading) return <Skeleton />; // Skeleton per contenuto strutturato, Spinner per azioni
+if (isError) return <ErrorMessage onRetry={refetch} />;
+```
 
-**Tutti gli agenti AI DEVONO:**
+MAI schermo vuoto durante loading. MAI omettere `isError` + `<ErrorMessage>`.
 
-1. Usare `snake_case` per i campi dati (match backend Django)
-2. Named export per tutto tranne pagine/layout Next.js
-3. File in `kebab-case.tsx` per componenti, `kebab-case.ts` per il resto
-4. Query keys dal factory `queryKeys` — mai stringhe hardcoded
-5. Errori gestiti al livello appropriato (interceptor → React Query → Error Boundary)
-6. Commenti e messaggi utente in italiano, codice in inglese
-7. Un file per hook in `src/lib/hooks/`, un file per dominio in `src/lib/api/`
-8. Tipi con `interface` per forme dati, `type` per union/utility
-9. Toast solo per errori e conferme importanti, mai per azioni optimistic
-10. Skeleton per caricamento contenuto, optimistic UI per azioni utente
+**React Query Mutation — Template standard:**
+
+```tsx
+export function useCreateThing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateThingInput) => thingsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.things.all });
+    },
+  });
+}
+```
+
+Per optimistic updates (follow, like):
+```tsx
+onMutate: async (id) => {
+  await queryClient.cancelQueries({ queryKey: queryKeys.things.detail(id) });
+  const previous = queryClient.getQueryData(queryKeys.things.detail(id));
+  queryClient.setQueryData(queryKeys.things.detail(id), (old) => ({...old, liked: true}));
+  return { previous };
+},
+onError: (_err, id, context) => {
+  queryClient.setQueryData(queryKeys.things.detail(id), context?.previous);
+},
+onSettled: (_data, _err, id) => {
+  queryClient.invalidateQueries({ queryKey: queryKeys.things.detail(id) });
+},
+```
+
+**API Module Frontend — Template standard per nuovo dominio:**
+
+```tsx
+import { apiClient } from "./client";
+import type { PaginatedResponse, MyType } from "@/types";
+import { normalizePaginated } from "@/lib/utils";
+
+export const myDomainApi = {
+  getAll: (page = 1) =>
+    apiClient.get<PaginatedResponse<MyType>>("/my-domain/", { params: { page } })
+      .then((r) => normalizePaginated(r.data)),
+  getById: (id: number) =>
+    apiClient.get<MyType>(`/my-domain/${id}/`).then((r) => r.data),
+  create: (data: CreateMyTypeInput) =>
+    apiClient.post<MyType>("/my-domain/", data).then((r) => r.data),
+  delete: (id: number) =>
+    apiClient.delete(`/my-domain/${id}/`),
+};
+```
+
+**Regola `"use client"` — Next.js App Router:**
+- `"use client"` SOLO se il componente usa hooks (`useState`, `useEffect`, `useQuery`, `useMutation`) o event handlers (`onClick`, `onChange`)
+- Senza hooks/eventi → Server Component (default) — beneficia di SSR, zero JS al client
+- L'unica RSC con fetch server-side è `/clip/[id]/page.tsx` (`generateMetadata` per SEO)
+
+**Import Ordering:**
+
+Python (ruff enforced):
+1. Standard library (`datetime`, `pathlib`, `tempfile`)
+2. Third-party (`django.*`, `rest_framework.*`, `drf_spectacular.*`)
+3. Project-specific relativi (`.models`, `.api.*`, `.utils.*`)
+
+TypeScript (convenzione):
+1. React/Next.js (`"react"`, `"next/link"`)
+2. Librerie esterne (`"@tanstack/react-query"`, `"lucide-react"`, `"framer-motion"`)
+3. Componenti UI (`"@/components/ui/*"`)
+4. Componenti progetto (`"@/components/*"`)
+5. Lib/hooks/api (`"@/lib/*"`)
+6. Types (`"@/types"`) — sempre con `import type`
+
+**Docstring Python — Formato one-liner italiano:**
+
+```python
+def close_contests(self):
+    """Chiude tutti i contest scaduti e assegna il vincitore."""
+```
+
+Multi-liner per funzioni complesse:
+```python
+def create(self, validated_data):
+    """
+    Crea un video con estrazione durata e assegnazione contest.
+
+    1. Salva il file su MinIO
+    2. Estrae la durata con MoviePy
+    3. Assegna al contest corrente per tag
+    """
+```
+
+### Regole di Enforcement — Definition of Done
+
+**Ogni agente AI DEVE verificare prima di considerare completa una task:**
+
+- Nessun modello senza `related_name` su ogni FK
+- Nessun ViewSet senza `permission_classes` espliciti
+- Nessuna lista API senza paginazione (`self.get_paginated_response()`)
+- Nessun `@action` senza `@extend_schema`
+- Nessun serializer CRUD senza separazione Input/Output
+- Nessuna pagina frontend senza `isError` + `<ErrorMessage onRetry={refetch} />`
+- Nessun componente con hooks senza `"use client"`
+- Nessun import User diretto — sempre `get_user_model()`
+- Nessun utente test senza gruppo assegnato
+- Nessun increment senza `F()` expression
+- Nessuna stringa query key inline — sempre `queryKeys.dominio.azione()`
+- Nessun dominio frontend senza modulo API + hook + type + query keys
+- Nessuna directory Python senza `__init__.py`
+- Messaggi UI e help_text in italiano, codice in inglese
+
+### Anti-Pattern Vietati
+
+- `from django.contrib.auth.models import User` → `get_user_model()`
+- `obj.field += 1; obj.save()` → `F('field') + 1`
+- `Response(serializer.data)` su liste → `self.get_paginated_response()`
+- Contest CRUD ViewSet → contest creati implicitamente via `get_or_create_current_contest()`
+- Utenti senza gruppo → viola `blank=False` su `groups`
+- `import from "motion/react"` → `import from "framer-motion"`
+- `{dominio}_urls.py` nelle subdirectory API → routing solo in `cs_clips/urls.py`
+- Singolo serializer per ViewSet CRUD → separare Input/Output
+- `@action` senza `@extend_schema` → documenta sempre per OpenAPI
+- Stringhe query key inline (`["notifications"]`) → usa `queryKeys.dominio`
+- `"use client"` su componenti senza hooks/eventi → lasciare come Server Component
 
 ## Project Structure & Boundaries
 
-### Complete Project Directory Structure
+### Struttura Completa del Progetto
 
 ```
-frontend/
-├── .env.local                          # NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-├── .env.example                        # [NEW] Template env vars documentato
-├── package.json
-├── tsconfig.json
-├── next.config.ts
-├── components.json                     # shadcn/ui (new-york, RSC, neutral)
-├── postcss.config.mjs
-├── eslint.config.mjs
-├── public/
-│   ├── file.svg
-│   ├── globe.svg
-│   ├── next.svg
-│   ├── vercel.svg
-│   └── window.svg
+Video_clip/
+├── .env                              # Variabili ambiente root (DB, MinIO)
+├── .gitignore
+├── .editorconfig                     # [Story 0] tab/spaces, line endings
+├── compose.yml                       # PostgreSQL, MinIO, pgAdmin, minio-init
+├── package.json                      # Orchestrazione NPM (concurrently + wait-on)
+├── package-lock.json
 │
-└── src/
-    ├── middleware.ts                    # [NEW] Route protection (refresh token check → redirect /login)
-    │
-    ├── app/
-    │   ├── globals.css                 # Tailwind v4 + custom animations + design tokens
-    │   ├── layout.tsx                  # Root: QueryProvider > AuthProvider > TooltipProvider
-    │   ├── page.tsx                    # Landing: redirect auth→/home, anon→/login
-    │   ├── error.tsx                   # Error boundary (Livello 3)
-    │   ├── not-found.tsx               # 404
-    │   ├── favicon.ico
-    │   │
-    │   ├── (auth)/                     # Route group: pagine pubbliche auth
-    │   │   ├── layout.tsx              # Layout auth (Server Component)
-    │   │   ├── login/
-    │   │   │   └── page.tsx            # FR1: Login
-    │   │   └── registrati/
-    │   │       └── page.tsx            # FR2: Registrazione
-    │   │
-    │   ├── (main)/                     # Route group: pagine protette
-    │   │   ├── layout.tsx              # Layout con sidebar + header (Client Component)
-    │   │   ├── home/
-    │   │   │   └── page.tsx            # FR17: Feed following
-    │   │   ├── esplora/
-    │   │   │   └── page.tsx            # FR18: Feed esplora/scoperta
-    │   │   ├── carica/
-    │   │   │   └── page.tsx            # FR7-FR10: Upload video + Vercel Blob
-    │   │   ├── profilo/
-    │   │   │   ├── page.tsx            # FR5: Profilo personale
-    │   │   │   └── [username]/
-    │   │   │       └── page.tsx        # FR6: Profilo utente (vista pubblica)
-    │   │   ├── contest/
-    │   │   │   └── page.tsx            # FR37-FR44: Contest (Release B)
-    │   │   ├── notifiche/              # [NEW]
-    │   │   │   └── page.tsx            # [NEW] FR48: Pagina notifiche
-    │   │   └── admin/                  # [NEW]
-    │   │       └── page.tsx            # [NEW] FR49-FR52: Dashboard admin/moderazione
-    │   │
-    │   └── clip/
-    │       └── [id]/
-    │           ├── layout.tsx          # OG meta tags (Server Component SSR)
-    │           ├── page.tsx            # Server fetch → passa props a clip-content
-    │           └── clip-content.tsx    # Client Component: player micro-sistema
-    │
-    ├── components/
-    │   ├── ui/                         # shadcn/ui (18 componenti installati)
-    │   │   ├── avatar.tsx
-    │   │   ├── badge.tsx
-    │   │   ├── button.tsx
-    │   │   ├── card.tsx
-    │   │   ├── dialog.tsx
-    │   │   ├── dropdown-menu.tsx
-    │   │   ├── input.tsx
-    │   │   ├── label.tsx
-    │   │   ├── popover.tsx
-    │   │   ├── progress.tsx
-    │   │   ├── scroll-area.tsx
-    │   │   ├── separator.tsx
-    │   │   ├── sheet.tsx
-    │   │   ├── skeleton.tsx
-    │   │   ├── sonner.tsx
-    │   │   ├── tabs.tsx
-    │   │   ├── textarea.tsx
-    │   │   └── tooltip.tsx
-    │   │
-    │   ├── layout/
-    │   │   ├── header.tsx              # Header responsive con nav + user menu
-    │   │   ├── left-sidebar.tsx        # Sidebar desktop
-    │   │   └── mobile-bottom-bar.tsx   # Bottom bar mobile
-    │   │
-    │   ├── shared/
-    │   │   ├── empty-state.tsx         # Stato vuoto (nessun contenuto)
-    │   │   ├── error-message.tsx       # Messaggio errore riusabile
-    │   │   ├── gradient-spinner.tsx    # Spinner auth iniziale
-    │   │   ├── infinite-scroll.tsx     # Wrapper infinite scroll
-    │   │   ├── page-loader.tsx         # Loader full page
-    │   │   ├── tag-badge.tsx           # Badge tag (clutch/funny/fail)
-    │   │   ├── timestamp-badge.tsx     # Badge timestamp
-    │   │   └── notification-bell.tsx   # [NEW] FR48: Bell icon + badge count
-    │   │
-    │   ├── feed/
-    │   │   ├── clip-card.tsx           # FR17: Card clip nel feed
-    │   │   ├── clip-card-skeleton.tsx  # Skeleton loading card
-    │   │   └── feed-grid.tsx           # Griglia feed responsiva
-    │   │
-    │   ├── video/
-    │   │   ├── video-player.tsx        # FR20: Player HTML5 + controlli custom
-    │   │   ├── player-controls.tsx     # Controlli play/pause/volume/fullscreen
-    │   │   ├── progress-bar.tsx        # Barra progresso + seek
-    │   │   ├── comment-marker.tsx      # FR32: Dot gradiente sulla timeline
-    │   │   ├── popup-overlay.tsx       # FR31: Glassmorphism popup overlay
-    │   │   ├── like-button.tsx         # [NEW] FR28: Like clip (toggle cuore)
-    │   │   └── upload-progress.tsx     # [NEW] Progress bar upload con percentuale
-    │   │
-    │   ├── comments/
-    │   │   ├── comment-form.tsx        # FR23: Form commento (timestamp pre-compilato)
-    │   │   ├── comment-item.tsx        # FR24: Singolo commento
-    │   │   ├── comment-list.tsx        # FR25: Lista commenti
-    │   │   ├── comment-section.tsx     # Container commenti
-    │   │   ├── dynamic-sidebar.tsx     # Sidebar commenti desktop
-    │   │   └── comment-like-button.tsx # [NEW] FR27: Like su commento
-    │   │
-    │   ├── user/
-    │   │   ├── user-avatar.tsx         # Avatar utente
-    │   │   ├── profile-header.tsx      # FR5: Header profilo
-    │   │   ├── follow-button.tsx       # FR4: Bottone follow/unfollow
-    │   │   └── username-link.tsx       # Link username cliccabile
-    │   │
-    │   ├── rating/
-    │   │   └── star-rating.tsx         # Rating stelle (contest Release B)
-    │   │
-    │   ├── contest/                    # [VUOTO — Release B]
-    │   │   ├── bracket-view.tsx        # [FUTURE] FR40: Albero bracket interattivo
-    │   │   ├── matchup-card.tsx        # [FUTURE] FR41: Card matchup
-    │   │   └── vote-button.tsx         # [FUTURE] FR42: Votazione matchup
-    │   │
-    │   └── admin/                      # [NEW]
-    │       ├── user-management.tsx     # [NEW] FR49: Lista utenti + sospensione
-    │       ├── content-moderation.tsx  # [NEW] FR50: Moderazione clip/commenti
-    │       └── report-list.tsx         # [NEW] FR51: Lista segnalazioni
-    │
-    ├── lib/
-    │   ├── api/
-    │   │   ├── client.ts              # Axios instance + interceptors + refresh mutex
-    │   │   ├── auth.ts                # login(), register(), refreshToken(), getCurrentUser()
-    │   │   ├── videos.ts              # CRUD video + feed + upload
-    │   │   ├── comments.ts            # CRUD commenti
-    │   │   ├── users.ts               # Profilo + follow/unfollow
-    │   │   ├── ratings.ts             # Create/update rating (contest)
-    │   │   ├── contests.ts            # getWinners()
-    │   │   ├── likes.ts               # [NEW] likeClip, unlikeClip, likeComment, unlikeComment
-    │   │   ├── notifications.ts       # [NEW] getNotifications(), markAsRead()
-    │   │   └── upload.ts              # [NEW] uploadVideo() dedicato con retry x3 + progress
-    │   │
-    │   ├── hooks/
-    │   │   ├── use-videos.ts          # Hook query video
-    │   │   ├── use-comments.ts        # Hook query commenti
-    │   │   ├── use-ratings.ts         # Hook query rating
-    │   │   ├── use-users.ts           # Hook query utenti
-    │   │   ├── use-media-query.ts     # Breakpoint responsive
-    │   │   ├── use-intersection.ts    # Intersection observer (infinite scroll)
-    │   │   ├── use-like-mutation.ts   # [NEW] Optimistic UI like clip + commenti
-    │   │   ├── use-notifications.ts   # [NEW] Query notifiche + markAsRead
-    │   │   └── use-upload.ts          # [NEW] Upload con progress + retry
-    │   │
-    │   ├── constants.ts               # API_BASE_URL, PAGE_SIZE, TAG_COLORS, NAV_ITEMS, timing
-    │   ├── query-keys.ts              # Factory pattern chiavi React Query
-    │   └── utils.ts                   # cn(), utility generiche
-    │
-    ├── types/
-    │   ├── index.ts                   # Re-export tutti i tipi
-    │   ├── api.ts                     # PaginatedResponse<T>, ApiError
-    │   ├── user.ts                    # User, UserRegistration, LoginCredentials, TokenPair
-    │   ├── video.ts                   # Video, VideoUploadData, VideoTag
-    │   ├── comment.ts                 # Comment, CreateCommentData, PopupComment [EXTEND]
-    │   ├── rating.ts                  # Rating, CreateRatingData
-    │   ├── contest.ts                 # Contest (Release B: Bracket, Matchup, Vote)
-    │   ├── notification.ts            # [NEW] Notification, NotificationType
-    │   └── like.ts                    # [NEW] ClipLike, CommentLike
-    │
-    └── providers/
-        ├── query-provider.tsx         # QueryClient (staleTime 30s, retry 1)
-        ├── auth-provider.tsx          # Auth context (user, tokens, login/logout, isAuthenticating)
-        └── video-player-provider.tsx  # [NEW] Player micro-sistema (ref pattern, popupData, seekTo)
+├── .github/                          # [Story 0] CI/CD
+│   └── workflows/
+│       └── ci.yml                    # ruff + test backend + lint + test + build frontend
+│
+├── backend/
+│   ├── .env                          # Django SECRET_KEY, DB_URL, MinIO creds
+│   ├── .env.example
+│   ├── manage.py
+│   ├── requirements.txt              # [D7] senza celery/redis
+│   ├── pyproject.toml                # [D5] config ruff
+│   ├── schema.yaml                   # OpenAPI generato da drf-spectacular
+│   │
+│   ├── project_clip/                 # Django project config
+│   │   ├── __init__.py
+│   │   ├── settings.py              # [D6] throttle rates inclusi
+│   │   ├── urls.py                   # Include cs_clips.urls
+│   │   └── wsgi.py
+│   │
+│   ├── cs_clips/                     # Django app principale
+│   │   ├── apps.py                   # CsClipsConfig.ready() → APScheduler
+│   │   ├── scheduler.py              # APScheduler config
+│   │   ├── permissions.py            # RoleBasedPermission, OnlyUsers, OnlyAdmins
+│   │   ├── urls.py                   # UNICO punto di routing API
+│   │   │
+│   │   ├── models/                   # Un file per modello
+│   │   │   ├── __init__.py           # Barrel export di tutti i modelli
+│   │   │   ├── user.py               # Custom User (AbstractUser)
+│   │   │   ├── video.py
+│   │   │   ├── contest.py
+│   │   │   ├── comment.py
+│   │   │   ├── rating.py
+│   │   │   ├── video_like.py         # [DA CREARE] FR28
+│   │   │   ├── comment_like.py       # [DA CREARE] FR27
+│   │   │   ├── notification.py       # [DA CREARE] D1
+│   │   │   ├── bracket.py            # [DA CREARE] D2
+│   │   │   ├── contest_entry.py      # [DA CREARE] D2
+│   │   │   └── matchup.py            # [DA CREARE] D2
+│   │   │
+│   │   ├── api/                      # Dominio-per-directory
+│   │   │   ├── videos/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── video_views.py
+│   │   │   │   └── video_serializers.py
+│   │   │   ├── users/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── user_views.py
+│   │   │   │   └── user_serializers.py
+│   │   │   ├── comments/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── comment_views.py
+│   │   │   │   └── comment_serializers.py
+│   │   │   ├── ratings/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── rating_views.py
+│   │   │   │   └── rating_serializers.py
+│   │   │   ├── contests/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── contest_views.py
+│   │   │   │   └── contest_serializers.py
+│   │   │   ├── notifications/         # [DA CREARE] D1
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── notification_views.py
+│   │   │   │   └── notification_serializers.py
+│   │   │   └── brackets/              # [DA CREARE] D2
+│   │   │       ├── __init__.py
+│   │   │       ├── bracket_views.py
+│   │   │       └── bracket_serializers.py
+│   │   │
+│   │   ├── exceptions/
+│   │   │   ├── __init__.py
+│   │   │   ├── error_handler.py
+│   │   │   └── error_response_serializer.py
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── get_date_util.py       # get_or_create_current_contest()
+│   │   │   └── desempate.py           # Algoritmo spareggio contest
+│   │   │
+│   │   ├── management/
+│   │   │   ├── __init__.py
+│   │   │   └── commands/
+│   │   │       ├── __init__.py
+│   │   │       └── close_contests.py
+│   │   │
+│   │   ├── migrations/
+│   │   │   ├── 0001_initial.py
+│   │   │   └── 0002_alter_video_file.py
+│   │   │
+│   │   ├── tests/                     # [Story 0] da ricreare
+│   │   │   ├── __init__.py
+│   │   │   ├── conftest.py            # [D4] 5 fixture base
+│   │   │   ├── test_auth.py           # Auth flow critico
+│   │   │   ├── test_permissions.py    # RoleBasedPermission
+│   │   │   ├── test_upload.py         # Upload pipeline
+│   │   │   ├── test_contests.py       # Contest closure + spareggio
+│   │   │   └── test_videos.py         # CRUD video
+│   │   │
+│   │   └── admin.py
+│   │
+│   ├── scripts/
+│   │   └── minio_init.sh             # Init bucket MinIO
+│   │
+│   └── policy/
+│       └── ...                        # MinIO policies
+│
+├── frontend/
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── next.config.ts
+│   ├── tsconfig.json
+│   ├── postcss.config.mjs
+│   ├── eslint.config.mjs              # ESLint 9 FlatConfig
+│   ├── components.json                # shadcn/ui config
+│   │
+│   ├── public/                        # Static assets
+│   │
+│   ├── src/
+│   │   ├── globals.css                # TailwindCSS v4 @theme inline
+│   │   ├── middleware.ts              # Next.js middleware (cookie session_active)
+│   │   │
+│   │   ├── app/
+│   │   │   ├── layout.tsx             # Root layout + Providers
+│   │   │   ├── (auth)/                # Route group auth
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── login/page.tsx
+│   │   │   │   └── register/page.tsx
+│   │   │   └── (main)/               # Route group app
+│   │   │       ├── layout.tsx         # Sidebar + Navbar + BottomBar
+│   │   │       ├── feed/page.tsx
+│   │   │       ├── clip/[id]/page.tsx # RSC — SSR + generateMetadata
+│   │   │       ├── profilo/[username]/page.tsx
+│   │   │       ├── contest/page.tsx
+│   │   │       ├── esplora/page.tsx
+│   │   │       ├── upload/page.tsx
+│   │   │       ├── cerca/page.tsx
+│   │   │       └── impostazioni/page.tsx
+│   │   │
+│   │   ├── components/
+│   │   │   ├── ui/                    # shadcn/ui primitives (18 componenti)
+│   │   │   ├── shared/                # ErrorMessage, LoadingSpinner, TagBadge, etc.
+│   │   │   ├── layout/               # LeftSidebar, Header, DesktopNavbar, MobileBottomBar
+│   │   │   ├── feed/                  # ClipCard, FeedGrid, FeedTabs
+│   │   │   ├── video/                 # VideoPlayer, VideoInfo, PopupOverlay, DynamicSidebar
+│   │   │   ├── comments/             # CommentSection, CommentList, CommentForm
+│   │   │   ├── user/                  # UserAvatar, FollowButton, ProfileEditForm, etc.
+│   │   │   └── auth/                  # LoginTransitionOverlay, LoginTransitionProvider
+│   │   │
+│   │   ├── lib/
+│   │   │   ├── api/
+│   │   │   │   ├── client.ts          # Axios + JWT interceptor
+│   │   │   │   ├── videos.ts
+│   │   │   │   ├── comments.ts
+│   │   │   │   ├── ratings.ts
+│   │   │   │   ├── users.ts
+│   │   │   │   ├── contests.ts
+│   │   │   │   ├── notifications.ts   # [DA CREARE] D1
+│   │   │   │   └── brackets.ts        # [DA CREARE] D2
+│   │   │   ├── hooks/
+│   │   │   │   ├── use-videos.ts
+│   │   │   │   ├── use-comments.ts
+│   │   │   │   ├── use-ratings.ts
+│   │   │   │   ├── use-users.ts
+│   │   │   │   ├── use-auth.ts
+│   │   │   │   ├── use-media-query.ts
+│   │   │   │   ├── use-notifications.ts  # [DA CREARE] D1
+│   │   │   │   ├── use-brackets.ts       # [DA CREARE] D2
+│   │   │   │   └── __tests__/            # [Story 0]
+│   │   │   │       ├── use-videos.test.ts
+│   │   │   │       └── use-comments.test.ts
+│   │   │   ├── query-keys.ts         # Query keys centralizzati
+│   │   │   ├── constants.ts
+│   │   │   └── utils.ts              # cn(), extractPageFromUrl(), normalizePaginated()
+│   │   │
+│   │   ├── providers/
+│   │   │   ├── auth-provider.tsx
+│   │   │   ├── query-provider.tsx     # React Query + DevTools
+│   │   │   └── login-transition-provider.tsx
+│   │   │
+│   │   └── types/
+│   │       ├── index.ts              # Barrel export
+│   │       ├── video.ts
+│   │       ├── user.ts
+│   │       ├── comment.ts
+│   │       ├── rating.ts
+│   │       ├── contest.ts
+│   │       ├── api.ts
+│   │       ├── notification.ts       # [DA CREARE] D1
+│   │       └── bracket.ts            # [DA CREARE] D2
+│   │
+│   └── src/test/                      # [Story 0] MSW setup
+│       ├── setup.ts                   # beforeAll/afterAll MSW server
+│       └── handlers.ts               # MSW handlers centralizzati
+│
+├── docs/                              # Documentazione progetto
+│   ├── index.md
+│   ├── project-overview.md
+│   ├── architecture-backend.md
+│   ├── architecture-frontend.md
+│   ├── integration-architecture.md
+│   ├── api-contracts-backend.md
+│   ├── data-models-backend.md
+│   ├── component-inventory-frontend.md
+│   ├── state-management-frontend.md
+│   ├── source-tree-analysis.md
+│   └── development-guide.md
+│
+└── _bmad-output/                      # Artefatti BMAD
+    ├── planning-artifacts/
+    │   ├── prd.md
+    │   ├── architecture.md            # ← QUESTO DOCUMENTO
+    │   └── ux-design-specification.md
+    └── project-context.md
 ```
 
-### Architectural Boundaries
+### Confini Architetturali
 
-**API Boundary (Frontend ↔ Django):**
-- Singolo punto di ingresso: `lib/api/client.ts` (Axios instance)
-- Singolo URL: `NEXT_PUBLIC_API_URL` per tutte le chiamate (API + upload)
-- JWT iniettato automaticamente via request interceptor
-- Errori gestiti via response interceptor (401 → refresh mutex → retry)
-- Upload: stessa istanza, `multipart/form-data` + `onUploadProgress`
+**Confini API (Backend → Frontend):**
 
-**Component Boundaries:**
+| Dominio | Base Path | ViewSet/View | Stato |
+|---------|-----------|-------------|-------|
+| Auth | `/api/token/` | `CustomTokenObtainPairView` | Funzionante |
+| Users | `/api/users/` | `UserViewSet` | Parziale (manca by-username) |
+| Videos | `/api/videos/` | `VideoViewSet` | Funzionante |
+| Comments | `/api/comments/` | `CommentViewSet` | Funzionante |
+| Ratings | `/api/ratings/` | `RatingViewSet` | Funzionante |
+| Contests | `/api/contests/` | `ContestWinnersView`, `EndContestView` | Parziale |
+| Notifications | `/api/notifications/` | `NotificationViewSet` | [DA CREARE] |
+| Brackets | `/api/brackets/` | `BracketViewSet` | [DA CREARE] |
 
-| Boundary | Comunicazione | Stato condiviso |
-|---|---|---|
-| **Layout ↔ Pages** | Props via layout, React Context per auth | `AuthProvider` (user, isAuthenticated) |
-| **Player micro-sistema** | `VideoPlayerProvider` context | currentTimeRef, isPlaying, popupData[], seekTo() |
-| **Feed ↔ ClipCard** | Props (clip data) | Nessuno (React Query locale per like) |
-| **Comments ↔ Player** | Evento pausa → timestamp, VideoPlayerProvider | currentTimeRef (letto solo su pausa) |
-| **Header ↔ Notifications** | `notification-bell.tsx` in header | React Query (notifiche count) |
+**Confini Dati (Backend → Storage):**
 
-**Data Boundaries:**
+- Django ORM → PostgreSQL 16 (psycopg 3.2.4, `dj-database-url`)
+- Django → MinIO (presigned URL 1h, `django-minio-storage` + client `minio`)
+- APScheduler → in-process (zero dipendenze esterne)
 
-| Layer | Responsabilità | Non deve fare |
-|---|---|---|
-| `lib/api/*.ts` | Chiamate HTTP pure, nessuna logica | Gestire stato, cache, UI |
-| `lib/hooks/*.ts` | React Query wrapper, optimistic UI | Chiamate HTTP dirette, rendering |
-| `providers/*.tsx` | Stato globale (auth, player) | Data fetching, rendering componenti |
-| `components/*/*.tsx` | Rendering + interazione utente | Chiamate API dirette (usa hooks) |
-| `types/*.ts` | Definizioni tipi | Logica, side effects |
+**Confini Componenti (Frontend):**
 
-### Requirements → Structure Mapping
+- `(auth)/` → pagine login/register, nessun layout main
+- `(main)/` → tutte le pagine app, layout con sidebar/navbar/bottombar
+- `providers/` → context globali (Auth, Query, LoginTransition)
+- `lib/api/` → unico punto di contatto con backend (via Axios `apiClient`)
+- `lib/hooks/` → unico punto di accesso a React Query (mai `useQuery` diretto nei componenti)
 
-**FR1-FR6 (Gestione Utenti):**
-- Pagine: `(auth)/login`, `(auth)/registrati`, `(main)/profilo`
-- Componenti: `user/`, `shared/gradient-spinner.tsx`
-- API: `lib/api/auth.ts`, `lib/api/users.ts`
-- Provider: `providers/auth-provider.tsx`
-- Middleware: `src/middleware.ts`
+### Mapping Requisiti → Struttura
 
-**FR7-FR16 (Creazione & Gestione Contenuti):**
-- Pagine: `(main)/carica`
-- Componenti: `video/upload-progress.tsx`
-- API: `lib/api/videos.ts`, `lib/api/upload.ts`
-- Hooks: `lib/hooks/use-upload.ts`
+**Tier 1 — Core Loop:**
 
-**FR17-FR22 (Scoperta & Fruizione):**
-- Pagine: `(main)/home`, `(main)/esplora`
-- Componenti: `feed/clip-card.tsx`, `feed/feed-grid.tsx`, `feed/clip-card-skeleton.tsx`
-- API: `lib/api/videos.ts`
-- Hooks: `lib/hooks/use-videos.ts`
+| FR | Descrizione | Backend | Frontend |
+|----|------------|---------|----------|
+| FR1-FR2 | Auth (registrazione + login) | `api/users/user_views.py`, `project_clip/urls.py` (token) | `(auth)/login/`, `(auth)/register/`, `providers/auth-provider.tsx` |
+| FR7-FR11 | Upload clip | `api/videos/video_views.py`, `api/videos/video_serializers.py` | `(main)/upload/page.tsx`, `hooks/use-videos.ts` |
+| FR15 | Presigned URL | `api/videos/video_serializers.py` (VideoOutputSerializer) | `components/video/video-player.tsx` |
+| FR17 | Feed following | `api/videos/video_views.py` (@action following) | `(main)/feed/page.tsx`, `components/feed/` |
+| FR23-FR24 | Commenti | `api/comments/` | `components/comments/` |
 
-**FR23-FR36 (Commenti & Interazioni + Popup):**
-- Pagine: `clip/[id]` (clip-content.tsx)
-- Componenti: `comments/*`, `video/popup-overlay.tsx`, `video/comment-marker.tsx`, `video/like-button.tsx`, `comments/comment-like-button.tsx`
-- API: `lib/api/comments.ts`, `lib/api/likes.ts`
-- Provider: `providers/video-player-provider.tsx`
-- Hooks: `lib/hooks/use-comments.ts`, `lib/hooks/use-like-mutation.ts`
+**Tier 2 — Social Layer:**
 
-**FR37-FR44 (Contest — Release B):**
-- Pagine: `(main)/contest`
-- Componenti: `contest/*` (bracket-view, matchup-card, vote-button)
-- API: `lib/api/contests.ts`
-- Tipi: `types/contest.ts`
+| FR | Descrizione | Backend | Frontend |
+|----|------------|---------|----------|
+| FR4-FR6 | Follow/unfollow | `api/users/user_views.py` (@action follow/unfollow) | `components/user/follow-button.tsx`, `hooks/use-users.ts` |
+| FR27-FR28 | Like video/commenti | `models/video_like.py`, `models/comment_like.py` [DA CREARE] | `hooks/use-videos.ts`, `hooks/use-comments.ts` |
+| FR50-FR52 | Notifiche | `api/notifications/` [DA CREARE] | `hooks/use-notifications.ts` [DA CREARE] |
 
-**FR45-FR52 (Admin & Moderazione + Notifiche):**
-- Pagine: `(main)/admin`, `(main)/notifiche`
-- Componenti: `admin/*`, `shared/notification-bell.tsx`
-- API: `lib/api/notifications.ts`
-- Hooks: `lib/hooks/use-notifications.ts`
+**Tier 3 — Differenziatori:**
 
-### Integration Points
+| FR | Descrizione | Backend | Frontend |
+|----|------------|---------|----------|
+| FR39a-FR43a | Contest settimanali | `api/contests/`, `utils/desempate.py`, `management/commands/close_contests.py` | `(main)/contest/page.tsx` |
+| FR39c-FR44b | Bracket Champions League | `api/brackets/` [DA CREARE] | `components/brackets/` [DA CREARE] |
 
-**Interni (Frontend):**
+**Cross-Cutting Concerns:**
+
+| Concern | Backend | Frontend |
+|---------|---------|----------|
+| Auth JWT | `permissions.py`, SimpleJWT config in `settings.py` | `providers/auth-provider.tsx`, `lib/api/client.ts` |
+| Error handling | `exceptions/error_handler.py` | `components/shared/error-message.tsx` |
+| Paginazione | `PageNumberPagination` in `settings.py` | `lib/utils.ts` (normalizePaginated, extractPageFromUrl) |
+| Cache invalidation | — | `lib/query-keys.ts`, optimistic updates in hooks |
+| Upload media | MinIO storage, `django-cleanup` | `hooks/use-videos.ts` (useUploadVideo) |
+
+### Flusso Dati
 
 ```
-AuthProvider ──► Axios interceptor ──► Tutte le API calls
-     │
-     ▼
-VideoPlayerProvider ──► PopupOverlay (rAF + currentTimeRef)
-     │                ──► CommentMarkers (rAF + currentTimeRef)
-     │                ──► CommentForm (evento pausa → timestamp)
-     │
-React Query ──► Invalidation cascade:
-     │           like → popup + commenti
-     │           commento → lista commenti
-     │           upload → feed
-     │           follow → profilo
-     ▼
-Sonner Toast ──► Errori API (interceptor livello 1)
-               ──► Upload completato/fallito
-               ──► Sessione scaduta
+[Browser]
+  ↓ HTTPS (JWT in header)
+[Next.js Frontend]
+  ↓ Axios apiClient → REST JSON
+[Django DRF Backend]
+  ↓ ORM          ↓ minio client
+[PostgreSQL]    [MinIO Storage]
+                  ↓ presigned URL (1h TTL)
+                [Browser <video> playback]
 ```
 
-**Esterni:**
-
-| Servizio | Punto di integrazione | File |
-|---|---|---|
-| **Django REST API** | `lib/api/client.ts` (Axios) | Tutte le API calls |
-| **Vercel Blob CDN** | URL diretta in `<video src>` | `video/video-player.tsx` |
-| **Vercel Blob Upload** | Via Django (REST API) | `lib/api/upload.ts` → Django → Blob |
-| **Vercel Hosting** | Deploy automatico | `next.config.ts` |
+---
 
 ## Architecture Validation Results
 
 ### Coherence Validation ✅
 
-**Compatibilità decisioni:**
+**Decision Compatibility:**
+Tutte le 7 decisioni architetturali (D1-D7) sono compatibili tra loro:
+- D1 (Polling REST 15s) funziona con D6 (Throttle DRF 2000/hour) — margine sufficiente: 240 req/hour polling + ~200 navigazione = ~440, ben sotto 2000
+- D2 (Modelli bracket separati) non conflittua con nessun'altra decisione
+- D3 (Lazy re-fetch presigned URL) si integra con MinIO e con il pattern retry frontend
+- D4 (Testing stack) copre sia backend (Django TestCase) sia frontend (Vitest/RTL/MSW)
+- D5 (ruff) è ortogonale a tutte le altre decisioni
+- D7 (Rimozione celery/redis) è coerente con APScheduler in-process
 
-| Verifica | Stato | Note |
-|---|---|---|
-| Next.js 16 + React 19 + TypeScript 5 | ✅ | Stack ufficiale, compatibilità confermata |
-| Tailwind v4 + shadcn/ui 3.8 (new-york) | ✅ | CSS-first config allineato con PostCSS |
-| React Query 5 + Axios interceptors | ✅ | Nessun conflitto, mutex pattern documentato |
-| JWT memory + localStorage + middleware | ✅ | Doppio layer coerente (server redirect + client state) |
-| Vercel Blob via Django + singolo API URL | ✅ | Pipeline unificata, nessuna config separata |
-| Player ref pattern + React 19 | ✅ | useRef stabile in React 19, rAF pattern compatibile |
-| snake_case frontend + Django backend | ✅ | Zero trasformazione, tipi TypeScript allineati |
-| App Router SSR + "Server fetch, Client render" | ✅ | Pattern supportato nativamente da Next.js 16 |
+**Pattern Consistency:**
+- Naming conventions coerenti: `snake_case` backend, `camelCase` frontend, `kebab-case` file frontend
+- API response wrapper `{count, next, previous, results}` dalla paginazione DRF — nessun wrapper custom
+- Serializer pattern: 1 `serializers.py` per dominio API, multipli serializer per modello dove necessario
+- Query keys: `queryKeys` object centralizzato in `lib/query-keys.ts`
 
-Nessuna contraddizione identificata tra decisioni architetturali.
+**Structure Alignment:**
+- Struttura `api/{dominio}/` backend allineata con `hooks/use-{dominio}.ts` frontend
+- Modelli in `models/` package (1 file/modello) + `__init__.py` re-export
+- Exception handler centralizzato in `exceptions/error_handler.py`
 
-**Consistenza pattern:**
-
-| Pattern | Allineamento con stack | Stato |
-|---|---|---|
-| File kebab-case | shadcn/ui + Next.js convention | ✅ |
-| Named exports | Tree shaking + auto-import TS | ✅ |
-| Query key factory | TanStack React Query best practice | ✅ |
-| 4-level error handling | Axios → React Query → Error Boundary → Form | ✅ |
-| Optimistic UI | React Query useMutation pattern | ✅ |
-| Toast Sonner solo errori/conferme | Coerente con optimistic UI (no doppio feedback) | ✅ |
-
-**Allineamento struttura:**
-
-| Decisione architetturale | Supporto nella struttura | Stato |
-|---|---|---|
-| Player micro-sistema | `providers/video-player-provider.tsx` + 5 componenti `video/` + `comments/` | ✅ |
-| Doppio canale upload | `lib/api/upload.ts` + `lib/api/client.ts` (stessa istanza) | ✅ |
-| Route protection | `src/middleware.ts` + `providers/auth-provider.tsx` | ✅ |
-| Notifiche | `(main)/notifiche/`, `shared/notification-bell.tsx`, `lib/api/notifications.ts` | ✅ |
-| Admin/moderazione | `(main)/admin/`, `components/admin/*` | ✅ |
-| Release A/B separation | Contest in directory separata, tipi estendibili | ✅ |
+**Decisione Aggiuntiva — Backoffice Admin (Party Mode):**
+Per l'MVP, il backoffice amministrativo è gestito esclusivamente da **Django Admin** (`admin.py`). Non è prevista un'interfaccia admin custom nel frontend. Questo è sufficiente per le operazioni CRUD di moderazione e gestione contest.
 
 ### Requirements Coverage Validation ✅
 
-**Copertura FR per categoria:**
+**Copertura per Tier (55 FR totali):**
 
-| Categoria | FR | Copertura architetturale | Stato |
-|---|---|---|---|
-| Gestione Utenti | FR1-FR6 | Auth flow, profilo, follow — pagine + API + provider | ✅ |
-| Creazione Contenuti | FR7-FR16 | Upload pipeline Vercel Blob, video CRUD — pagine + API + hooks | ✅ |
-| Scoperta & Fruizione | FR17-FR22 | Feed home/esplora, card, infinite scroll — pagine + componenti + hooks | ✅ |
-| Commenti & Interazioni | FR23-FR30 | Commenti temporizzati, like clip/commenti, optimistic UI — tutti i layer | ✅ |
-| Popup & Engagement | FR31-FR36 | Popup overlay, comment markers, endpoint dedicato, rAF pattern | ✅ |
-| Contest System | FR37-FR44 | Struttura directory pronta, tipi estendibili — Release B | ⏳ (by design) |
-| Admin & Moderazione | FR45-FR52 | Admin page, notifiche, moderazione — pagine + componenti + API | ✅ |
+| Tier | FR | Copertura Architetturale | Note |
+|------|-----|--------------------------|------|
+| Tier 1 — Core Loop | FR1-FR3, FR7-FR26, FR29-FR30, FR37-FR38 | ✅ Completa | Auth, profilo, upload, feed, rating, contest base |
+| Tier 2 — Social Layer | FR4-FR6, FR27-FR28 | ⚠️ Parziale | Follow OK; Like richiede `VideoLike` + `CommentLike` [DA CREARE]; campo `bio` User [DA CREARE] |
+| Tier 3 — Differenziatori | FR39a-FR44b, FR50-FR52 | ⚠️ Parziale | Contest settimanali OK; Bracket + Notifiche da implementare |
 
-**Copertura NFR:**
+**FR31-FR36 (Popup commenti) — BLOCCATI:**
+I requisiti FR31-FR36 (popup commenti con like/dislike) sono **bloccati** fino all'implementazione del modello `CommentLike`. Il frontend ha i componenti UI ma le API per like/dislike commenti non esistono ancora. Priorità: Tier 2, da implementare insieme a `VideoLike`.
 
-| NFR | Decisione architetturale | Stato |
-|---|---|---|
-| FCP <1.5s, TTI <3s | SSR clip pages, App Router prefetch, code splitting | ✅ |
-| Video start <2s | Vercel Blob CDN, `<video preload="metadata">` | ✅ |
-| Popup latency <200ms | Backend endpoint dedicato, pre-caricamento al mount | ✅ |
-| API reads <500ms | React Query caching (staleTime per risorsa), paginazione PAGE_SIZE=10 | ✅ |
-| Security JWT/CORS | Memory token, refresh mutex, middleware, CORS restrittivo | ✅ |
-| WCAG 2.1 AA | shadcn/ui (Radix UI), keyboard nav, focus management | ✅ |
-| 50 utenti concorrenti | Architettura stateless frontend, CDN Vercel, caching React Query | ✅ |
+**Campo `bio` User — Tier 2 Social Layer:**
+Il campo `bio` nel modello `User` è riclassificato come **Tier 2** (Social Layer), non bassa priorità. È necessario per il profilo utente completo e fa parte dell'esperienza social core.
+
+**Non-Functional Requirements:**
+- Performance: Polling 15s accettabile per MVP, presigned URL 1h TTL
+- Security: JWT auth, throttling 2000/hour, CORS whitelist, validazione upload (dimensione + tipo MIME)
+- Scalability: Architettura stateless, MinIO separato, PostgreSQL — pronti per scale-out
+- Compliance: `django-cleanup` per file orfani, presigned URL con scadenza
 
 ### Implementation Readiness Validation ✅
 
-**Completezza decisioni:**
+**Decision Completeness:**
+- 7 decisioni documentate con versioni e motivazioni
+- Pattern di implementazione per ogni area (naming, struttura, formato, comunicazione, processo)
+- 118 regole in `project-context.md` per guida agenti AI
+- Esempi concreti per ogni pattern
 
-| Criterio | Stato |
-|---|---|
-| Versioni tecnologie verificate | ✅ |
-| Rationale per ogni decisione | ✅ |
-| Esempi concreti per pattern | ✅ |
-| Enforcement guidelines (10 regole) | ✅ |
-| Sequenza implementazione ordinata | ✅ |
+**Structure Completeness:**
+- Directory tree completa con annotazioni `[DA CREARE]` e `[Story 0]`
+- Mapping FR → file specifici per ogni tier
+- Integration points chiaramente specificati (JWT, MinIO, APScheduler)
 
-**Completezza struttura:**
-
-| Criterio | Stato |
-|---|---|
-| Albero directory completo con ogni file | ✅ |
-| File annotati con [NEW] vs esistenti | ✅ |
-| FR mappati a file specifici | ✅ |
-| Boundaries tra layer documentati | ✅ |
-| Integration points interni ed esterni | ✅ |
+**Pattern Completeness:**
+- Naming: `snake_case` / `camelCase` / `kebab-case` ben definiti
+- API: DRF ViewSet + `@action` + `@extend_schema` obbligatorio
+- Frontend: custom hooks + React Query + Zustand per auth
+- Error handling: `CUSTOM_EXCEPTION_HANDLER` backend, `ErrorMessage` component frontend
+- Testing: fixtures condivise, naming `test_{action}_{scenario}_{expected}`
 
 ### Gap Analysis Results
 
-**Gap critici:** NESSUNO
+**Gap Critici — Nessuno:**
+Tutte le decisioni architetturali necessarie per iniziare l'implementazione sono documentate.
 
-**Gap importanti (consapevoli, non bloccanti):**
+**Gap Importanti (Tier 2-3, non bloccanti per Tier 1):**
 
-| Gap | Impatto | Stato |
-|---|---|---|
-| Dettagli player HTML5 (controlli custom) | UX spec copre i dettagli | Coperto da UX spec |
-| Cleanup file temporanei post-upload | Responsabilità backend | Documentato nel pipeline |
-| Test suite formale | Debito tecnico MVP consapevole | Aree critiche identificate |
+| Gap | Priorità | Quando Risolvere |
+|-----|----------|-----------------|
+| Modello `CommentLike` | Tier 2 | Prima di FR31-FR36 |
+| Modello `VideoLike` | Tier 2 | Prima di FR27-FR28 |
+| Campo `bio` in User | Tier 2 | Prima del profilo social completo |
+| Modello `Notification` + API | Tier 3 | Prima di FR50-FR52 |
+| Modelli Bracket (`BracketTournament`, `BracketRound`, `BracketMatch`) | Tier 3 | Prima di FR39c-FR44b |
+| `allow_download` in Video | Basso | Feature opzionale |
+| `is_disabled` in Comment | Basso | Feature moderazione |
 
-**Gap post-MVP (by design):**
-- CI/CD pipeline (GitHub Actions)
-- E2E testing (Playwright)
-- Monitoring/logging (Vercel Analytics)
-- WebSocket per notifiche real-time
-- Service worker per offline
+**Gap Nice-to-Have:**
+- WebSocket per notifiche real-time (post-MVP, attualmente polling)
+- CDN davanti a MinIO (ottimizzazione performance)
+- Rate limiting più granulare per endpoint
+
+### Validation Issues Addressed
+
+**Issue #1 — Throttle Rate (Risolto in Party Mode):**
+Il rate originale di 1000/hour era insufficiente con polling 15s (240 req/hour solo per notifiche). Alzato a **2000/hour** per D6, con margine adeguato.
+
+**Issue #2 — FR31-FR36 Bloccati (Documentato in Party Mode):**
+Aggiunta nota esplicita che i FR popup commenti sono bloccati da `CommentLike` mancante.
+
+**Issue #3 — Django Admin come Backoffice (Documentato in Party Mode):**
+Decisione architetturale mancante ora documentata: Django Admin è il backoffice per l'MVP.
 
 ### Architecture Completeness Checklist
 
 **✅ Requirements Analysis**
-- [x] Contesto progetto analizzato (52 FR, NFR, vincoli)
-- [x] Scala e complessità valutate (medio-alta)
-- [x] Vincoli tecnici identificati (backend brownfield, 87 regole)
-- [x] Cross-cutting concerns mappati (12 concern)
-- [x] Gap backend identificati (6 modelli/endpoint mancanti)
+
+- [x] Contesto progetto analizzato (brownfield, frontend-ahead)
+- [x] Scala e complessità valutate (55 FR, 3 tier)
+- [x] Vincoli tecnici identificati (Django 5.1.6, Next.js 16.1.6, MinIO)
+- [x] Cross-cutting concerns mappati (auth, error handling, paginazione, cache)
 
 **✅ Architectural Decisions**
-- [x] Decisioni critiche documentate con versioni
-- [x] Stack tecnologico completo e verificato
-- [x] Pattern di integrazione definiti
-- [x] Considerazioni performance indirizzate
-- [x] Party Mode insights integrati (2 sessioni)
+
+- [x] 7 decisioni critiche documentate con versioni (D1-D7)
+- [x] Technology stack completamente specificato
+- [x] Pattern di integrazione definiti (REST, JWT, presigned URL)
+- [x] Considerazioni performance indirizzate (polling 15s, throttle 2000/hour)
 
 **✅ Implementation Patterns**
-- [x] Convenzioni naming stabilite
-- [x] Pattern struttura definiti
-- [x] Pattern comunicazione specificati
-- [x] Pattern processo documentati
-- [x] 10 enforcement guidelines per agenti AI
+
+- [x] Naming conventions stabilite (snake_case/camelCase/kebab-case)
+- [x] Structure patterns definiti (api/{dominio}/, models/ package)
+- [x] Communication patterns specificati (REST JSON, JWT header)
+- [x] Process patterns documentati (error handling, loading states, retry)
 
 **✅ Project Structure**
-- [x] Albero directory completo
-- [x] Component boundaries stabiliti
-- [x] Integration points mappati
+
+- [x] Directory tree completa con annotazioni
+- [x] Component boundaries stabiliti (backend domains, frontend features)
+- [x] Integration points mappati (JWT, MinIO, APScheduler)
 - [x] Requirements → structure mapping completo
 
 ### Architecture Readiness Assessment
 
-**Status complessivo:** PRONTO PER IMPLEMENTAZIONE
+**Overall Status:** READY FOR IMPLEMENTATION
 
-**Livello di confidenza:** ALTO
+**Confidence Level:** HIGH — basato su:
+- Codebase brownfield esistente con pattern già stabiliti
+- 118 regole in project-context.md per guidare agenti AI
+- Frontend come "living specification" per le API
+- Stack tecnologico maturo e ben documentato
 
-**Punti di forza:**
-- Architettura basata su struttura frontend reale e esistente
-- Ogni decisione ha rationale chiaro e esempi concreti
-- Party Mode ha identificato e risolto 9 potenziali problemi
-- Pattern di enforcement espliciti prevengono drift tra agenti AI
-- Sequenza implementazione ordinata per dipendenze reali
+**Key Strengths:**
+- Architettura semplice e pragmatica (no over-engineering)
+- Frontend-ahead fornisce contratti API impliciti
+- Pattern chiari e verificabili per consistenza agenti
+- Tier hierarchy permette implementazione incrementale
+- Django Admin come backoffice elimina complessità admin custom
 
-**Aree per evoluzione futura:**
-- Contest system (Release B)
-- Processing video asincrono (Celery + Redis)
-- Real-time notifications (WebSocket/SSE)
-- CI/CD pipeline e test suite formale
-- Proxy API (Next.js API Routes)
+**Areas for Future Enhancement:**
+- WebSocket per notifiche real-time (post-MVP)
+- CDN per ottimizzazione delivery media
+- Monitoring e observability (Sentry, logging strutturato)
+- CI/CD pipeline completa (attualmente solo locale)
+
+### Story 0 — Criterio di Accettazione (Party Mode)
+
+Prima di qualsiasi story funzionale, Story 0 deve soddisfare:
+
+1. **ruff** lint con 0 errori su tutto il backend
+2. **Almeno 1 test backend** che passa (Django TestCase)
+3. **Almeno 1 test frontend** che passa (Vitest)
+4. **Build frontend** (`npm run build`) senza errori
+5. **CI verde** (se configurato)
+
+### Story 0 — Bug [FIX-READY] Prerequisiti (Party Mode)
+
+I seguenti 7 bug devono essere risolti in Story 0 come prerequisiti per test funzionanti:
+
+| Bug | Descrizione | File |
+|-----|-------------|------|
+| FIX-1 | `STATICFILES_DIRS` contiene path inesistente | `settings.py` |
+| FIX-2 | `DEFAULT_FILE_STORAGE` deprecato in Django 5.x | `settings.py` |
+| FIX-3 | Import circolare potenziale in `models/__init__.py` | `models/__init__.py` |
+| FIX-4 | `django-cleanup` non in `INSTALLED_APPS` | `settings.py` |
+| FIX-5 | `CORS_ALLOWED_ORIGINS` hardcoded | `settings.py` |
+| FIX-6 | Manca `DEFAULT_AUTO_FIELD` | `settings.py` |
+| FIX-7 | `AUTH_USER_MODEL` dopo `INSTALLED_APPS` con migrazioni | `settings.py` |
 
 ### Implementation Handoff
 
-**Linee guida per agenti AI:**
-1. Seguire le decisioni architetturali esattamente come documentate
-2. Usare i pattern di implementazione in modo consistente
-3. Rispettare la struttura progetto e i boundaries tra layer
-4. Riferirsi a questo documento per qualsiasi dubbio architetturale
-5. File marcati [NEW] vanno creati, file esistenti vanno modificati/estesi
+**AI Agent Guidelines:**
 
-**Prima priorità implementazione:**
-1. Evoluzione backend (batch migration + nuovi endpoint)
-2. Auth flow (JWT + AuthProvider + interceptors + middleware)
-3. API client + React Query setup
-4. Upload pipeline con Vercel Blob
-5. Player micro-sistema
+- Seguire tutte le decisioni architetturali esattamente come documentate (D1-D7)
+- Usare i pattern di implementazione consistentemente in tutti i componenti
+- Rispettare struttura progetto e boundaries (`api/{dominio}/`, `models/`, `hooks/`)
+- Consultare `project-context.md` (118 regole) per ogni domanda architetturale
+- Annotazioni `[DA CREARE]` nel directory tree indicano file da implementare
+- Annotazioni `[Story 0]` indicano prerequisiti infrastrutturali
+
+**First Implementation Priority:**
+Story 0 — Setup infrastruttura: ruff, testing fixtures, throttle config, 7 bug fix, CI base

@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-#TODO controlla bene i gruppi e i permessi come funzionano in Django
+
+
 class RoleBasedPermission(BasePermission):
     """
     Permission basata sui ruoli:
@@ -18,21 +19,19 @@ class RoleBasedPermission(BasePermission):
 
         # 'user' può fare tutto (create, update, delete)
         if request.user.groups.filter(name='user').exists():
-
             return True
 
         # Se non appartiene a nessun gruppo, nega l'accesso
         return False
-    
+
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
 
-        # Gli 'user' possono fare tutto, ma eliminare solo i propri contenuti
+        # Gli 'user' possono eliminare solo i propri contenuti
         if request.user.groups.filter(name='user').exists():
             if request.method == 'DELETE':
                 return obj.user == request.user
-            return True
 
         # 'toconfirm' solo lettura
         if request.user.groups.filter(name='toconfirm').exists():
@@ -50,3 +49,15 @@ class OnlyUsersPermission(BasePermission):
         return user.is_authenticated and (
             user.is_superuser or user.groups.filter(name='user').exists()
         )
+    
+    
+class OnlyAdminsPermission(BasePermission):
+    """
+    Permette l'accesso solo a utenti del gruppo 'admin' o superuser.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (
+            user.is_superuser or user.groups.filter(name='admin').exists()
+        )
+

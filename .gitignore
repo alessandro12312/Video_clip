@@ -142,9 +142,17 @@ GitHub.sublime-settings
 db/*
 !db/.gitkeep
 
+# MinIO data
+minio_data/
+
 # upload folder
 media/videos/*
 !media/videos/.gitkeep
+
+# backend logs
+backend/logs/handler/*
+backend/logs/views/*
+!backend/logs/**/.gitkeep
 
 # Node / bmad-method
 node_modules/

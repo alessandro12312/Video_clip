@@ -1,16 +1,17 @@
 # Video_clip — Indice Documentazione
 
-> Generato automaticamente il 2026-02-14 | Workflow: document-project v1.2.0
+> Generato automaticamente il 2026-02-28 | Workflow: document-project v1.2.0
 
 ---
 
 ## Panoramica Progetto
 
-- **Tipo:** Monorepo (backend attivo, frontend da sviluppare)
-- **Linguaggio principale:** Python 3.x
-- **Architettura:** API-centric monolith (Django REST Framework)
+- **Tipo:** Monorepo con 2 parti attive (backend + frontend)
+- **Linguaggio principale:** Python (backend) + TypeScript (frontend)
+- **Architettura:** API-centric monolith + SPA con SSR
 - **Database:** PostgreSQL 16 (Docker)
-- **Autenticazione:** JWT stateless (SimpleJWT)
+- **Storage:** MinIO S3-compatible (Docker)
+- **Autenticazione:** JWT stateless (SimpleJWT + axios interceptors)
 
 ---
 
@@ -18,62 +19,90 @@
 
 ### Backend (cs_clips)
 
-- **Stack:** Django 5.1.6 + DRF 3.15.1 + PostgreSQL 16
+- **Stack:** Django 5.1.6 + DRF 3.15.1 + PostgreSQL 16 + MinIO
 - **Entry point:** `backend/manage.py` → `project_clip.wsgi`
-- **Pattern:** ViewSet-based REST con DefaultRouter
+- **Pattern:** ViewSet-based REST con DefaultRouter, modulare per dominio
 - **API Base:** `http://127.0.0.1:8000/api/`
 - **Swagger:** `http://127.0.0.1:8000/api/docs/`
+- **Endpoint:** 35 in 5 domini (users, videos, comments, ratings, contests)
+- **Modelli:** 5 core + 3 tabelle M2M
 
 ### Frontend
 
-- **Stato:** Da sviluppare (directory `frontend/` vuota)
-- **Vincoli:** API REST pronta, necessario CORS per collegamento
+- **Stack:** Next.js 16.1.6 + React 19 + TailwindCSS 4 + React Query 5
+- **Entry point:** `frontend/src/app/layout.tsx`
+- **Pattern:** App Router, route groups (auth)/(main), React Query server state
+- **URL:** `http://localhost:3000`
+- **Componenti:** 52 (35 custom + 17 shadcn/ui)
+- **Hooks:** 21 React Query hooks + 3 utility hooks
+- **Tema:** Dark gaming (viola→ciano gradient, glassmorphism)
 
 ---
 
 ## Documentazione Generata
 
-- [Panoramica Progetto](./project-overview.md) — Cos'è Video_clip, funzionalità, stack
-- [Architettura](./architecture.md) — Pattern architetturale, diagrammi, gap e limitazioni
-- [Contratti API](./api-contracts.md) — Tutti gli endpoint con request/response/permessi
-- [Modelli Dati](./data-models.md) — Schema database, relazioni, vincoli, diagramma ER
-- [Analisi Albero Sorgente](./source-tree-analysis.md) — Struttura directory annotata con entry points
+### Panoramica e Architettura
+
+- [Panoramica Progetto](./project-overview.md) — Cos'è Video_clip, funzionalità, stack, numeri
+- [Architettura Backend](./architecture-backend.md) — Pattern API, auth, storage, scheduler, gap
+- [Architettura Frontend](./architecture-frontend.md) — App Router, design system, componenti, state
+- [Architettura di Integrazione](./integration-architecture.md) — Come backend e frontend comunicano
+
+### Riferimento Tecnico — Backend
+
+- [Contratti API](./api-contracts-backend.md) — 35 endpoint con request/response/permessi/errori
+- [Modelli Dati](./data-models-backend.md) — Schema DB, relazioni, vincoli, diagramma ER, admin
+
+### Riferimento Tecnico — Frontend
+
+- [Inventario Componenti](./component-inventory-frontend.md) — 52 componenti categorizzati con props
+- [State Management & API Layer](./state-management-frontend.md) — Hooks, API modules, providers, tipi
+
+### Struttura e Sviluppo
+
+- [Analisi Albero Sorgente](./source-tree-analysis.md) — Directory annotata con entry points
 - [Guida Sviluppo](./development-guide.md) — Setup, comandi, convenzioni, testing, deploy
 
 ---
 
 ## Documentazione Esistente
 
-- [README.md](../README.md) — Setup rapido del progetto (IT)
-- [project-context.md](../_bmad-output/project-context.md) — Contesto AI per sviluppo (87 regole)
+- [README.md](../README.md) — Setup rapido monorepo
+- [backend/CLAUDE.md](../backend/CLAUDE.md) — Istruzioni agente AI per backend
+- [project-context.md](../_bmad-output/project-context.md) — Contesto AI (118 regole)
 
 ---
 
 ## Per Iniziare
 
-### Sviluppo Backend
+### Sviluppo Completo (Backend + Frontend)
 
-1. `docker compose up -d` — Avvia PostgreSQL + pgAdmin
-2. `cd backend && .venv\Scripts\Activate.ps1` — Attiva ambiente
-3. `pip install -r requirements.txt` — Installa dipendenze
-4. `python manage.py migrate` — Applica migrazioni
-5. `python manage.py runserver` — Avvia server
-6. Visita http://127.0.0.1:8000/api/docs/ — Esplora API
+1. `docker compose up -d` — Avvia PostgreSQL + pgAdmin + MinIO
+2. `cd backend && python -m venv .venv && .venv\Scripts\Activate.ps1`
+3. `pip install -r requirements.txt && python manage.py migrate`
+4. `python manage.py runserver` — Backend su http://127.0.0.1:8000
+5. In un altro terminale: `cd frontend && npm install && npm run dev` — Frontend su http://localhost:3000
 
-### Pianificazione Frontend
+### Solo Backend
 
-1. Leggi [api-contracts.md](./api-contracts.md) per capire tutti gli endpoint disponibili
-2. Leggi [data-models.md](./data-models.md) per capire la struttura dati
-3. Leggi la sezione "Note per lo Sviluppo Frontend" in entrambi i documenti
-4. Consulta [architecture.md](./architecture.md) per i gap da colmare (CORS, async tasks)
+1. `docker compose up -d` — Avvia infrastruttura
+2. `cd backend && .venv\Scripts\Activate.ps1 && python manage.py runserver`
+3. Visita http://127.0.0.1:8000/api/docs/ — Swagger UI
+
+### Solo Frontend
+
+1. `cd frontend && npm run dev`
+2. Visita http://localhost:3000
+3. **Nota**: Richiede backend attivo per le API
 
 ---
 
 ## Sviluppo AI-Assistito
 
-Questa documentazione è ottimizzata per essere usata come input per workflow AI:
+Questa documentazione è ottimizzata per workflow AI:
 
 - **Per un brownfield PRD:** Punta il workflow PRD a questo `index.md`
-- **Per feature UI:** Referenzia `api-contracts.md` + `data-models.md`
-- **Per feature API:** Referenzia `architecture.md` + `api-contracts.md`
+- **Per feature backend:** Referenzia `api-contracts-backend.md` + `data-models-backend.md` + `architecture-backend.md`
+- **Per feature frontend:** Referenzia `component-inventory-frontend.md` + `state-management-frontend.md` + `architecture-frontend.md`
+- **Per feature full-stack:** Referenzia `integration-architecture.md` + architettura di entrambe le parti
 - **Per contesto agente:** Referenzia `project-context.md` in `_bmad-output/`

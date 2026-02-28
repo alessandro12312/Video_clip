@@ -11,6 +11,9 @@ stepsCompleted:
   - step-09-functional
   - step-10-nonfunctional
   - step-11-polish
+  - step-e-01-discovery
+  - step-e-02-review
+  - step-e-03-edit
 classification:
   projectType: web_app
   domain: social_media_entertainment
@@ -21,18 +24,23 @@ inputDocuments:
   - _bmad-output/project-context.md
   - docs/index.md
   - docs/project-overview.md
-  - docs/architecture.md
-  - docs/api-contracts.md
-  - docs/data-models.md
+  - docs/architecture-backend.md
+  - docs/architecture-frontend.md
+  - docs/api-contracts-backend.md
+  - docs/data-models-backend.md
   - docs/source-tree-analysis.md
   - docs/development-guide.md
 documentCounts:
   briefs: 1
   research: 0
   brainstorming: 0
-  projectDocs: 7
+  projectDocs: 8
   projectContext: 1
 workflowType: 'prd'
+lastEdited: '2026-02-28'
+editHistory:
+  - date: '2026-02-28'
+    changes: 'Aggiornamento infrastruttura backend: Vercel Blob→MinIO, video processing stato reale, CORS documentato, Keycloak roadmap, Contest System riscritto con 2 tipologie (settimanale auto + bracket CL) e backoffice admin, FR aggiornati/aggiunti (FR53-55), modelli mancanti segnalati, mobile layout corretto'
 ---
 
 # Product Requirements Document - Video_clip
@@ -48,9 +56,9 @@ workflowType: 'prd'
 
 **Target users:** Gamer che vogliono condividere momenti epici (creator), spettatori attivi che commentano e analizzano giocate (commentatori), archivisti che organizzano le proprie clip.
 
-**Contesto tecnico:** Brownfield — backend Django REST esistente (Python 3.x, DRF, PostgreSQL, SimpleJWT). Frontend Next.js (React) greenfield, desktop-first, deploy su Vercel con Vercel Blob per storage video.
+**Contesto tecnico:** Brownfield — backend Django 5.1.6 REST (DRF, PostgreSQL, SimpleJWT — migrazione pianificata a Keycloak). Storage video su MinIO (S3-compatible). Frontend Next.js (React) greenfield, desktop-first. Infra locale Docker Compose (PostgreSQL, MinIO, PgAdmin). Deploy: da definire.
 
-**MVP a due pilastri:** Commenti temporizzati (innovazione) + Contest con bracket eliminazione diretta (engagement ricorrente). Validazione con gruppo ristretto di amici/sviluppatori.
+**MVP a due pilastri:** Commenti temporizzati (innovazione) + Contest con due tipologie — auto-gestito settimanale e bracket Champions League — (engagement ricorrente). Validazione con gruppo ristretto di amici/sviluppatori.
 
 ## Success Criteria
 
@@ -89,7 +97,8 @@ workflowType: 'prd'
 - **Player con commenti temporizzati**: popup e sidebar funzionano correttamente sincronizzati al video
 - **Feed performante**: scroll fluido senza lag su mobile
 - **Nessun target numerico rigido per ora** — si ottimizza a prodotto completato in base all'esperienza d'uso reale
-- **Backend esistente stabile**: le API già implementate funzionano correttamente con il frontend
+- **Pipeline upload-to-playback funzionante end-to-end**: upload → storage MinIO → playback con presigned URL
+- **Backend nuovo codebase modulare**: 5 modelli base implementati (User, Video, Contest, Rating, Comment). Modelli da implementare: VideoLike, CommentLike, Notification, campo `bio` User, campo `allow_download` Video, campo `is_disabled` Comment. Integrazione API con frontend in corso
 
 ### Measurable Outcomes
 
@@ -111,7 +120,7 @@ workflowType: 'prd'
 
 Luca ha appena fatto un ace su Valorant. Le mani tremano ancora, il cuore batte forte. L'istinto è il solito: apre WhatsApp, cerca il gruppo degli amici. Ma poi si ricorda — un suo compagno gli ha mandato un link a Video_clip la settimana scorsa.
 
-Apre Video_clip, si registra in 30 secondi — username, email, password. Seleziona Valorant come gioco. Vede il bottone Upload al centro della bottom-bar. Tap. Seleziona la clip dalla gallery (42 secondi). Scrive "Ace con Jett round 12" come titolo, seleziona "clutch" come tag, lascia attiva l'opzione download. Conferma. La clip si carica, appare nel suo profilo.
+Apre Video_clip, si registra in 30 secondi — username, email, password. Vede il bottone Upload al centro della bottom-bar. Tap. Seleziona la clip dalla gallery (42 secondi). Scrive "Ace con Jett round 12" come titolo, seleziona "clutch" come tag. Conferma. La clip si carica, appare nel suo profilo.
 
 Manda il link ai 5 amici nel gruppo WhatsApp. Loro si registrano, lo seguono, guardano la clip. Il primo commento temporizzato arriva al secondo 0:18 — esattamente quando parte il terzo kill: "MA CHE FLICK È QUESTO". Poi un altro al secondo 0:31: "freddo come il ghiaccio". Luca sorride.
 
@@ -139,11 +148,13 @@ Torna la sera. Il suo commento ha 12 like — è diventato il popup che appare a
 
 ### Journey 4: Davide — L'archivio che funziona (Archivista - Happy Path)
 
-Davide ha clip sparse ovunque — 200 nella gallery del telefono, 50 su Twitch, screenshot su Steam. Scopre Video_clip e decide di usarlo come archivio. Si registra, imposta il profilo come privato. Inizia a caricare: 10 clip di Elden Ring (boss fight), 5 di Valorant, 3 di Rocket League. Per ogni clip sceglie titolo e tag.
+Davide ha clip sparse ovunque — 200 nella gallery del telefono, 50 su Twitch, screenshot su Steam. Scopre Video_clip e decide di usarlo come archivio. Si registra. Inizia a caricare: 10 clip di Elden Ring (boss fight), 5 di Valorant, 3 di Rocket League. Per ogni clip sceglie titolo e tag.
 
 Una settimana dopo, vuole rivedere la boss fight contro Malenia. Apre il suo profilo, scorre le clip — sono tutte lì, ordinate per data. Scarica quella di Malenia per mandarla a un amico su Discord. **Momento aha!**: "Finalmente non devo cercare in 5 cartelle diverse."
 
-**Requisiti rivelati:** Profilo privato, upload batch, download proprie clip, organizzazione clip nel profilo, filtro/ricerca nel profilo.
+*Nota: Journey 4 e Journey 6 anticipano funzionalità di Fase 2 (profilo privato, follow con pending). Per l'MVP i profili sono pubblici e il follow è immediato.*
+
+**Requisiti rivelati:** Upload batch, download proprie clip, organizzazione clip nel profilo, filtro/ricerca nel profilo. *(Profilo privato → Fase 2)*
 
 ### Journey 5: Luca — Upload fallito (Edge Case - Error Recovery)
 
@@ -167,7 +178,7 @@ Un moderatore scorre i report (o naviga normalmente). Vede un commento offensivo
 
 ### Journey 8: Admin — Sospensione account e rimozione video (Admin Path)
 
-L'admin riceve segnalazioni su un utente che carica contenuti inappropriati ripetutamente. Accede all'interfaccia admin nel frontend. Cerca l'utente, vede la lista dei suoi video. Elimina i video inappropriati (i file vengono rimossi dal filesystem). Poi sospende l'account — l'utente non può più accedere, i suoi contenuti non sono più visibili.
+L'admin riceve segnalazioni su un utente che carica contenuti inappropriati ripetutamente. Accede all'interfaccia admin nel frontend. Cerca l'utente, vede la lista dei suoi video. Elimina i video inappropriati (i file vengono rimossi dallo storage MinIO). Poi sospende l'account — l'utente non può più accedere, i suoi contenuti non sono più visibili.
 
 Se necessario, l'admin può anche promuovere utenti da `toconfirm` a `user` (confermare la registrazione).
 
@@ -183,8 +194,8 @@ Se necessario, l'admin può anche promuovere utenti da `toconfirm` a `user` (con
 | **Like commenti + popup** | Sara (J3), Moderatore (J7) |
 | **Feed Home (following)** | Marco (J2), Marco (J6) |
 | **Feed Esplora** | Luca (J1), Sara (J3) |
-| **Profilo pubblico/privato** | Davide (J4), Marco (J6) |
-| **Follow con pending** | Marco (J6) |
+| **Profilo pubblico** | Davide (J4) |
+| **Profilo privato + Follow con pending** *(Fase 2)* | Davide (J4), Marco (J6) |
 | **Download clip** | Davide (J4) |
 | **Error handling upload** | Luca (J5) |
 | **Admin: disabilita commenti** | Moderatore (J7) |
@@ -196,9 +207,10 @@ Se necessario, l'admin può anche promuovere utenti da `toconfirm` a `user` (con
 
 ### Storage Video
 
-- **Servizio:** Vercel Blob (100GB gratuiti)
-- **Ottimizzazione:** I video caricati verranno convertiti in un formato più leggero per ottimizzare lo spazio di archiviazione
-- **Vincolo dimensione:** Video da 10 secondi a 1 minuto — la conversione in formato leggero massimizza la capacità con i 100GB disponibili
+- **Servizio:** MinIO (S3-compatible), self-hosted via Docker Compose
+- **Accesso video:** Presigned URL con scadenza temporale (già implementato nel backend)
+- **Stato video processing:** MoviePy estrae la durata del video all'upload. Transcoding (conversione a formato leggero H.264/MP4 ottimizzato via ffmpeg) non ancora implementato — da pianificare per ridurre spazio di archiviazione e migliorare playback
+- **Vincolo dimensione:** Video da 10 secondi a 1 minuto — validazione durata da implementare lato backend (attualmente solo estrazione durata, nessun reject automatico)
 
 ### Copyright & Contenuti
 
@@ -228,6 +240,8 @@ L'innovazione centrale di Video_clip non è una feature isolata ma un principio 
 
 **Soglia popup:** il commento con più like per ogni timestamp appare nel player, con soglia minima di 1 like per essere promosso a popup.
 
+**Prerequisiti backend non ancora implementati:** Il sistema popup richiede il modello `CommentLike` (da creare) per tracciare i like sui commenti e determinare la promozione. Il campo `timestamp_second` sul modello Comment esiste (default=0) ma non distingue tra "nessun timestamp" e "timestamp al secondo 0" — da chiarire nella data model (nullable vs valore sentinella).
+
 ### Market Context & Competitive Landscape
 
 | Competitor | Cosa offre | Cosa manca |
@@ -236,7 +250,7 @@ L'innovazione centrale di Video_clip non è una feature isolata ma un principio 
 | **Twitch Clips** | Clip da stream | Ancillare al live, nessun social standalone |
 | **Medal.tv** | Cattura e condivisione clip | Manca dimensione social profonda, no commenti temporizzati, no contest |
 | **SoundCloud** | Commenti temporizzati per audio | Solo audio, nessun focus gaming |
-| **Video_clip** | **Commenti temporizzati + gaming-only + contest bracket** | **Combinazione unica, nessun competitor diretto** |
+| **Video_clip** | **Commenti temporizzati + gaming-only + contest (settimanale + bracket)** | **Combinazione unica, nessun competitor diretto** |
 
 **Blue Ocean positioning:** Tutti i competitor competono sullo stesso asse (reach, algoritmo, viralità). Video_clip crea un nuovo asse di valore: il commento come contenuto, il commentatore come co-creator.
 
@@ -275,18 +289,24 @@ Video_clip è una web app **desktop-first** (approccio Reddit) costruita con **N
 | **Framework** | Next.js (App Router) | SSR per link preview (OG meta tags), API Routes come proxy, React ecosystem |
 | **UI Library** | React | Componente ecosistema maturo, community ampia |
 | **Styling** | Tailwind CSS | Utility-first, veloce per prototipare, consistente |
-| **Deploy** | Vercel | Integrazione nativa Next.js, Vercel Blob per storage video |
+| **Deploy Frontend** | Da definire | Next.js compatibile con diverse piattaforme (Vercel, Docker, self-hosted) |
+| **Storage Video** | MinIO (S3-compatible) | Self-hosted via Docker Compose, presigned URL per accesso |
 
-#### Proxy API Pattern
+#### Proxy API Pattern *(Fase 2)*
 
-Next.js API Routes fungono da proxy verso il backend Django REST:
+*Per l'MVP il frontend comunica direttamente con il backend Django via CORS. Il proxy API pattern è pianificato per Fase 2.*
 
-- **CORS risolto**: il frontend chiama solo il proprio dominio Vercel
+Next.js API Routes fungeranno da proxy verso il backend Django REST:
+
+- **CORS risolto**: il frontend chiama solo il proprio dominio
 - **Backend nascosto**: l'URL Django non è esposto al client
 - **JWT in httpOnly cookies**: i token non sono accessibili via JavaScript (XSS protection)
 - **Flessibilità**: logica di trasformazione/caching possibile nel layer proxy
 
-**Flusso:** Browser → Next.js API Route → Django REST API → PostgreSQL
+**Flusso MVP:** Browser → Django REST API → PostgreSQL / MinIO
+**Flusso Fase 2:** Browser → Next.js API Route → Django REST API → PostgreSQL / MinIO
+
+**Nota CORS MVP:** L'attuale configurazione usa `CORS_ALLOW_ALL_ORIGINS = True` — da restringere a origini specifiche prima del deploy di produzione.
 
 #### SSR per Link Preview
 
@@ -313,9 +333,9 @@ Le pagine pubbliche (`/clip/{id}`) usano Server-Side Rendering per generare meta
 - **Sidebar destra** (pagina dettaglio clip): Sidebar Dinamica con commenti più likati
 
 #### Mobile Layout
-- **Bottom-bar**: Home, Esplora, Upload, Profilo
-- Sidebar sinistra collassata → hamburger menu o drawer
-- Layout single-column adattato
+- **Header**: logo "V" + search + avatar
+- **MobileBottomBar**: Home, Esplora, Upload, Profilo
+- Layout single-column adattato — no hamburger menu
 
 #### Due Layout Distinti
 - **Autenticato**: sidebar + feed personalizzato + azioni (upload, like, commenta)
@@ -323,9 +343,10 @@ Le pagine pubbliche (`/clip/{id}`) usano Server-Side Rendering per generare meta
 
 ### Video Processing
 
-- **Conversione server-side**: ffmpeg per transcodifica in formato leggero (es. H.264/MP4 ottimizzato)
-- **Upload flow**: file originale → validazione (10s-1min) → conversione → storage su Vercel Blob
-- **Processing**: sincrono per MVP, asincrono (Celery + Redis) in fase Growth
+- **Stato attuale:** MoviePy (imageio-ffmpeg) estrae la durata del video all'upload. Il file originale viene salvato direttamente su MinIO senza conversione
+- **Upload flow attuale:** file originale → estrazione durata (MoviePy) → storage su MinIO
+- **Upload flow pianificato:** file originale → validazione durata (10s-1min, reject automatico) → conversione H.264/MP4 ottimizzato (ffmpeg) → storage su MinIO
+- **Processing asincrono:** Celery + Redis presenti in requirements ma non configurati. APScheduler è attivo per auto-close contest. Conversione video asincrona da implementare quando il transcoding sarà aggiunto
 
 ### Navigazione & UX Specifiche
 
@@ -367,18 +388,18 @@ Le pagine pubbliche (`/clip/{id}`) usano Server-Side Rendering per generare meta
 
 **Approccio MVP:** Experience MVP — validare che il core loop (upload → guarda → commenta con timestamp → vedi popup) e i contest creino engagement reale con un gruppo ristretto di amici/sviluppatori.
 
-**Principio guida:** Due pilastri, zero distrazioni. I commenti temporizzati dimostrano l'innovazione. I contest con bracket creano eventi ricorrenti che generano retention. Tutto il resto è Fase 2.
+**Principio guida:** Due pilastri, zero distrazioni. I commenti temporizzati dimostrano l'innovazione. I contest (settimanale auto-gestito + bracket Champions League) creano eventi ricorrenti che generano retention. Tutto il resto è Fase 2.
 
 **Strategia di rilascio interno:**
 - **Release A:** Core Platform + Clip Experience — validare il loop commenti temporizzati
-- **Release B:** Contest System — validare bracket e votazione come secondo motore di engagement
+- **Release B:** Contest System — validare due tipologie contest (settimanale + bracket) come secondo motore di engagement
 - Questo approccio produce dati di validazione puliti su ciascun pilastro
 
 **Team:** Sviluppatore singolo (AcchippameQuisso) + amici sviluppatori come tester iniziali.
 
 **Debito tecnico consapevole MVP:**
-- CORS diretto Django ↔ Next.js — `CORS_ALLOWED_ORIGINS` restrittivo (solo dominio Vercel), NO `CORS_ALLOW_ALL_ORIGINS = True` (proxy API pattern in Fase 2)
-- Video processing sincrono (asincrono in Fase 2)
+- CORS diretto Django ↔ Next.js — attualmente `CORS_ALLOW_ALL_ORIGINS = True` (da restringere a origini specifiche). Proxy API pattern in Fase 2
+- Nessun transcoding video (file salvato così com'è su MinIO, solo estrazione durata)
 - Nessun real-time (fetch-based, polling manuale)
 
 ### MVP Feature Set (Fase 1)
@@ -394,23 +415,39 @@ Le pagine pubbliche (`/clip/{id}`) usano Server-Side Rendering per generare meta
 - Notifiche in-app base (pagina `/notifications`, lista cronologica eventi)
 
 #### Epic 2: Clip Experience
-- Upload clip 10s-1min con validazione + conversione ffmpeg + storage Vercel Blob
+- Upload clip 10s-1min con validazione + storage MinIO (transcoding ffmpeg pianificato, non ancora implementato)
 - Player video HTML5 con overlay popup temporali
 - Dual-layer commenti (normali + temporizzati con timestamp pre-compilato)
-- Like sulle clip + Like sui commenti
+- Like sulle clip + Like sui commenti *(richiede modelli VideoLike e CommentLike — da implementare)*
 - Sidebar Dinamica (commenti più likati, stile Twitch)
 - Feed Home (clip degli utenti seguiti)
 - Link preview SSR per condivisione esterna (OG meta tags)
-- Download clip proprie + allow_download per altri
+- Download clip proprie + allow_download per altri *(campo `allow_download` da aggiungere al modello Video)*
 - Card-to-Detail navigation (card nel feed → pagina dettaglio con tutti i commenti)
 
 #### Epic 3: Contest System
-- Creazione contest (solo admin/moderatori)
-- Iscrizione partecipanti
-- Bracket eliminazione diretta con albero grafico interattivo (stile torneo FIFA — visualizzazione scontri, clip passate, risultati per turno, libreria React dedicata)
+
+**Backoffice Admin per Contest:** interfaccia admin nel frontend per creare contest e scegliere la tipologia.
+
+**Tipologia A — Contest Settimanale Auto-gestito:**
+- Creazione automatica: un contest settimanale viene creato quando un video è caricato con un tag contest (lun-ven)
+- Chiusura automatica (già implementato nel backend: `get_or_create_current_contest`, `close_contests`, APScheduler)
+- Utenti caricano clip che vengono auto-assegnate al contest corrente
+- Votazione 1-5 stelle sulle singole clip del contest
+- **Vincitore (già implementato):** clip con media voti più alta. In caso di parimerito: spareggio ponderato — 50% numero voti ricevuti, 30% visualizzazioni, 20% like (attualmente commenti come fallback fino a implementazione VideoLike)
+- Pagina contest con classifica e risultati
+- Nessun premio — il contest settimanale è un meccanismo di engagement e visibilità
+
+**Tipologia B — Contest Bracket Champions League:**
+- Creazione manuale da admin tramite backoffice
+- Iscrizione partecipanti con invio clip
+- Bracket eliminazione diretta con albero grafico interattivo (stile torneo — visualizzazione scontri, clip passate, risultati per turno, libreria React dedicata)
 - Votazione 1-5 stelle per matchup
-- Avanzamento turno automatico (media voti)
-- Pagina contest con stato e risultati
+- **Avanzamento e vincitore: solo voti interni al matchup** (media voti per matchup, nessun fattore esterno come views o commenti)
+- Pagina contest con stato bracket e progressione
+- **Premi esclusivi Champions League:** Fase 1 premi finanziati Video_clip (skins, crediti in-game shop). Fase 2 partnership con publisher per premi premium
+
+**Modelli backend da implementare per Tipologia B:** Bracket, Matchup, ContestEntry (il modello Contest esiste, gli altri sono da creare)
 
 **Notifiche in-app:**
 
@@ -419,10 +456,12 @@ Le pagine pubbliche (`/clip/{id}`) usano Server-Side Rendering per generare meta
 | Commento ricevuto sulla tua clip | "X ha commentato la tua clip" |
 | Like ricevuto su un commento | "Il tuo commento ha ricevuto N like" |
 | Commento promosso a popup | "Il tuo commento è ora visibile nel player!" |
-| Invito/iscrizione contest | "Sei stato invitato al contest X" |
-| Turno contest disponibile | "È il tuo turno di votare nel contest X" |
+| Nuovo contest settimanale aperto | "Un nuovo contest settimanale è iniziato!" |
+| Invito/iscrizione contest bracket | "Sei stato invitato al contest X" |
+| Turno contest bracket disponibile | "È il tuo turno di votare nel contest X" |
+| Risultati contest pubblicati | "Il contest X è terminato — scopri i risultati!" |
 
-Implementazione: modello `Notification` backend + endpoint `GET /notifications/` + campanella con badge nella sidebar frontend.
+Implementazione: modello `Notification` backend *(da creare)* + endpoint `GET /notifications/` + campanella con badge nella sidebar frontend.
 
 **Core User Journeys Supportati:**
 - J1 (Luca - primo upload), J2 (Marco - creator), J3 (Sara - spettatore attivo), J5 (error recovery)
@@ -437,7 +476,8 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 | Proxy API pattern | CORS diretto restrittivo sufficiente per fase amici | Fase 2 |
 | Rating 1-5 stelle su clip normali | Rating solo nei contest, non nel feed | N/A — non previsto |
 | Categorizzazione per gioco | Poco contenuto per giustificare filtri | Fase 2 |
-| Processing video asincrono | Sincrono sufficiente per volumi bassi | Fase 2 |
+| Transcoding video (ffmpeg) | Nessun transcoding attivo, file originali su MinIO | Fase 2 |
+| Processing video asincrono | Celery+Redis in requirements, non configurato | Fase 2 |
 | Real-time (WebSocket/SSE) | Fetch-based sufficiente | Fase 2 |
 | Contest creati da utenti | Inizialmente solo admin/moderatori | Fase 3 |
 
@@ -451,13 +491,13 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 - Processing video asincrono (Celery + Redis)
 - Questionario giochi all'onboarding
 - Real-time: WebSocket/SSE per notifiche e sidebar live
-- Contest aperti a più tipologie
+- Contest creati da utenti verificati (non solo admin)
 - Notifiche push (browser)
 
 **Fase 3 — Expansion (scala):**
 - Contest creati dagli utenti
 - Integrazione Steam e Twitch
-- Partnership con publisher per premi contest
+- Partnership con publisher per premi contest Champions League (upgrade da premi interni)
 - App mobile nativa (iOS/Android)
 - Notifiche push mobile
 - Sistema reputazione commentatori
@@ -469,9 +509,9 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 | Rischio | Mitigazione |
 |---------|-------------|
-| Contest bracket complesso per MVP | Backend ha già modelli Contest/ContestEntry/Bracket. Albero grafico frontend con libreria React dedicata (es. react-tournament-bracket o simili) |
-| ffmpeg sincrono blocca il server | Accettabile per volumi bassi. Se diventa problema, prioritizzare Celery |
-| CORS diretto espone URL backend | `CORS_ALLOWED_ORIGINS` restrittivo (solo dominio Vercel). Proxy API come primo upgrade Fase 2 |
+| Contest bracket richiede modelli aggiuntivi | Solo modello `Contest` esiste. Bracket, Matchup, ContestEntry da creare. Contest settimanale auto-gestito è parzialmente implementato (APScheduler + get_or_create_current_contest) |
+| Nessun transcoding video | File originali su MinIO, nessuna conversione. Accettabile per MVP con volumi bassi. Aggiungere ffmpeg + Celery quando lo spazio storage diventa critico |
+| CORS aperto espone URL backend | Attualmente `CORS_ALLOW_ALL_ORIGINS = True` — restringere a origini specifiche prima del deploy. Proxy API come upgrade Fase 2 |
 | Libreria bracket React non adatta | Valutare alternative: react-brackets, bracketry, o componente custom con SVG/Canvas |
 
 **Rischi di Mercato:**
@@ -479,7 +519,7 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 | Rischio | Mitigazione |
 |---------|-------------|
 | Gli amici usano il prodotto per cortesia | Monitorare North Star: commenti temporizzati/giorno + notifiche lette vs ignorate |
-| Contest senza partecipanti | Con 5-10 amici, bracket da 4-8 funziona. Contest piccoli ma completi |
+| Contest senza partecipanti | Contest settimanale auto-gestito ha barriera zero (basta caricare una clip). Bracket da 4-8 amici funziona per contest manuali |
 | Nessuna crescita oltre il gruppo | Link preview SSR + condivisione esterna. Contest generano clip condivisibili |
 
 **Rischi Risorse:**
@@ -487,7 +527,7 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 | Rischio | Mitigazione |
 |---------|-------------|
 | Sviluppatore singolo, troppo scope | Due release interne (A: clip, B: contest). Se serve tagliare, contest parte dopo |
-| 100GB Vercel Blob insufficienti | Video convertiti in formato leggero, volumi bassi iniziali. Upgrade quando necessario |
+| Storage MinIO cresce senza transcoding | File originali occupano più spazio. Volumi bassi iniziali rendono il problema gestibile. Aggiungere transcoding ffmpeg come priorità quando lo storage cresce |
 
 ## Functional Requirements
 
@@ -505,12 +545,12 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 - FR7: Utente registrato può caricare una clip video (durata 10s-1min)
 - FR8: Il sistema valida la durata della clip e rifiuta video fuori range con messaggio di errore specifico
 - FR9: Il sistema valida il formato della clip e fornisce errore specifico per formati non supportati
-- FR10: Il sistema converte le clip caricate in un formato ottimizzato più leggero
+- FR10: *(Pianificato)* Il sistema converte le clip caricate in formato H.264/MP4 ottimizzato. Attualmente il file originale viene salvato direttamente su MinIO
 - FR11: Utente registrato può impostare titolo e tag tipo per la clip caricata
-- FR12: Utente registrato può impostare il permesso allow_download per la propria clip
+- FR12: Utente registrato può impostare se la propria clip è scaricabile da altri utenti
 - FR13: Utente registrato può scaricare le proprie clip
-- FR14: Utente registrato può scaricare clip altrui quando allow_download è abilitato
-- FR15: Il sistema archivia le clip convertite su storage blob esterno
+- FR14: Utente registrato può scaricare clip altrui quando il download è abilitato dall'autore
+- FR15: Il sistema archivia le clip su storage cloud con URL di accesso autenticato a scadenza temporale
 - FR16: Il sistema mostra una modale di errore con opzione "Riprova" quando l'upload fallisce
 
 ### Scoperta & Fruizione Contenuti
@@ -526,7 +566,7 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 - FR23: Utente registrato può pubblicare un commento su una clip senza timestamp
 - FR24: Utente registrato può pubblicare un commento temporizzato su una clip con timestamp specifico
-- FR25: Il sistema pre-suggerisce il timestamp corrente quando l'utente pausa il video e inizia a commentare
+- FR25: Il timestamp corrente del video viene pre-compilato nel form commento quando il video è in pausa
 - FR26: Utente può rimuovere il timestamp pre-suggerito per pubblicare un commento normale
 - FR27: Utente registrato può mettere like a un commento
 - FR28: Utente registrato può mettere like a una clip
@@ -537,21 +577,33 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 - FR31: Il sistema identifica il commento con più like per ogni timestamp di una clip
 - FR32: Durante la riproduzione video, popup overlay mostrano il commento con più like per il timestamp corrente
-- FR33: I popup overlay scompaiono dopo pochi secondi
+- FR33: I popup overlay scompaiono dopo 3 secondi con fade-out
 - FR34: I popup richiedono una soglia minima di 1 like per essere promossi
 - FR35: La Sidebar Dinamica mostra i commenti con più like per la clip corrente
 - FR36: Quando un commento viene disabilitato dalla moderazione, il sistema ricalcola il prossimo commento con più like per quel timestamp
 
 ### Sistema Contest
 
-- FR37: Admin o Moderatore può creare un contest
-- FR38: Utente registrato può visualizzare i contest disponibili
-- FR39: Utente registrato può iscriversi a un contest inviando una clip
-- FR40: Il sistema genera un bracket a eliminazione diretta per i partecipanti del contest
-- FR41: Il contest mostra un albero grafico interattivo del bracket (stile torneo, con visualizzazione scontri, clip passate e risultati)
-- FR42: Utente registrato può votare da 1 a 5 stelle sulle clip di un matchup del contest
-- FR43: Il sistema calcola la media dei voti per matchup e fa avanzare il vincitore
-- FR44: Utente può visualizzare stato del contest, risultati passati e progressione nel bracket
+**Backoffice Admin:**
+- FR37: Admin può creare un contest tramite backoffice, scegliendo la tipologia (settimanale auto-gestito o bracket Champions League)
+- FR38: Utente registrato può visualizzare i contest disponibili (entrambe le tipologie)
+
+**Tipologia A — Contest Settimanale Auto-gestito:**
+- FR39a: Un contest settimanale viene creato automaticamente quando un video è caricato con un tag contest (periodo lun-ven)
+- FR39b: Le clip caricate vengono auto-assegnate al contest settimanale corrente in base al tag
+- FR40a: Utente registrato può votare da 1 a 5 stelle sulle clip del contest settimanale
+- FR41a: Il sistema chiude automaticamente il contest al termine del periodo
+- FR42a: Il vincitore è la clip con la media voti più alta. In caso di parimerito: spareggio ponderato (50% numero voti, 30% visualizzazioni, 20% like)
+- FR43a: Utente può visualizzare classifica e risultati del contest settimanale
+
+**Tipologia B — Contest Bracket Champions League:**
+- FR39c: Utente registrato può iscriversi a un contest bracket inviando una clip
+- FR40b: Il sistema genera un bracket a eliminazione diretta per i partecipanti
+- FR41b: Il contest mostra un albero grafico interattivo del bracket (stile torneo, con visualizzazione scontri, clip passate e risultati)
+- FR42b: Utente registrato può votare da 1 a 5 stelle sulle clip di un matchup del contest bracket
+- FR43b: Il sistema calcola la media dei voti interni al matchup e fa avanzare il vincitore (nessun fattore esterno)
+- FR44: Utente può visualizzare stato del contest bracket, risultati passati e progressione nel bracket
+- FR44b: Il vincitore del contest bracket riceve un premio (Fase 1: premi finanziati Video_clip; Fase 2: premi da partnership publisher)
 
 ### Amministrazione & Moderazione
 
@@ -560,9 +612,12 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 - FR47: Admin può sospendere account utente
 - FR48: Admin può promuovere utenti tra ruoli (es. toconfirm → user)
 - FR49: Admin può visualizzare la lista dei video per utente
-- FR50: Il sistema invia notifiche in-app per eventi chiave (commento ricevuto, like ricevuto, commento promosso a popup, invito contest, turno contest disponibile)
+- FR50: Il sistema invia notifiche in-app per eventi chiave (commento ricevuto, like ricevuto, commento promosso a popup, contest aperto, invito contest bracket, turno contest disponibile, risultati contest)
 - FR51: Utente registrato può visualizzare la propria lista notifiche
 - FR52: Il sistema mostra un badge con il conteggio delle notifiche non lette
+- FR53: Utente può visualizzare il profilo di un altro utente tramite username
+- FR54: Il sistema valida la durata del video all'upload e rifiuta automaticamente clip fuori range 10s-1min
+- FR55: Admin può gestire contest tramite backoffice dedicato nel frontend (creazione, monitoraggio, chiusura manuale)
 
 ## Non-Functional Requirements
 
@@ -572,12 +627,12 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 |-----------|--------|----------|
 | First Contentful Paint | < 1.5s | Pagine pubbliche con SSR |
 | Time to Interactive | < 3s | Priorità al player video |
-| Video Start Playback | < 2s | Post-conversione, formato leggero |
+| Video Start Playback | < 2s | Via presigned URL MinIO, formato originale (transcoding pianificato) |
 | Lighthouse Score | > 80 | Target iniziale, migliorabile |
 | Risposta API (lettura) | < 500ms | Feed, commenti, notifiche |
 | Risposta API (scrittura) | < 1s | Like, commenti, follow |
 | Upload video (escl. conversione) | < 30s per 500MB | Su connessione stabile |
-| Conversione video ffmpeg | < 2x durata clip | Es. clip 30s → conversione < 60s |
+| Conversione video ffmpeg *(pianificata)* | < 2x durata clip | Es. clip 30s → conversione < 60s. Non ancora implementato |
 | Latenza popup overlay vs timestamp | < 200ms | Dati popup pre-caricati in singola chiamata API al caricamento pagina |
 | Progress bar upload | Aggiornamento in tempo reale | Feedback visivo obbligatorio per upload file grandi |
 
@@ -585,12 +640,12 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 ### Security
 
-- Autenticazione tramite JWT con refresh token
-- `CORS_ALLOWED_ORIGINS` restrittivo per MVP (solo dominio Vercel frontend)
+- Autenticazione tramite JWT con refresh token (SimpleJWT). Migrazione pianificata a **Keycloak** per SSO e gestione centralizzata identità
+- CORS: attualmente `CORS_ALLOW_ALL_ORIGINS = True` — **da restringere a origini specifiche** prima del deploy di produzione
 - Validazione input su tutti gli endpoint (durata clip, formato file, lunghezza commenti)
-- **Vincolo integrità voto contest:** Ogni utente può votare **una sola volta** per matchup — enforced sia lato backend (constraint DB unique su user+matchup) che lato frontend (UI disabilitata dopo il voto). Gestione edge case: double-click, tab multipli
+- **Vincolo integrità voto contest:** Ogni utente può votare **una sola volta** per clip (contest settimanale) o per matchup (contest bracket) — enforced lato backend e lato frontend (UI disabilitata dopo il voto). Gestione edge case: double-click, tab multipli
 - Upload limitato a formati video consentiti — whitelist: **MP4, MOV, AVI, MKV, WebM**
-- Limite dimensione file upload: **max 500MB** per file raw prima della conversione
+- Limite dimensione file upload: **max 500MB** per file raw (nessuna conversione attiva)
 - **Limiti lunghezza input:** commenti max **500 caratteri**, titolo clip max **100 caratteri**
 - Password con requisiti minimi (lunghezza, complessità base)
 - Protezione CSRF sui form
@@ -598,14 +653,14 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 ### Resilienza & Error Handling
 
-- **Fallimento conversione ffmpeg:** il sistema mantiene il file originale, esegue 1 retry automatico, e in caso di fallimento definitivo notifica l'utente con errore specifico
-- **Upload diretto a Django** per file video grandi (bypass Next.js API Routes che hanno limite body size di default 4MB). Il frontend comunica direttamente con il backend Django per l'upload, usando CORS diretto
+- **Fallimento conversione ffmpeg *(quando implementato)*:** il sistema mantiene il file originale, esegue 1 retry automatico, e in caso di fallimento definitivo notifica l'utente con errore specifico
+- **Upload diretto a Django** per file video (il frontend comunica direttamente con il backend Django, CORS diretto per MVP)
 - **Nessun target di uptime rigido** per la fase amici — downtime accettabile per debugging e fix
 
 ### Scalability
 
-- **MVP**: il sistema deve supportare fino a **50 utenti concorrenti** senza degradazione
-- **Storage**: 100GB Vercel Blob con video convertiti in formato leggero — sufficiente per la fase di validazione
+- **MVP**: il sistema deve supportare fino a **50 utenti concorrenti** con tempo di risposta API < 1s
+- **Storage**: MinIO self-hosted, file video originali (senza transcoding). Spazio limitato dalle risorse del server — monitorare utilizzo e aggiungere transcoding quando necessario
 - **Crescita**: l'architettura deve permettere l'aggiunta di processing asincrono (Celery), proxy API pattern, e real-time (WebSocket) senza riscritture maggiori
 
 ### Accessibility
@@ -619,9 +674,14 @@ Implementazione: modello `Notification` backend + endpoint `GET /notifications/`
 
 ### Integration
 
-| Sistema | Tipo | Requisiti |
-|---------|------|-----------|
-| Django REST API | Backend API | Comunicazione HTTP/JSON, JWT auth, CORS diretto per MVP. Upload video diretto (non via Next.js API Routes) |
-| Vercel Blob | Storage video | Upload/download via SDK Vercel, gestione URL pubblici per streaming |
-| ffmpeg | Video processing | Conversione server-side a H.264/MP4 ottimizzato, sincrono per MVP, retry automatico su fallimento |
-| OpenGraph | Meta tags | SSR per generazione OG tags su pagine clip pubbliche |
+> **Nota:** Questa sezione è un riferimento architetturale dello stack corrente. I dettagli implementativi completi sono documentati in `docs/architecture-backend.md`.
+
+| Sistema | Tipo | Requisito di qualità |
+|---------|------|---------------------|
+| Backend REST API | Backend API | Comunicazione HTTP/JSON, auth token-based con refresh, CORS configurato per origini consentite |
+| Storage cloud S3-compatible | Storage video | Upload/download con URL autenticati a scadenza temporale per streaming sicuro |
+| Estrazione metadati video | Video processing | Estrazione durata video all'upload per validazione |
+| Conversione video *(pianificata)* | Video processing | Conversione server-side a formato ottimizzato per streaming web |
+| Task scheduling | Automazione | Chiusura automatica contest settimanali al termine del periodo |
+| Task asincroni *(pianificato)* | Elaborazione | Processing asincrono per operazioni pesanti (transcoding, batch) |
+| Meta tags social | SEO/Sharing | Generazione meta tags per link preview su pagine clip pubbliche |

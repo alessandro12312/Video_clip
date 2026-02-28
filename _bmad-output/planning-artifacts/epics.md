@@ -4,7 +4,6 @@ stepsCompleted:
   - step-02-design-epics
   - step-03-create-stories
   - step-04-final-validation
-workflow_completed: true
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
@@ -21,7 +20,7 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 
 ### Functional Requirements
 
-**Gestione Utenti (FR1-FR6):**
+**Gestione Utenti (6 FR):**
 - FR1: Utente non registrato può creare un account con username, email e password
 - FR2: Utente registrato può autenticarsi con le proprie credenziali
 - FR3: Utente registrato può visualizzare e modificare il proprio profilo pubblico
@@ -29,19 +28,19 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 - FR5: Utente registrato può smettere di seguire utenti che segue
 - FR6: Utente registrato può visualizzare le proprie liste follower e following
 
-**Creazione & Gestione Contenuti (FR7-FR16):**
+**Creazione & Gestione Contenuti (10 FR):**
 - FR7: Utente registrato può caricare una clip video (durata 10s-1min)
 - FR8: Il sistema valida la durata della clip e rifiuta video fuori range con messaggio di errore specifico
 - FR9: Il sistema valida il formato della clip e fornisce errore specifico per formati non supportati
-- FR10: Il sistema converte le clip caricate in un formato ottimizzato più leggero
+- FR10: *(Pianificato Fase 2)* Il sistema converte le clip caricate in formato H.264/MP4 ottimizzato
 - FR11: Utente registrato può impostare titolo e tag tipo per la clip caricata
-- FR12: Utente registrato può impostare il permesso allow_download per la propria clip
+- FR12: Utente registrato può impostare se la propria clip è scaricabile da altri utenti
 - FR13: Utente registrato può scaricare le proprie clip
-- FR14: Utente registrato può scaricare clip altrui quando allow_download è abilitato
-- FR15: Il sistema archivia le clip convertite su storage blob esterno
+- FR14: Utente registrato può scaricare clip altrui quando il download è abilitato dall'autore
+- FR15: Il sistema archivia le clip su storage cloud con URL di accesso autenticato a scadenza temporale
 - FR16: Il sistema mostra una modale di errore con opzione "Riprova" quando l'upload fallisce
 
-**Scoperta & Fruizione Contenuti (FR17-FR22):**
+**Scoperta & Fruizione Contenuti (6 FR):**
 - FR17: Utente registrato può visualizzare un feed Home con le clip degli utenti seguiti
 - FR18: Utente può visualizzare la pagina dettaglio clip con player, commenti e metadati
 - FR19: Le pagine dettaglio clip sono accessibili tramite URL diretto per la condivisione
@@ -49,1068 +48,1059 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 - FR21: Il feed presenta le clip come card con thumbnail, titolo e metadati
 - FR22: Utente può navigare dalla card nel feed alla pagina dettaglio della clip
 
-**Sistema Commenti & Interazioni (FR23-FR30):**
+**Sistema Commenti & Interazioni (8 FR):**
 - FR23: Utente registrato può pubblicare un commento su una clip senza timestamp
 - FR24: Utente registrato può pubblicare un commento temporizzato su una clip con timestamp specifico
-- FR25: Il sistema pre-suggerisce il timestamp corrente quando l'utente pausa il video e inizia a commentare
+- FR25: Il timestamp corrente del video viene pre-compilato nel form commento quando il video è in pausa
 - FR26: Utente può rimuovere il timestamp pre-suggerito per pubblicare un commento normale
 - FR27: Utente registrato può mettere like a un commento
 - FR28: Utente registrato può mettere like a una clip
 - FR29: La pagina dettaglio mostra tutti i commenti in vista gerarchica
 - FR30: La pagina dettaglio offre due viste commenti: "Tutti" (cronologica) e "Nel video" (solo temporizzati, ordinati per timestamp)
 
-**Popup & Loop di Engagement (FR31-FR36):**
+**Popup & Loop di Engagement (6 FR):**
 - FR31: Il sistema identifica il commento con più like per ogni timestamp di una clip
 - FR32: Durante la riproduzione video, popup overlay mostrano il commento con più like per il timestamp corrente
-- FR33: I popup overlay scompaiono dopo pochi secondi
+- FR33: I popup overlay scompaiono dopo 3 secondi con fade-out
 - FR34: I popup richiedono una soglia minima di 1 like per essere promossi
 - FR35: La Sidebar Dinamica mostra i commenti con più like per la clip corrente
 - FR36: Quando un commento viene disabilitato dalla moderazione, il sistema ricalcola il prossimo commento con più like per quel timestamp
 
-**Sistema Contest (FR37-FR44):**
-- FR37: Admin o Moderatore può creare un contest
-- FR38: Utente registrato può visualizzare i contest disponibili
-- FR39: Utente registrato può iscriversi a un contest inviando una clip
-- FR40: Il sistema genera un bracket a eliminazione diretta per i partecipanti del contest
-- FR41: Il contest mostra un albero grafico interattivo del bracket (stile torneo, con visualizzazione scontri, clip passate e risultati)
-- FR42: Utente registrato può votare da 1 a 5 stelle sulle clip di un matchup del contest
-- FR43: Il sistema calcola la media dei voti per matchup e fa avanzare il vincitore
-- FR44: Utente può visualizzare stato del contest, risultati passati e progressione nel bracket
+**Sistema Contest (13 FR):**
 
-**Amministrazione & Moderazione (FR45-FR52):**
+*Backoffice Admin:*
+- FR37: Admin può creare un contest tramite backoffice, scegliendo la tipologia (settimanale auto-gestito o bracket Champions League)
+- FR38: Utente registrato può visualizzare i contest disponibili (entrambe le tipologie)
+
+*Tipologia A — Contest Settimanale Auto-gestito:*
+- FR39a: Un contest settimanale viene creato automaticamente quando un video è caricato con un tag contest (periodo lun-ven)
+- FR39b: Le clip caricate vengono auto-assegnate al contest settimanale corrente in base al tag
+- FR40a: Utente registrato può votare da 1 a 5 stelle sulle clip del contest settimanale
+- FR41a: Il sistema chiude automaticamente il contest al termine del periodo
+- FR42a: Il vincitore è la clip con la media voti più alta. In caso di parimerito: spareggio ponderato (50% numero voti, 30% visualizzazioni, 20% like)
+- FR43a: Utente può visualizzare classifica e risultati del contest settimanale
+
+*Tipologia B — Contest Bracket Champions League:*
+- FR39c: Utente registrato può iscriversi a un contest bracket inviando una clip
+- FR40b: Il sistema genera un bracket a eliminazione diretta per i partecipanti
+- FR41b: Il contest mostra un albero grafico interattivo del bracket (stile torneo, con visualizzazione scontri, clip passate e risultati)
+- FR42b: Utente registrato può votare da 1 a 5 stelle sulle clip di un matchup del contest bracket
+- FR43b: Il sistema calcola la media dei voti interni al matchup e fa avanzare il vincitore (nessun fattore esterno)
+- FR44: Utente può visualizzare stato del contest bracket, risultati passati e progressione nel bracket
+- FR44b: Il vincitore del contest bracket riceve un premio (Fase 1: premi finanziati Video_clip; Fase 2: premi da partnership publisher)
+
+**Amministrazione & Moderazione (8 FR):**
 - FR45: Moderatore può disabilitare commenti inappropriati
 - FR46: Admin può eliminare video
 - FR47: Admin può sospendere account utente
 - FR48: Admin può promuovere utenti tra ruoli (es. toconfirm → user)
 - FR49: Admin può visualizzare la lista dei video per utente
-- FR50: Il sistema invia notifiche in-app per eventi chiave (commento ricevuto, like ricevuto, commento promosso a popup, invito contest, turno contest disponibile)
+- FR50: Il sistema invia notifiche in-app per eventi chiave (commento ricevuto, like ricevuto, commento promosso a popup, contest aperto, invito contest bracket, turno contest disponibile, risultati contest)
 - FR51: Utente registrato può visualizzare la propria lista notifiche
 - FR52: Il sistema mostra un badge con il conteggio delle notifiche non lette
+
+**Requisiti Aggiuntivi PRD:**
+- FR53: Utente può visualizzare il profilo di un altro utente tramite username
+- FR54: Il sistema valida la durata del video all'upload e rifiuta automaticamente clip fuori range 10s-1min
+- FR55: Admin può gestire contest tramite backoffice dedicato nel frontend (creazione, monitoraggio, chiusura manuale)
 
 ### NonFunctional Requirements
 
 **Performance:**
-- NFR1: First Contentful Paint < 1.5s (pagine pubbliche con SSR)
-- NFR2: Time to Interactive < 3s (priorità al player video)
-- NFR3: Video Start Playback < 2s (post-conversione, formato leggero)
+- NFR1: First Contentful Paint < 1.5s su pagine pubbliche con SSR
+- NFR2: Time to Interactive < 3s con priorità al player video
+- NFR3: Video Start Playback < 2s via presigned URL MinIO
 - NFR4: Lighthouse Score > 80
-- NFR5: Risposta API lettura < 500ms (feed, commenti, notifiche)
-- NFR6: Risposta API scrittura < 1s (like, commenti, follow)
-- NFR7: Upload video < 30s per 500MB su connessione stabile (escl. conversione)
-- NFR8: Conversione video ffmpeg < 2x durata clip
-- NFR9: Latenza popup overlay vs timestamp < 200ms (dati pre-caricati in singola chiamata API)
-- NFR10: Progress bar upload con aggiornamento in tempo reale
+- NFR5: Risposta API (lettura) < 500ms — feed, commenti, notifiche
+- NFR6: Risposta API (scrittura) < 1s — like, commenti, follow
+- NFR7: Upload video < 30s per 500MB su connessione stabile
+- NFR8: Latenza popup overlay vs timestamp < 200ms — dati popup pre-caricati in singola chiamata API al caricamento pagina
+- NFR9: Progress bar upload con aggiornamento in tempo reale
 
 **Security:**
-- NFR11: Autenticazione JWT con refresh token
-- NFR12: CORS_ALLOWED_ORIGINS restrittivo (solo dominio Vercel frontend)
-- NFR13: Validazione input su tutti gli endpoint (durata clip, formato file, lunghezza commenti)
-- NFR14: Vincolo integrità voto contest: un solo voto per utente per matchup (constraint DB unique + UI disabilitata)
-- NFR15: Upload limitato a formati video whitelist: MP4, MOV, AVI, MKV, WebM
-- NFR16: Limite dimensione file upload: max 500MB
-- NFR17: Limiti lunghezza input: commenti max 500 caratteri, titolo clip max 100 caratteri
-- NFR18: Password con requisiti minimi (lunghezza, complessità base)
-- NFR19: Protezione CSRF sui form
-- NFR20: Sanitizzazione testo commenti per prevenire XSS
+- NFR10: Autenticazione JWT con refresh token (SimpleJWT), migrazione pianificata a Keycloak
+- NFR11: CORS da restringere a origini specifiche prima del deploy di produzione
+- NFR12: Validazione input su tutti gli endpoint (durata clip, formato file, lunghezza commenti)
+- NFR13: Vincolo integrità voto contest — un voto per utente per clip/matchup, enforced backend + frontend
+- NFR14: Upload limitato a formati video whitelist (MP4, MOV, AVI, MKV, WebM)
+- NFR15: Limite dimensione file upload: max 500MB
+- NFR16: Limiti lunghezza input: commenti max 500 caratteri, titolo clip max 100 caratteri
+- NFR17: Password con requisiti minimi (lunghezza, complessità base)
+- NFR18: Protezione CSRF sui form
+- NFR19: Sanitizzazione testo commenti per prevenire XSS
 
 **Resilienza & Error Handling:**
-- NFR21: Fallimento conversione ffmpeg: mantieni file originale, 1 retry automatico, notifica utente su fallimento definitivo
-- NFR22: Upload diretto a Django per file video grandi (bypass Next.js API Routes limite 4MB)
-- NFR23: Nessun target di uptime rigido per fase amici
+- NFR20: Error handler centralizzato backend con formato standard {code, detail}
+- NFR21: Ogni pagina frontend deve avere isError + ErrorMessage con onRetry
+- NFR22: Upload con modale errore e opzione retry con messaggi specifici
 
 **Scalabilità:**
-- NFR24: Supporto fino a 50 utenti concorrenti senza degradazione
-- NFR25: Storage 100GB Vercel Blob con video convertiti in formato leggero
-- NFR26: Architettura che permette evoluzione verso async (Celery), proxy API, WebSocket senza riscritture maggiori
+- NFR23: Il sistema deve supportare fino a 50 utenti concorrenti con risposta API < 1s
+- NFR24: Architettura predisposta per Celery, proxy API e WebSocket senza riscritture maggiori
 
 **Accessibilità:**
-- NFR27: WCAG 2.1 livello AA base
-- NFR28: Contrasti di colore sufficienti su testi e controlli
-- NFR29: Navigazione completa via keyboard (tab, enter, escape)
-- NFR30: Alt text su thumbnail e immagini
-- NFR31: Player video con controlli accessibili via keyboard
-- NFR32: Label sui form (registrazione, login, upload, commenti)
+- NFR25: WCAG 2.1 livello AA base per MVP
+- NFR26: Contrasti di colore sufficienti su testi e controlli
+- NFR27: Navigazione completa via keyboard (tab, enter, escape)
+- NFR28: Alt text su thumbnail e immagini
+- NFR29: Player video con controlli accessibili (play/pause/volume via keyboard)
+- NFR30: Label sui form (registrazione, login, upload, commenti)
 
 **Integrazione:**
-- NFR33: Django REST API — comunicazione HTTP/JSON, JWT auth, CORS diretto, upload video diretto
-- NFR34: Vercel Blob — upload/download via SDK Vercel, gestione URL pubblici per streaming
-- NFR35: ffmpeg — conversione server-side H.264/MP4 ottimizzato, sincrono, retry su fallimento
-- NFR36: OpenGraph — SSR per generazione OG tags su pagine clip pubbliche
+- NFR31: Backend REST API con comunicazione HTTP/JSON, auth token-based, CORS configurato
+- NFR32: Storage cloud S3-compatible con URL autenticati a scadenza temporale
+- NFR33: Estrazione metadati video all'upload per validazione
+- NFR34: Task scheduling per chiusura automatica contest settimanali
 
 ### Additional Requirements
 
-**Da Architecture — Gap backend critici (modelli/endpoint mancanti):**
-- Nuovo modello CommentLike (user FK + comment FK, unique_together, CASCADE) — blocca like commenti, calcolo popup, sidebar dinamica
-- Nuovo modello ClipLike/VideoLike (user FK + video FK, unique_together, CASCADE) — blocca like su clip
-- Nuovo modello Notification (recipient FK, type enum, content text, related_object_id, read bool, created_at) — blocca notifiche in-app
-- Nuovo campo allow_download su Video (booleano, default True) — blocca download clip da altri
-- Nuovo campo is_disabled su Comment (booleano, default False) — blocca moderazione commenti (soft-delete)
-- Nuovo endpoint GET /api/videos/{id}/popup-comments/ — blocca popup overlay nel player
-- Batch migration unica "PRD alignment" per tutti i nuovi modelli
-- Rating esistente mantenuto per contest (Release B), ClipLike aggiunto per feed (Release A)
+**Da Architecture — Decisioni Architetturali (D1-D7):**
+- D1: Notifiche via polling REST ogni 15s (nessun WebSocket/SSE per MVP). Modello Notification con FK espliciti (no GenericForeignKey)
+- D2: Champions League bracket con modelli separati (Bracket, ContestEntry, Matchup) — dominio API `/api/brackets/` indipendente da `/api/contests/`
+- D3: Presigned URL refresh via lazy re-fetch al play (catch onerror → spinner → refetch → retry max 2). Verificare `@lru_cache` su client MinIO
+- D4: Testing stack — Backend: Django TestCase + conftest.py con 5 fixture. Frontend: Vitest + RTL + MSW con 5 endpoint critici
+- D5: Linter backend → ruff come unico linter + formatter Python in pyproject.toml
+- D6: Rate limiting → DRF throttling built-in: anon 100/hour, user 2000/hour, upload 10/hour
+- D7: Rimuovere celery e redis da requirements.txt (peso morto, non configurati)
 
-**Da Architecture — Decisioni architetturali che impattano le stories:**
-- JWT storage: access in memory + refresh in localStorage, stato "authenticating" con GradientSpinner
-- Route protection: Middleware + AuthProvider doppio layer
-- API client: Axios interceptors con refresh mutex/queue
-- Optimistic UI: React Query useMutation pattern per commenti, like, follow
-- Player micro-sistema: VideoPlayerProvider con ref pattern (currentTime come ref, NON state)
-- Server Components vs Client Components: "Server fetch, Client render" pattern
-- React Query caching strategy con staleTime per risorsa
-- Upload: doppio canale (API CORS + upload diretto a Django per file grandi)
-- Vercel Blob integrato in Fase 1 (Django → ffmpeg → Blob)
-- Sequenza implementazione: backend evolution → auth → API client → upload → player → feed → commenti → notifiche/admin
+**Da Architecture — Gap Backend Critici:**
+- Modello `Notification` + infrastruttura delivery mancante (7 tipi notifica)
+- Endpoint `by-username` mancante (404 a runtime su profilo utente)
+- Modelli `VideoLike` e `CommentLike` mancanti (bloccano FR27, FR28, FR31, FR34, FR35)
+- Endpoint `followers_count`, `following_count`, `is_followed_by_me` mancanti nel UserSerializer
+- Sistema Champions League bracket da zero (modelli + logica + UI)
+- `useUserVideos` filtra client-side (manca endpoint `?uploader=` backend)
+- Hook `useDeleteComment`, `useDeleteVideo`, `useUpdateRating` mancanti nel frontend
+- Paginazione followers/following non implementata (array piatti)
+- Campo `bio` User mancante
+- Campo `allow_download` Video mancante
+- Campo `is_disabled` Comment mancante
 
-**Da Architecture — Disallineamento backend esistente ↔ PRD:**
-- Rating clip: backend ha rating 1-5, PRD vuole N/A nel feed — ripensare uso modello Rating (solo contest)
-- Contest: backend ha settimanali automatici, PRD vuole bracket eliminazione diretta — evoluzione significativa
-- Like clip e commenti: non esistono nel backend attuale — nuovi modelli necessari
+**Da Architecture — Bug FIX-READY (10 bug Story 0):**
+- FIX-1: `STATICFILES_DIRS` contiene path inesistente
+- FIX-2: `DEFAULT_FILE_STORAGE` deprecato in Django 5.x
+- FIX-3: Import circolare potenziale in `models/__init__.py`
+- FIX-4: `django-cleanup` non in `INSTALLED_APPS`
+- FIX-5: `CORS_ALLOWED_ORIGINS` hardcoded
+- FIX-6: Manca `DEFAULT_AUTO_FIELD`
+- FIX-7: `AUTH_USER_MODEL` dopo `INSTALLED_APPS` con migrazioni
+- FIX-8: Bug `RoleBasedPermission.has_object_permission()` su Video (controlla `obj.user` invece di `obj.uploader`)
+- FIX-9: Bug import `Response` in `user_views.py` (follow/unfollow crashano)
+- FIX-10: `CorsMiddleware` posizionato dopo `CommonMiddleware` (deve essere prima)
 
-**Da UX — Requisiti design che impattano implementazione:**
-- Dark mode come default (Tailwind class strategy)
-- Glassmorphism sui popup overlay (backdrop-blur + bg-opacity)
-- Micro-animazioni a 3 tier: Tier 1+2 con Framer Motion, Tier 3 con CSS/Tailwind
-- GradientSpinner unico per stato authenticating
-- Visual DNA con gradiente ricorrente (viola→ciano o rosso→arancione) su progress bar, bordi card, spinner, popup
-- CTA contestuale empatico sulla pagina pubblica (non modale bloccante)
-- Comment markers sulla timeline (dot luminosi gradiente) con hover preview
-- Desktop-first layout tre colonne, mobile bottom-bar 4 tab
-- Doppio tap per like su mobile, click su desktop
-- Skeleton loading per card clip
-- Toast Sonner solo per errori e conferme importanti
+**Da Architecture — Story 0 Prerequisiti Infrastruttura:**
+- Linting: ruff (backend), Prettier (frontend), ESLint esteso
+- Editor: `.editorconfig` alla root
+- Debug: Django Debug Toolbar, React Query DevTools
+- Validazione env: `env.ts` con Zod
+- CI/CD: GitHub Actions con quality gates (ruff + test backend + lint + test + build frontend)
+- Testing baseline: conftest.py con 5 fixture, MSW con 5 handlers
+- Backoffice admin: Django Admin per MVP (nessuna interfaccia admin custom nel frontend)
+
+**Da Architecture — Asimmetria Frontend-Avanti:**
+- Il frontend è più avanzato del backend: ogni hook che chiama API inesistenti è un requisito implicito
+- Le story backend devono essere prioritizzate in base a ciò che il frontend già consuma
+- Tipi TypeScript in `src/types/` definiscono la shape attesa delle risposte backend
+
+**Da UX Design — Requisiti Experience:**
+- Dark mode come default (il gaming vive nel dark mode)
+- Glassmorphism sui popup overlay (sfondo frosted glass semi-trasparente)
+- Micro-animazioni a 3 tier: significato (Framer Motion), transizione (Framer Motion), delizia (CSS native)
+- Spinner unico del sito che si costruisce dal gradiente (branding custom)
+- Visual DNA con gradiente ricorrente (viola→ciano) su barra progresso, bordi card, spinner, popup
+- Comment markers sulla timeline del player (dot luminosi con hover preview del commento top)
+- CTA contestuale empatico sulla pagina pubblica per utenti non loggati
+- Timestamp pre-compilato alla pausa come punto di conversione critico
+- Notifica come racconto, non evento generico
+- La pagina pubblica SSR è la demo vivente del prodotto (popup funzionanti + CTA)
+- Skeleton loading come placeholder animati nel feed
+- Toast notification per feedback non intrusivo
+
+**Da UX Design — Pattern di Navigazione:**
+- Desktop: sidebar sinistra collassabile + area centrale + sidebar destra commenti
+- Mobile: header (logo V + search + avatar) + MobileBottomBar (Home, Esplora, Upload, Profilo)
+- Card-to-detail: feed card → pagina dettaglio clip
+- Doppio tap per like su clip (mobile/desktop)
 
 ### FR Coverage Map
 
-| FR | Epic | Descrizione |
-|----|------|-------------|
-| FR1 | Epic 1 | Registrazione account |
-| FR2 | Epic 1 | Login/autenticazione |
-| FR3 | Epic 1 | Visualizza/modifica profilo |
-| FR4 | Epic 1 | Follow utenti |
-| FR5 | Epic 1 | Unfollow utenti |
-| FR6 | Epic 1 | Liste follower/following |
-| FR7 | Epic 2 | Upload clip video |
-| FR8 | Epic 2 | Validazione durata clip |
-| FR9 | Epic 2 | Validazione formato clip |
-| FR10 | Epic 2 | Conversione formato ottimizzato |
-| FR11 | Epic 2 | Titolo e tag clip |
-| FR12 | Epic 2 | Permesso allow_download |
-| FR13 | Epic 2 | Download proprie clip |
-| FR14 | Epic 2 | Download clip altrui |
-| FR15 | Epic 2 | Storage blob esterno |
-| FR16 | Epic 2 | Modale errore upload + Riprova |
-| FR17 | Epic 2 | Feed Home (following) |
-| FR18 | Epic 2 | Pagina dettaglio clip |
-| FR19 | Epic 2 | URL diretto clip |
-| FR20 | Epic 2 | Link preview OG tags |
-| FR21 | Epic 2 | Card feed con thumbnail |
-| FR22 | Epic 2 | Navigazione card→dettaglio |
-| FR23 | Epic 3 | Commento senza timestamp |
-| FR24 | Epic 3 | Commento temporizzato |
-| FR25 | Epic 3 | Timestamp pre-suggerito alla pausa |
-| FR26 | Epic 3 | Rimozione timestamp |
-| FR27 | Epic 3 | Like commento |
-| FR28 | Epic 3 | Like clip |
-| FR29 | Epic 3 | Vista gerarchica commenti |
-| FR30 | Epic 3 | Due viste commenti (Tutti/Nel video) |
-| FR31 | Epic 3 | Calcolo top comment per timestamp |
-| FR32 | Epic 3 | Popup overlay durante riproduzione |
-| FR33 | Epic 3 | Popup scompaiono dopo pochi secondi |
-| FR34 | Epic 3 | Soglia minima 1 like per popup |
-| FR35 | Epic 3 | Sidebar Dinamica |
-| FR36 | Epic 3 | Ricalcolo popup post-moderazione |
-| FR37 | Epic 5 | Creazione contest (admin/mod) |
-| FR38 | Epic 5 | Visualizzazione contest |
-| FR39 | Epic 5 | Iscrizione contest con clip |
-| FR40 | Epic 5 | Generazione bracket |
-| FR41 | Epic 5 | Albero grafico interattivo |
-| FR42 | Epic 5 | Votazione 1-5 stelle matchup |
-| FR43 | Epic 5 | Calcolo media e avanzamento |
-| FR44 | Epic 5 | Stato/risultati contest |
-| FR45 | Epic 4 | Disabilita commenti (mod) |
-| FR46 | Epic 4 | Elimina video (admin) |
-| FR47 | Epic 4 | Sospendi account (admin) |
-| FR48 | Epic 4 | Promuovi ruoli utente |
-| FR49 | Epic 4 | Lista video per utente |
-| FR50 | Epic 4 | Notifiche in-app |
-| FR51 | Epic 4 | Lista notifiche utente |
-| FR52 | Epic 4 | Badge notifiche non lette |
-| UX-1 | Epic 1 | Header desktop con menu profilo (avatar + dropdown logout/impostazioni) |
-| UX-2 | Epic 1 | Spinner animato del brand + transizione post-login |
-| UX-3 | Epic 4 | Layout dashboard admin frontend (tabelle, ricerca, azioni, protezione ruolo) |
+**Gestione Utenti:**
+- FR1: Epic 1 — Registrazione account
+- FR2: Epic 1 — Autenticazione credenziali
+- FR3: Epic 1 — Visualizzazione e modifica profilo (incluso campo bio)
+- FR4: Epic 1 — Follow utente
+- FR5: Epic 1 — Unfollow utente
+- FR6: Epic 1 — Liste follower/following
+
+**Creazione & Gestione Contenuti:**
+- FR7: Epic 2 — Upload clip 10s-1min
+- FR8: Epic 2 — Validazione durata clip
+- FR9: Epic 2 — Validazione formato clip
+- FR10: Escluso MVP — Transcoding H.264 (Fase 2)
+- FR11: Epic 2 — Titolo e tag per clip
+- FR12: Epic 2 — Impostazione allow_download
+- FR13: Epic 2 — Download proprie clip
+- FR14: Epic 2 — Download clip altrui (se abilitato)
+- FR15: Epic 2 — Storage MinIO con presigned URL
+- FR16: Epic 2 — Modale errore upload con retry
+
+**Scoperta & Fruizione Contenuti:**
+- FR17: Epic 2 — Feed Home (following)
+- FR18: Epic 2 — Pagina dettaglio clip
+- FR19: Epic 2 — URL diretto per condivisione
+- FR20: Epic 2 — Link preview SSR (OG tags)
+- FR21: Epic 2 — Card nel feed
+- FR22: Epic 2 — Navigazione card → dettaglio
+
+**Sistema Commenti & Interazioni:**
+- FR23: Epic 2 — Commento senza timestamp
+- FR24: Epic 2 — Commento temporizzato con timestamp
+- FR25: Epic 2 — Timestamp pre-compilato alla pausa
+- FR26: Epic 2 — Rimozione timestamp pre-suggerito
+- FR27: Epic 3 — Like su commento (richiede CommentLike)
+- FR28: Epic 3 — Like su clip (richiede VideoLike)
+- FR29: Epic 2 — Vista commenti gerarchica
+- FR30: Epic 2 — Dual-view "Tutti" / "Nel video"
+
+**Popup & Loop di Engagement:**
+- FR31: Epic 3 — Commento con più like per timestamp
+- FR32: Epic 3 — Popup overlay durante riproduzione
+- FR33: Epic 3 — Popup fade-out dopo 3s
+- FR34: Epic 3 — Soglia minima 1 like per popup
+- FR35: Epic 3 — Sidebar Dinamica (commenti più likati)
+- FR36: Epic 3 — Ricalcolo popup dopo disabilitazione commento
+
+**Sistema Contest — Tipologia A Settimanale:**
+- FR37: Epic 4 (parziale) — Creazione contest da Django Admin (settimanale)
+- FR38: Epic 4 — Visualizzazione contest disponibili
+- FR39a: Epic 4 — Creazione automatica contest settimanale
+- FR39b: Epic 4 — Auto-assegnazione clip al contest corrente
+- FR40a: Epic 4 — Votazione 1-5 stelle clip contest
+- FR41a: Epic 4 — Chiusura automatica contest
+- FR42a: Epic 4 — Vincitore per media voti + spareggio
+- FR43a: Epic 4 — Classifica e risultati contest
+
+**Sistema Contest — Tipologia B Bracket:**
+- FR37: Epic 6 (parziale) — Creazione contest bracket da Django Admin
+- FR39c: Epic 6 — Iscrizione a contest bracket
+- FR40b: Epic 6 — Generazione bracket eliminazione diretta
+- FR41b: Epic 6 — Albero grafico interattivo
+- FR42b: Epic 6 — Votazione matchup
+- FR43b: Epic 6 — Avanzamento vincitore per media voti
+- FR44: Epic 6 — Stato bracket e progressione
+- FR44b: Epic 6 — Premio vincitore
+
+**Amministrazione & Moderazione:**
+- FR45: Epic 0 — Disabilita commenti (Django Admin + campo is_disabled)
+- FR46: Epic 0 — Elimina video (Django Admin)
+- FR47: Epic 0 — Sospendi account (Django Admin)
+- FR48: Epic 0 — Promozione ruoli (Django Admin)
+- FR49: Epic 0 — Lista video per utente (Django Admin)
+
+**Notifiche:**
+- FR50: Epic 5 — Notifiche in-app per eventi chiave (7 tipi)
+- FR51: Epic 5 — Lista notifiche utente
+- FR52: Epic 5 — Badge conteggio non lette
+
+**Requisiti Aggiuntivi PRD:**
+- FR53: Epic 1 — Profilo per username (endpoint by-username)
+- FR54: Epic 2 — Validazione durata con reject automatico
+- FR55: Epic 4 (parziale) — Gestione contest da Django Admin
+
+**Copertura:** 55 FR totali → 54 coperti, 1 escluso MVP (FR10 transcoding).
 
 ## Epic List
 
-### Epic 1: Autenticazione & Profili Utente
-Gli utenti possono registrarsi, autenticarsi, gestire il proprio profilo e seguire altri utenti. È la base per ogni interazione sulla piattaforma. Include evoluzione backend (batch migration) come story iniziale di setup, menu profilo desktop e spinner animato del brand.
-**FRs coperti:** FR1, FR2, FR3, FR4, FR5, FR6 + UX cross-cutting (header desktop, spinner brand)
+### Epic 0: Fondamenta di Sviluppo e Admin
+Ambiente di sviluppo solido: bug bloccanti risolti, linting automatico, testing baseline, CI/CD, moderazione base via Django Admin funzionante.
+**FRs coperti:** FR45, FR46, FR47, FR48, FR49, FR55 (parziale)
+**Decisioni architetturali:** D4 (testing), D5 (ruff), D6 (throttling), D7 (rimozione celery/redis)
+**Include:** 10 bug FIX-READY, conftest.py 5 fixture, MSW 5 handlers, .editorconfig, CI/CD base, Django Admin per moderazione/gestione contest, campo `is_disabled` su Comment
 
-### Epic 2: Creazione & Gestione Clip
-Gli utenti possono caricare clip video (10s-1min), il sistema le valida, converte e archivia. Gli utenti possono scaricare le proprie clip e quelle altrui (se permesso). Il feed mostra le clip degli utenti seguiti come card navigabili. La pagina dettaglio clip fornisce il player base predisposto per accogliere il sistema commenti/popup dell'Epic 3.
-**FRs coperti:** FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR20, FR21, FR22
+### Epic 1: Core Platform — Allineamento Backend
+Gli utenti possono registrarsi, accedere, gestire il profilo completo (con bio), seguire/smettere di seguire altri utenti, navigare ai profili via username. Tutto ciò che il frontend già mostra funziona realmente end-to-end.
+**FRs coperti:** FR1, FR2, FR3, FR4, FR5, FR6, FR53
+**Include:** endpoint `by-username`, `followers_count`/`following_count`/`is_followed_by_me` nel UserSerializer, campo `bio` User, paginazione followers/following, fix bug `Response` import, fix `RoleBasedPermission`, endpoint `?uploader=` su video
 
-### Epic 3: Commenti Temporizzati & Popup
-Gli utenti possono commentare le clip (con o senza timestamp), mettere like a clip e commenti, e vedere i commenti più apprezzati diventare popup overlay nel player. È il cuore differenziante del prodotto — il player base dell'Epic 2 prende vita con il sistema integrato commenti/popup/sidebar.
-**FRs coperti:** FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35, FR36
+### Epic 2: Upload, Player e Commenti
+Gli utenti caricano clip con validazione completa, le guardano con il player integrato, commentano (con e senza timestamp), vedono i commenti nella dual-view, navigano nel feed Home, condividono clip via link con preview SSR, scaricano clip proprie e altrui.
+**FRs coperti:** FR7, FR8, FR9, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR29, FR30, FR54
+**Include:** campo `allow_download` Video, validazione durata con reject (FR54), lazy re-fetch presigned URL (D3), hook `useDeleteComment`/`useDeleteVideo` frontend
 
-### Epic 4: Notifiche & Amministrazione
-Gli utenti ricevono notifiche per eventi importanti (commenti ricevuti, like, popup promossi). Admin e moderatori possono gestire contenuti e utenti da una dashboard dedicata con interfaccia completa (tabelle, ricerca, azioni) e protezione route per ruolo.
-**FRs coperti:** FR45, FR46, FR47, FR48, FR49, FR50, FR51, FR52 + interfaccia admin frontend
+### Epic 3: Like, Popup e Engagement Loop
+Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La Sidebar Dinamica mostra i commenti più likati. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
+**FRs coperti:** FR27, FR28, FR31, FR32, FR33, FR34, FR35, FR36
+**Include:** modelli `VideoLike` e `CommentLike`, endpoint CRUD like, hook frontend `useVideoLike`/`useCommentLike`, UI bottoni like, aggiornamento popup/sidebar con dati reali, ricalcolo popup dopo moderazione
 
-### Epic 5: Sistema Contest
-Admin/moderatori possono creare contest, gli utenti possono iscriversi con clip, votare nei matchup, e seguire l'avanzamento del bracket a eliminazione diretta con albero grafico interattivo. Release B separata.
-**FRs coperti:** FR37, FR38, FR39, FR40, FR41, FR42, FR43, FR44
+### Epic 4: Contest Settimanale
+Gli utenti partecipano a contest settimanali automatici caricando clip con tag. Votano 1-5 stelle, vedono la classifica in tempo reale e il vincitore. L'admin gestisce i contest da Django Admin.
+**FRs coperti:** FR37 (settimanale), FR38, FR39a, FR39b, FR40a, FR41a, FR42a, FR43a, FR55 (parziale)
+**Include:** pagina contest frontend completa (non solo vincitori), UI voto per clip, classifica attiva, pagina risultati, integrazione con Django Admin per backoffice
+
+### Epic 5: Notifiche In-App
+Gli utenti ricevono notifiche per commenti ricevuti, like ricevuti, commenti promossi a popup, eventi contest. Vedono il badge non-lette nella sidebar e la lista notifiche completa.
+**FRs coperti:** FR50, FR51, FR52
+**Decisione architetturale:** D1 (polling REST 15s, modello Notification con FK espliciti)
+**Include:** modello `Notification`, endpoint API `/api/notifications/`, pagina `/notifiche` frontend, campanella con badge, hook `useNotifications` con `refetchInterval: 15000`
+
+### Epic 6: Contest Bracket Champions League
+L'admin crea tornei bracket da Django Admin. Gli utenti si iscrivono inviando clip, votano nei matchup 1v1, seguono la progressione nell'albero grafico interattivo. Il vincitore di ogni matchup avanza per media voti. Il vincitore finale riceve un premio.
+**FRs coperti:** FR37 (bracket), FR39c, FR40b, FR41b, FR42b, FR43b, FR44, FR44b
+**Decisione architetturale:** D2 (modelli separati Bracket, ContestEntry, Matchup — dominio API `/api/brackets/` indipendente)
+**Include:** 3 nuovi modelli, logica progressione turni, UI bracket visualization (libreria React), pagina contest bracket frontend, backoffice Django Admin
 
 ---
 
-## Epic 1: Autenticazione & Profili Utente
+## Definition of Done (per ogni Story)
 
-Gli utenti possono registrarsi, autenticarsi, gestire il proprio profilo e seguire altri utenti. È la base per ogni interazione sulla piattaforma. Include evoluzione backend (batch migration) come story iniziale di setup.
+Ogni story si considera completata SOLO quando soddisfa tutti i seguenti criteri:
 
-### Story 1.1: Evoluzione Backend — Migration PRD Alignment
+1. **Test passanti:** `python manage.py test` e `npm run test` passano al 100% (nessuna regressione)
+2. **Nuovo codice testato:** ogni nuovo endpoint backend o logica critica ha almeno 1 test dedicato
+3. **Linting pulito:** `ruff check backend/` e `ruff format --check backend/` passano con 0 errori (dopo Story 0.2)
+4. **Build senza errori:** `npm run build` nel frontend compila senza errori TypeScript
+5. **Error handling frontend:** ogni nuova pagina frontend include `isError` + `<ErrorMessage onRetry={refetch} />` (pattern retro Epic 1)
+6. **Accessibilità base:** nuovi elementi interattivi hanno `role`, `aria-label` e supporto keyboard (pattern retro Epic 1)
+7. **Nessun segreto committato:** file `.env`, credenziali e token non sono nel repository
 
-As a developer,
-I want il backend allineato ai requisiti del PRD con i nuovi modelli e campi,
-So that il frontend possa integrarsi con tutti gli endpoint necessari.
+---
+
+## Epic 0: Fondamenta di Sviluppo e Admin
+
+Ambiente di sviluppo solido: bug bloccanti risolti, linting automatico, testing baseline, CI/CD, moderazione base via Django Admin funzionante.
+
+**Nota parallelizzazione:** L'ordine consigliato è 0.1 → 0.2 → 0.4 → (0.3 ∥ Epic 1). La Story 0.3 (Testing/CI) può procedere in parallelo con l'inizio dell'Epic 1, purché Story 0.1 (bug fix) e 0.2 (linting) siano completate. Questo evita di bloccare lo sviluppo delle feature in attesa della CI.
+
+### Story 0.1: Bug Fix, Configurazione Settings e Verifica Ambiente
+
+As a sviluppatore,
+I want un backend Django con configurazione corretta, senza bug noti, e l'intero ambiente di sviluppo funzionante,
+So that posso sviluppare nuove feature su una base solida e verificata.
 
 **Acceptance Criteria:**
 
-**Given** il backend Django esistente con i modelli attuali
-**When** viene eseguita la batch migration "PRD alignment"
-**Then** i seguenti modelli/campi sono creati:
-- Modello `CommentLike` (user FK + comment FK, unique_together, CASCADE)
-- Modello `ClipLike`/`VideoLike` (user FK + video FK, unique_together, CASCADE)
-- Modello `Notification` (recipient FK, type enum, content text, related_object_id, read bool, created_at)
-- Campo `allow_download` su Video (booleano, default True)
-- Campo `is_disabled` su Comment (booleano, default False)
-**And** l'endpoint `GET /api/videos/{id}/popup-comments/` è implementato e restituisce `{timestamp, comment_id, text, author, like_count}`
-**And** gli endpoint per like clip, like commenti, notifiche sono implementati
-**And** tutte le migration sono applicabili senza conflitti
+**Given** il backend Django attuale con bug noti in settings.py e nelle views
+**When** applico tutti i fix documentati nell'Architecture e verifico l'ambiente
+**Then** `STATICFILES_DIRS` punta a path esistenti (FIX-1)
+**And** `DEFAULT_FILE_STORAGE` usa la sintassi Django 5.x `STORAGES` (FIX-2)
+**And** nessun import circolare in `models/__init__.py` (FIX-3)
+**And** `django-cleanup` è in `INSTALLED_APPS` (FIX-4)
+**And** `CORS_ALLOWED_ORIGINS` è configurabile via env var (FIX-5)
+**And** `DEFAULT_AUTO_FIELD` è impostato a `BigAutoField` (FIX-6)
+**And** `AUTH_USER_MODEL` è dichiarato prima di `INSTALLED_APPS` che eseguono migrazioni (FIX-7)
+**And** `RoleBasedPermission.has_object_permission()` controlla sia `obj.uploader` che `obj.user` (FIX-8)
+**And** `Response` è importato correttamente in `user_views.py` (FIX-9)
+**And** `CorsMiddleware` è posizionato prima di `CommonMiddleware` in `MIDDLEWARE` (FIX-10)
+**And** `celery` e `redis` sono rimossi da `requirements.txt` (D7)
+**And** `python manage.py check` non produce errori
+**And** `python manage.py migrate` esegue senza errori
+**And** `npm run dev` dalla root avvia correttamente Docker (PostgreSQL + MinIO), backend Django e frontend Next.js tramite `concurrently` + `wait-on`
+**And** il frontend compila e si connette al backend senza errori CORS
 
-### Story 1.2: Registrazione Utente
+### Story 0.2: Linting, Formatting e Developer Tools
+
+As a sviluppatore,
+I want linting automatico e strumenti di debug configurati,
+So that il codice è consistente e posso identificare problemi (N+1 queries, cache issues) rapidamente.
+
+**Acceptance Criteria:**
+
+**Given** il progetto senza linter Python né formatter configurato
+**When** configuro ruff e gli strumenti di sviluppo
+**Then** `pyproject.toml` contiene configurazione ruff allineata alle regole di `project-context.md` (D5)
+**And** `ruff check backend/` e `ruff format --check backend/` passano con 0 errori
+**And** `.editorconfig` alla root definisce indent, line endings e trailing whitespace
+**And** Django Debug Toolbar è installato e attivo in `DEBUG=True` (visibilità query SQL, N+1 detection)
+**And** React Query DevTools è importato nel `QueryProvider` (già dipendenza installata)
+**And** rate limiting DRF è configurato in `settings.py`: `anon: 100/hour`, `user: 2000/hour`, `upload: 10/hour` (D6)
+
+### Story 0.3: Testing Baseline e CI/CD
+
+As a sviluppatore,
+I want una baseline di test automatici e una CI pipeline,
+So that ogni modifica futura è protetta da regressioni e il codice è validato ad ogni push.
+
+**Acceptance Criteria:**
+
+**Given** nessun test automatizzato né CI/CD configurati
+**When** creo la baseline di testing e la pipeline CI
+**Then** `cs_clips/tests/conftest.py` contiene 5 fixture: `authenticated_user`, `admin_user`, `sample_video`, `api_client_authenticated`, `sample_contest` (D4)
+**And** almeno 1 test backend Django passa (es. test auth flow: registrazione crea utente con gruppo `toconfirm`)
+**And** `frontend/src/test/setup.ts` configura MSW server con `beforeAll`/`afterAll`
+**And** `frontend/src/test/handlers.ts` contiene handler per 5 endpoint: `POST /api/token/`, `POST /api/users/`, `GET /api/videos/`, `GET /api/videos/{id}/`, `GET /api/users/{id}/` (D4)
+**And** almeno 1 test frontend Vitest passa
+**And** `.github/workflows/ci.yml` esegue: ruff check + test backend + npm lint + vitest + npm build
+**And** `npm run build` nel frontend compila senza errori
+
+**Nota priorità:** I test locali funzionanti (conftest.py, MSW handlers, almeno 1 test per lato) sono il deliverable obbligatorio. La CI/CD GitHub Actions è fortemente consigliata ma non bloccante se ci sono problemi infrastrutturali (permessi, Docker nel runner). In quel caso, documentare il problema e procedere — la CI verrà fixata come follow-up.
+
+### Story 0.4: Django Admin per Moderazione e Gestione Contest
+
+As an admin/moderatore,
+I want gestire utenti, video, commenti e contest tramite Django Admin,
+So that posso moderare la piattaforma e gestire i contest senza interfaccia frontend dedicata.
+
+**Acceptance Criteria:**
+
+**Given** un admin autenticato nell'interfaccia Django Admin
+**When** accede alla sezione di moderazione
+**Then** può disabilitare un commento (campo `is_disabled` BooleanField su Comment, default False) (FR45)
+**And** può eliminare un video (file rimosso da MinIO via `django-cleanup`) (FR46)
+**And** può sospendere un account utente (toggle `is_active`) (FR47)
+**And** può promuovere un utente tra ruoli (modifica gruppi Django: `toconfirm` → `user` → `admin`) (FR48)
+**And** può visualizzare la lista dei video filtrata per uploader (FR49)
+**And** può visualizzare, creare e chiudere manualmente contest settimanali (FR55)
+**And** il campo `is_disabled` su Comment è creato via migrazione Django
+**And** i commenti disabilitati non appaiono nelle risposte API (`is_disabled=False` filter nel queryset di `CommentViewSet`)
+
+---
+
+## Epic 1: Core Platform — Allineamento Backend
+
+Gli utenti possono registrarsi, accedere, gestire il profilo completo (con bio), seguire/smettere di seguire altri utenti, navigare ai profili via username. Tutto ciò che il frontend già mostra funziona realmente end-to-end.
+
+### Story 1.1: Registrazione e Login End-to-End
 
 As a utente non registrato,
-I want creare un account con username, email e password,
-So that possa accedere alla piattaforma e interagire con la community.
+I want creare un account e autenticarmi,
+So that posso accedere alle funzionalità della piattaforma.
 
 **Acceptance Criteria:**
 
-**Given** un utente non registrato sulla pagina `/registrati`
-**When** compila username, email e password e invia il form
-**Then** l'account viene creato e l'utente viene autenticato con JWT
-**And** l'utente viene reindirizzato alla Home
+**Given** un utente non registrato
+**When** invia username, email e password all'endpoint di registrazione
+**Then** viene creato un account con gruppo `toconfirm` assegnato automaticamente (FR1)
+**And** la risposta contiene i dati utente serializzati
 
-**Given** un utente che inserisce un username o email già esistente
-**When** invia il form di registrazione
-**Then** viene mostrato un errore specifico ("Username già in uso" o "Email già registrata")
+**Given** un utente registrato
+**When** invia credenziali corrette all'endpoint `/api/token/`
+**Then** riceve access token e refresh token JWT (FR2)
+**And** `last_login` viene aggiornato
 
-**Given** un utente che inserisce una password troppo corta o debole
-**When** invia il form
-**Then** viene mostrato un errore di validazione con requisiti minimi
+**Given** un access token scaduto e un refresh token valido
+**When** chiama `/api/token/refresh/`
+**Then** riceve un nuovo access token
+**And** il refresh token ruota (rotation attiva)
 
-### Story 1.3: Login e Gestione Sessione JWT
+**Given** credenziali errate
+**When** tenta il login
+**Then** riceve errore 401 con formato `{code, detail}` in italiano
+
+### Story 1.2: Profilo Utente Completo con Bio e By-Username
 
 As a utente registrato,
-I want autenticarmi con le mie credenziali e mantenere la sessione attiva,
-So that possa accedere ai contenuti protetti senza riautenticarmi ad ogni visita.
-
-**Acceptance Criteria:**
-
-**Given** un utente registrato sulla pagina `/login`
-**When** inserisce credenziali valide e invia il form
-**Then** riceve JWT (access in memory, refresh in localStorage) e viene reindirizzato alla Home
-
-**Given** un utente con refresh token valido in localStorage
-**When** ricarica la pagina o torna al sito
-**Then** il sistema mostra il GradientSpinner (stato "authenticating"), chiama `/api/token/refresh/`, ottiene un nuovo access token e autentica l'utente senza redirect al login
-
-**Given** un utente non autenticato che tenta di accedere a route `(main)/*`
-**When** il middleware intercetta la richiesta
-**Then** viene reindirizzato a `/login`
-
-**Given** un utente autenticato che fa una chiamata API e riceve 401
-**When** l'Axios interceptor gestisce l'errore
-**Then** il mutex/queue pattern triggera il refresh, le chiamate in coda attendono il nuovo token e vengono riprovate
-**And** se il refresh fallisce, l'utente viene sloggato con toast "Sessione scaduta"
-
-### Story 1.4: Profilo Utente Pubblico
-
-As a utente registrato,
-I want visualizzare e modificare il mio profilo pubblico,
-So that gli altri utenti possano sapere chi sono e vedere le mie clip.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato che naviga a `/profilo`
-**When** la pagina si carica
-**Then** vengono mostrati: username, avatar, bio, conteggio follower/following, lista clip caricate
-
-**Given** un utente autenticato sulla pagina profilo
-**When** modifica i propri dati (bio, avatar) e salva
-**Then** le modifiche sono persistite e il profilo aggiornato è visibile
-
-**Given** un utente che visita `/profilo/[username]` di un altro utente
-**When** la pagina si carica
-**Then** vengono mostrati: username, avatar, bio, conteggio follower/following, clip pubbliche dell'utente
-
-### Story 1.5: Follow e Unfollow
-
-As a utente registrato,
-I want seguire e smettere di seguire altri utenti,
-So that possa costruire il mio feed personalizzato con le clip che mi interessano.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato che visualizza il profilo di un altro utente
-**When** clicca il bottone "Segui"
-**Then** inizia a seguire l'utente con feedback visivo immediato (optimistic UI)
-**And** il conteggio follower/following si aggiorna
-
-**Given** un utente che già segue un altro utente
-**When** clicca il bottone "Smetti di seguire"
-**Then** smette di seguire l'utente con feedback visivo immediato
-**And** il conteggio si aggiorna
-
-**Given** un errore durante l'operazione di follow/unfollow
-**When** la chiamata API fallisce
-**Then** l'UI fa rollback allo stato precedente e mostra un toast di errore
-
-### Story 1.6: Liste Follower e Following
-
-As a utente registrato,
-I want visualizzare le mie liste follower e following,
-So that possa vedere chi mi segue e chi seguo.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato sulla propria pagina profilo
-**When** clicca su "Follower" o "Following"
-**Then** viene mostrata la lista degli utenti con username, avatar e bottone follow/unfollow
-
-**Given** un utente che visualizza il profilo di un altro utente
-**When** clicca su "Follower" o "Following"
-**Then** viene mostrata la lista follower/following di quell'utente
-
-### Story 1.7: Header Utente Desktop con Menu Profilo
-
-As a utente autenticato su desktop,
-I want avere un cerchietto avatar in alto a destra con un menu profilo,
-So that possa accedere rapidamente al mio profilo, alle impostazioni e fare logout da qualsiasi pagina.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato su viewport desktop (≥ 1024px)
-**When** la pagina si carica
-**Then** un cerchietto avatar dell'utente è visibile in alto a destra nel layout, posizionato sopra il contenuto principale (non nella sidebar)
-
-**Given** un utente desktop che clicca direttamente sul cerchietto avatar
-**When** il click viene registrato
-**Then** l'utente viene reindirizzato a `/profilo` (il proprio profilo)
-
-**Given** un utente desktop che clicca sulla freccia/chevron accanto al cerchietto avatar
-**When** il dropdown si apre
-**Then** vengono mostrate le voci:
-- **Il mio profilo** (link a `/profilo`)
-- **Impostazioni account** (link a `/impostazioni` — placeholder per ora)
-- **Esci** (esegue logout e redirect a `/login`)
-
-**Given** un utente su viewport mobile (< 1024px)
-**When** la pagina si carica
-**Then** il cerchietto avatar desktop NON è visibile (il menu profilo mobile nell'header rimane invariato)
-
-**Given** un utente che clicca "Esci" dal menu desktop
-**When** il logout viene eseguito
-**Then** i token JWT vengono rimossi, l'utente viene reindirizzato a `/login` e viene mostrato un toast "Hai effettuato il logout"
-
-### Story 1.8: Spinner Animato del Brand e Transizione Post-Login
-
-As a utente,
-I want vedere uno spinner animato unico del brand durante i caricamenti e un'animazione fluida dopo il login,
-So that l'esperienza sia coerente con l'identità visiva della piattaforma e il passaggio tra stati sia piacevole.
-
-**Acceptance Criteria:**
-
-**Given** un utente che accede al sito con un refresh token valido
-**When** il sistema è nello stato "authenticating" (refresh token in corso)
-**Then** viene mostrato lo spinner animato del brand a schermo intero:
-- Logo "V" o icona della piattaforma come elemento centrale
-- Animazione con il gradiente DNA del brand (viola→ciano) — non un semplice anello rotante
-- Pulsazione o morph fluido che trasmette attesa attiva
-- Sfondo scuro coerente con il dark mode
-
-**Given** un utente che completa il login con successo (form login o auto-refresh)
-**When** l'autenticazione è confermata e il redirect a `/home` sta per avvenire
-**Then** viene mostrata una transizione animata:
-- Lo spinner/logo si trasforma o dissolve verso il contenuto della home
-- Durata totale transizione: 800ms-1200ms (percepibile ma non lenta)
-- L'animazione usa Framer Motion (Tier 1)
-
-**Given** lo spinner del brand usato come loader generico
-**When** viene utilizzato in contesti diversi (caricamento pagina, caricamento feed)
-**Then** il componente `GradientSpinner` accetta una prop `variant`:
-- `full` — a schermo intero (stato authenticating, primo caricamento)
-- `inline` — dimensione ridotta per loading inline (dentro card, sezioni)
-
-**Given** un utente con connessione veloce
-**When** il login o il refresh avviene in < 300ms
-**Then** l'animazione di transizione viene comunque mostrata per un minimo di 500ms per evitare flash visivi
-
-### Story 1.9: Ricerca Utenti e Scoperta Profili
-
-As a utente registrato,
-I want cercare altri utenti per username tramite una barra di ricerca,
-So that possa scoprire nuovi utenti da seguire e visitare i loro profili.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato su qualsiasi pagina
-**When** clicca sull'icona di ricerca o sulla barra di ricerca nell'header/sidebar
-**Then** viene mostrato un campo di ricerca con placeholder "Cerca utenti..."
-
-**Given** un utente che digita almeno 2 caratteri nel campo di ricerca
-**When** il testo cambia (debounce 300ms)
-**Then** il sistema chiama `GET /api/users/?search=<query>` e mostra i risultati in un dropdown:
-- Ogni risultato mostra username
-- Cliccando su un risultato si naviga al profilo dell'utente (`/profilo/{id}`)
-- Se nessun risultato, mostra "Nessun utente trovato"
-
-**Given** un utente che naviga al profilo di un altro utente
-**When** la pagina profilo si carica
-**Then** viene mostrato il bottone "Segui" / "Smetti di seguire" (dipendenza: Story 1.5)
-
-**Given** il backend esistente (UserViewSet)
-**When** il frontend invia `GET /api/users/?search=<query>`
-**Then** il backend filtra gli utenti per username con `icontains` e restituisce la lista paginata
-
----
-
-## Epic 2: Creazione & Gestione Clip
-
-Gli utenti possono caricare clip video (10s-1min), il sistema le valida, converte e archivia. Gli utenti possono scaricare le proprie clip e quelle altrui (se permesso). Il feed mostra le clip degli utenti seguiti come card navigabili. La pagina dettaglio clip fornisce il player base predisposto per accogliere il sistema commenti/popup dell'Epic 3.
-
-### Story 2.1: Upload Clip con Validazione
-
-As a utente registrato,
-I want caricare una clip video dalla mia galleria,
-So that possa condividere i miei momenti di gioco con la community.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato sulla pagina `/carica`
-**When** seleziona un file video e compila titolo (max 100 char), tag tipo (clutch/funny/fail) e opzione allow_download
-**Then** il file viene inviato direttamente a Django via upload CORS con progress bar in tempo reale
-
-**Given** un file video con durata compresa tra 10s e 1min e formato nella whitelist (MP4, MOV, AVI, MKV, WebM) e dimensione < 500MB
-**When** il backend riceve il file
-**Then** la validazione passa e il processing inizia
-
-**Given** un file video con durata fuori range (< 10s o > 1min)
-**When** il backend valida il file
-**Then** viene restituito errore specifico "Il video deve durare tra 10 secondi e 1 minuto"
-
-**Given** un file in formato non supportato
-**When** il backend valida il file
-**Then** viene restituito errore specifico "Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM"
-
-**Given** un file che supera 500MB
-**When** il backend valida il file
-**Then** viene restituito errore specifico "Il file supera la dimensione massima di 500MB"
-
-### Story 2.2: Conversione Video e Storage Vercel Blob
-
-As a sistema,
-I want convertire le clip in formato ottimizzato e archiviarle su Vercel Blob,
-So that lo storage sia efficiente e il playback veloce per tutti gli utenti.
-
-**Acceptance Criteria:**
-
-**Given** una clip validata correttamente
-**When** il backend avvia la conversione
-**Then** ffmpeg converte il file in H.264/MP4 ottimizzato in tempo < 2x la durata della clip
-
-**Given** un file convertito con successo
-**When** il backend lo carica su Vercel Blob
-**Then** il file viene archiviato con retry x3 (backoff esponenziale) e il `file_url` (blob URL) viene salvato nel modello Video
-**And** i file temporanei locali vengono eliminati
-
-**Given** un fallimento della conversione ffmpeg
-**When** il sistema esegue il retry automatico (1 tentativo)
-**Then** se il retry ha successo il flusso continua normalmente
-**And** se il retry fallisce, il file originale viene mantenuto e l'utente riceve errore specifico
-
-**Given** un fallimento dell'upload a Vercel Blob dopo 3 tentativi
-**When** tutti i retry sono esauriti
-**Then** il file convertito locale viene mantenuto come fallback, l'errore viene loggato e l'utente viene notificato
-
-### Story 2.3: Gestione Errori Upload e Retry
-
-As a utente registrato,
-I want poter riprovare quando l'upload fallisce,
-So that un errore temporaneo non mi faccia perdere il lavoro di preparazione della clip.
-
-**Acceptance Criteria:**
-
-**Given** un upload in corso che fallisce (errore di rete, timeout, errore server)
-**When** l'upload si interrompe
-**Then** viene mostrata una modale di errore con messaggio specifico e bottone "Riprova"
-
-**Given** un utente che clicca "Riprova" nella modale di errore
-**When** l'upload viene ritentato
-**Then** il file viene reinviato con la stessa progress bar e gli stessi metadati (titolo, tag, allow_download)
-
-**Given** un upload completato con successo
-**When** il backend conferma il salvataggio
-**Then** viene mostrato un toast "La tua clip è live!" e l'utente viene reindirizzato al proprio profilo o alla pagina della clip
-
-### Story 2.4: Download Clip
-
-As a utente registrato,
-I want scaricare le mie clip e quelle di altri utenti (se permesso),
-So that possa conservare i miei contenuti e condividerli su altre piattaforme.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato sulla pagina dettaglio di una propria clip
-**When** clicca il bottone "Scarica"
-**Then** il download del file video inizia dal URL Vercel Blob
-
-**Given** un utente autenticato sulla pagina dettaglio di una clip altrui con allow_download = true
-**When** clicca il bottone "Scarica"
-**Then** il download del file video inizia
-
-**Given** un utente sulla pagina dettaglio di una clip altrui con allow_download = false
-**When** visualizza la pagina
-**Then** il bottone "Scarica" non è visibile
-
-### Story 2.5: Feed Home (Following)
-
-As a utente registrato,
-I want vedere un feed con le clip degli utenti che seguo,
-So that possa scoprire i nuovi contenuti delle persone che mi interessano.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato che naviga a `/home`
-**When** la pagina si carica
-**Then** vengono mostrate le clip degli utenti seguiti come card con thumbnail, titolo, username autore, tag e data
-**And** le card sono ordinate cronologicamente (più recenti prima)
-**And** durante il caricamento vengono mostrate skeleton card animate
-
-**Given** un utente che non segue nessuno
-**When** naviga al feed Home
-**Then** viene mostrato uno stato vuoto con suggerimento "Segui altri utenti per vedere le loro clip"
-
-**Given** un feed con molte clip
-**When** l'utente scorre verso il basso
-**Then** le clip successive vengono caricate con infinite scroll (paginazione PAGE_SIZE=10)
-
-### Story 2.6: Pagina Dettaglio Clip con Player Base
-
-As a utente (autenticato o visitatore),
-I want visualizzare una clip nella sua pagina dettaglio con player video,
-So that possa guardare il contenuto in modo completo e immerso.
-
-**Acceptance Criteria:**
-
-**Given** un utente che naviga a `/clip/[id]`
-**When** la pagina si carica
-**Then** viene mostrato il player video HTML5 con controlli custom (play/pause/volume/fullscreen), progress bar, titolo clip, autore, tag, data
-**And** il video usa `<video preload="metadata">` con src dal Vercel Blob CDN
-**And** il player è predisposto architetturalmente per accogliere PopupOverlay, CommentMarkers e CommentForm dell'Epic 3 (VideoPlayerProvider con ref pattern)
-
-**Given** un utente che clicca play
-**When** il video inizia la riproduzione
-**Then** il playback parte entro 2 secondi e la progress bar è seekable
-
-**Given** un utente desktop
-**When** visualizza la pagina dettaglio
-**Then** il layout è a tre colonne: sidebar nav sinistra, player + metadati al centro, spazio sidebar destra (predisposto per sidebar dinamica commenti Epic 3)
-
-**Given** un visitatore non autenticato che arriva tramite URL diretto
-**When** la pagina si carica
-**Then** la clip è visibile e riproducibile, ma le azioni (commenta, like) mostrano CTA di registrazione
-
-### Story 2.7: Link Preview SSR per Condivisione Esterna
-
-As a utente che condivide una clip,
-I want che il link mostri una preview ricca su WhatsApp, Twitter e Discord,
-So that le persone a cui mando il link vedano di cosa si tratta prima di cliccare.
-
-**Acceptance Criteria:**
-
-**Given** una pagina `/clip/[id]` generata con SSR (Server Component)
-**When** il server renderizza la pagina
-**Then** i meta tag OpenGraph sono generati con:
-- `og:title` = titolo della clip
-- `og:image` = thumbnail del video
-- `og:description` = autore + tag
-- `og:url` = URL canonico della clip
-
-**Given** un utente che incolla un link clip su WhatsApp, Twitter o Discord
-**When** la piattaforma esterna fetcha i meta tag
-**Then** viene mostrata una preview ricca con titolo e anteprima visiva
-
----
-
-## Epic 3: Commenti Temporizzati & Popup
-
-Gli utenti possono commentare le clip (con o senza timestamp), mettere like a clip e commenti, e vedere i commenti più apprezzati diventare popup overlay nel player. È il cuore differenziante del prodotto — il player base dell'Epic 2 prende vita con il sistema integrato commenti/popup/sidebar.
-
-### Story 3.1: Commenti Normali su Clip
-
-As a utente registrato,
-I want pubblicare commenti su una clip,
-So that possa esprimere la mia reazione e interagire con il creator.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato sulla pagina dettaglio di una clip
-**When** scrive un commento (max 500 caratteri) nel form e clicca invio
-**Then** il commento viene pubblicato con optimistic UI (appare immediatamente) e sincronizzato in background
-**And** il testo è sanitizzato per prevenire XSS
-
-**Given** un utente che pubblica un commento senza timestamp
-**When** il commento viene salvato
-**Then** appare nella vista "Tutti" dei commenti in ordine cronologico
-
-**Given** un errore durante il salvataggio del commento
-**When** la chiamata API fallisce
-**Then** l'UI fa rollback (il commento scompare) e viene mostrato un toast di errore
-
-**Given** un visitatore non autenticato
-**When** tenta di commentare
-**Then** viene mostrata una CTA di registrazione
-
-### Story 3.2: Commenti Temporizzati con Timestamp Pre-compilato
-
-As a utente registrato,
-I want scrivere un commento ancorato a un momento specifico del video,
-So that la mia reazione sia legata al secondo esatto che l'ha provocata.
-
-**Acceptance Criteria:**
-
-**Given** un utente che sta guardando un video e lo mette in pausa
-**When** il video si ferma
-**Then** il form commenti appare in posizione immediata con il timestamp corrente pre-compilato (es. "0:18") e il popup corrente resta visibile come contesto
-**And** zero ritardo percepito tra la pausa e la disponibilità del form
-
-**Given** un utente con il form commenti aperto e timestamp pre-compilato
-**When** scrive il testo e invia
-**Then** il commento viene salvato con il timestamp specificato
-**And** appare sia nella vista "Tutti" che nella vista "Nel video"
-
-**Given** un utente che vuole rimuovere il timestamp pre-suggerito
-**When** clicca sulla X o rimuove il timestamp dal campo
-**Then** il commento diventa un commento normale (senza timestamp)
-
-**Given** un utente che modifica manualmente il timestamp
-**When** inserisce un valore diverso da quello pre-compilato
-**Then** il commento viene ancorato al timestamp modificato
-
-### Story 3.3: Like su Clip e Commenti
-
-As a utente registrato,
-I want mettere like alle clip e ai commenti,
-So that possa mostrare apprezzamento e contribuire a far emergere i contenuti migliori.
-
-**Acceptance Criteria:**
-
-**Given** un utente autenticato sulla pagina dettaglio di una clip
-**When** clicca il bottone like (cuore) sulla clip
-**Then** il like viene registrato con optimistic UI (cuore si riempie immediatamente)
-**And** il conteggio like si aggiorna
-
-**Given** un utente che ha già messo like a una clip
-**When** clicca di nuovo il bottone like
-**Then** il like viene rimosso (toggle) con optimistic UI
-
-**Given** un utente autenticato che visualizza un commento
-**When** clicca il bottone like sul commento
-**Then** il like viene registrato con optimistic UI
-**And** il conteggio like del commento si aggiorna
-
-**Given** un errore durante l'operazione di like/unlike
-**When** la chiamata API fallisce
-**Then** l'UI fa rollback allo stato precedente
-
-**Given** un utente su mobile
-**When** esegue doppio tap sulla clip
-**Then** viene registrato un like con animazione cuore
-
-### Story 3.4: Viste Commenti (Tutti / Nel Video)
-
-As a utente,
-I want visualizzare i commenti in due modi diversi,
-So that possa scegliere tra leggere tutti i commenti o solo quelli legati a momenti specifici del video.
-
-**Acceptance Criteria:**
-
-**Given** un utente sulla pagina dettaglio di una clip
-**When** seleziona il tab "Tutti"
-**Then** vengono mostrati tutti i commenti (con e senza timestamp) in ordine cronologico inverso in vista gerarchica
-
-**Given** un utente sulla pagina dettaglio di una clip
-**When** seleziona il tab "Nel video"
-**Then** vengono mostrati solo i commenti temporizzati, ordinati per timestamp crescente
-**And** ogni commento mostra il badge con il timestamp cliccabile
-
-**Given** un utente che clicca sul badge timestamp di un commento nella vista "Nel video"
-**When** il player riceve il comando seek
-**Then** il video salta al timestamp indicato
-
-### Story 3.5: Popup Overlay Temporizzati nel Player
-
-As a spettatore,
-I want vedere i commenti più apprezzati apparire come popup durante la riproduzione,
-So that l'esperienza di visione sia arricchita dalle reazioni della community.
-
-**Acceptance Criteria:**
-
-**Given** una clip con commenti temporizzati che hanno almeno 1 like
-**When** la pagina dettaglio si carica
-**Then** i dati popup (timestamp, testo, autore, like_count) vengono pre-caricati in una singola chiamata API `GET /api/videos/{id}/popup-comments/`
-
-**Given** un video in riproduzione
-**When** il player raggiunge un timestamp che ha un popup associato
-**Then** il popup overlay appare in stile glassmorphism (backdrop-blur, semi-trasparente) nell'angolo in alto a destra del player con testo del commento e username autore
-**And** la latenza tra il timestamp e l'apparizione del popup è < 200ms (dati letti dal ref locale, nessuna chiamata API)
-
-**Given** un popup visibile
-**When** trascorrono pochi secondi (3-5s)
-**Then** il popup scompare con animazione fade-out (Framer Motion Tier 1)
-
-**Given** un commento con il massimo numero di like per un timestamp specifico
-**When** il player raggiunge quel timestamp
-**Then** viene mostrato solo quel commento (un popup per timestamp, quello con più like)
-
-**Given** un commento temporizzato con 0 like
-**When** il player raggiunge il suo timestamp
-**Then** nessun popup viene mostrato (soglia minima 1 like)
-
-### Story 3.6: Comment Markers sulla Timeline e Sidebar Dinamica
-
-As a spettatore,
-I want vedere indicatori sulla timeline del player e i commenti più apprezzati nella sidebar,
-So that possa scoprire dove ci sono momenti commentati e leggere le reazioni migliori.
-
-**Acceptance Criteria:**
-
-**Given** una clip con commenti temporizzati
-**When** il player è visibile
-**Then** dot luminosi (gradiente DNA del brand) appaiono sulla progress bar nei punti dove ci sono commenti temporizzati
-
-**Given** un utente desktop che passa il mouse su un comment marker
-**When** l'hover è attivo
-**Then** appare una micro-preview del commento top per quel timestamp (testo troncato + username)
-
-**Given** un utente che clicca su un comment marker
-**When** il click è registrato
-**Then** il video salta al timestamp corrispondente
-
-**Given** un utente desktop sulla pagina dettaglio
-**When** la sidebar destra è visibile
-**Then** la Sidebar Dinamica mostra i commenti con più like per la clip, ordinati per like decrescente, in stile "chat Twitch asincrona"
-**And** i dati si caricano al caricamento della pagina (nessun real-time)
-
-### Story 3.7: CTA Contestuale per Visitatori e Ricalcolo Popup Post-Moderazione
-
-As a visitatore non autenticato,
-I want essere invitato a partecipare quando vedo un momento coinvolgente,
-So that la piattaforma mi converta da spettatore a utente attivo.
-
-**Acceptance Criteria:**
-
-**Given** un visitatore non autenticato che guarda una clip
-**When** un popup overlay appare durante la riproduzione
-**Then** un micro-CTA contestuale appare vicino al popup: "Scrivi la tua reazione a questo momento" con link a registrazione
-**And** il CTA non è un modale bloccante — è un elemento DOM condizionale su auth state
-
-**Given** un moderatore che disabilita un commento che era il popup per un timestamp
-**When** il commento viene disabilitato (is_disabled = true)
-**Then** il sistema ricalcola il prossimo commento con più like per quel timestamp
-**And** se non ci sono altri commenti con almeno 1 like, nessun popup viene mostrato per quel timestamp
-
----
-
-## Epic 4: Notifiche & Amministrazione
-
-Gli utenti ricevono notifiche per eventi importanti (commenti ricevuti, like, popup promossi). Admin e moderatori possono gestire contenuti e utenti dalla piattaforma.
-
-### Story 4.1: Notifiche In-App
-
-As a utente registrato,
-I want ricevere notifiche quando accadono eventi importanti sulle mie clip e commenti,
-So that sappia quando qualcuno interagisce con i miei contenuti senza dover controllare manualmente.
-
-**Acceptance Criteria:**
-
-**Given** un utente che riceve un commento su una propria clip
-**When** il commento viene salvato
-**Then** viene creata una notifica con testo descrittivo (es. "Marco ha commentato al secondo 0:18 della tua clip: 'quel flick è impossibile'")
-
-**Given** un utente il cui commento riceve like
-**When** il like viene registrato
-**Then** viene creata una notifica "Il tuo commento ha ricevuto N like"
-
-**Given** un utente il cui commento viene promosso a popup
-**When** il commento diventa il top per un timestamp
-**Then** viene creata una notifica speciale "Il tuo commento è ora visibile nel player!"
-
-**Given** un utente invitato a un contest o il cui turno di voto è disponibile
-**When** l'evento contest si verifica
-**Then** viene creata la notifica corrispondente ("Sei stato invitato al contest X" / "È il tuo turno di votare nel contest X")
-
-### Story 4.2: Pagina Notifiche e Badge
-
-As a utente registrato,
-I want visualizzare le mie notifiche e sapere quante ne ho non lette,
-So that possa restare aggiornato sulle interazioni senza perdere nulla.
+I want visualizzare e modificare il mio profilo con bio, e visitare profili altrui via username,
+So that la mia identità sulla piattaforma è completa e posso scoprire altri utenti.
 
 **Acceptance Criteria:**
 
 **Given** un utente autenticato
-**When** guarda la sidebar/header
-**Then** la campanella (notification-bell) mostra un badge con il conteggio delle notifiche non lette
+**When** chiama `GET /api/users/by-username/{username}/`
+**Then** riceve il profilo dell'utente con `followers_count` (intero), `following_count` (intero), `is_followed_by_me` (booleano), `bio` (stringa) (FR53, FR3)
+**And** i contatori usano `Count()` annotation con `distinct=True` (no N+1)
 
-**Given** un utente che clicca sulla campanella
-**When** naviga a `/notifiche`
-**Then** viene mostrata la lista cronologica delle notifiche con testo descrittivo, data relativa e stato letto/non letto
+**Given** un utente autenticato che modifica il proprio profilo
+**When** invia `PATCH /api/users/{id}/` con campo `bio`
+**Then** il campo `bio` viene aggiornato (max 500 caratteri) (FR3)
+**And** la risposta contiene il profilo aggiornato
 
-**Given** un utente che visualizza la pagina notifiche
-**When** le notifiche non lette diventano visibili
-**Then** vengono marcate come lette e il badge si aggiorna
+**Given** un username inesistente
+**When** chiama `GET /api/users/by-username/{username}/`
+**Then** riceve errore 404 con formato `{code, detail}`
 
-**Given** un utente che clicca su una notifica relativa a una clip
-**When** la notifica viene selezionata
-**Then** viene reindirizzato alla pagina dettaglio della clip (al timestamp se applicabile)
+**Given** il campo `bio` nel modello User
+**When** viene creata la migrazione
+**Then** è un `TextField` opzionale (`blank=True, default=''`) con `help_text` in italiano
 
-### Story 4.3: Moderazione Commenti
+### Story 1.3: Follow, Unfollow e Liste Paginate
 
-As a moderatore,
-I want disabilitare commenti inappropriati,
-So that la community sia protetta da contenuti offensivi.
-
-**Acceptance Criteria:**
-
-**Given** un moderatore autenticato sulla dashboard admin `/admin`
-**When** naviga alla sezione moderazione commenti
-**Then** vede la lista dei commenti con opzioni di moderazione
-
-**Given** un moderatore che individua un commento inappropriato
-**When** clicca "Disabilita" sul commento
-**Then** il commento viene disabilitato (is_disabled = true) e non è più visibile nella clip
-**And** se il commento era il popup per un timestamp, il sistema ricalcola il prossimo commento con più like
-
-**Given** un commento disabilitato che era l'unico con like per un timestamp
-**When** il ricalcolo avviene
-**Then** nessun popup viene mostrato per quel timestamp
-
-### Story 4.4: Gestione Utenti e Contenuti (Admin)
-
-As a admin,
-I want gestire utenti e contenuti dalla dashboard,
-So that possa mantenere la piattaforma sicura e ordinata.
+As a utente registrato,
+I want seguire e smettere di seguire altri utenti e vedere le liste follower/following,
+So that posso costruire il mio network e scoprire chi mi segue.
 
 **Acceptance Criteria:**
 
-**Given** un admin autenticato sulla dashboard `/admin`
-**When** cerca un utente
-**Then** può visualizzare il profilo utente con la lista dei suoi video
+**Given** un utente autenticato
+**When** chiama `POST /api/users/{id}/follow/`
+**Then** l'utente target viene aggiunto ai following (FR4)
+**And** la risposta conferma con `{detail: "Ora segui {username}."}` in italiano
 
-**Given** un admin che individua un video inappropriato
-**When** clicca "Elimina" sul video
-**Then** il video viene eliminato (i file vengono rimossi) e non è più visibile sulla piattaforma
+**Given** un utente che segue un altro utente
+**When** chiama `POST /api/users/{id}/unfollow/`
+**Then** l'utente target viene rimosso dai following (FR5)
+**And** la risposta conferma con `{detail: "Hai smesso di seguire {username}."}` in italiano
 
-**Given** un admin che deve sospendere un account
-**When** clicca "Sospendi" sull'utente
-**Then** l'account viene sospeso — l'utente non può più accedere e i suoi contenuti non sono più visibili
+**Given** un utente autenticato
+**When** chiama `GET /api/users/{id}/followers/` o `GET /api/users/{id}/following/`
+**Then** riceve risposta paginata `{count, next, previous, results}` (FR6)
+**And** NON un array piatto (fix paginazione attuale)
+**And** usa `self.paginate_queryset()` + `self.get_paginated_response()` nelle custom actions
 
-**Given** un admin che deve promuovere un utente (es. da toconfirm a user)
-**When** seleziona il nuovo ruolo e conferma
-**Then** il ruolo dell'utente viene aggiornato
+**Given** un utente che tenta di seguire sé stesso
+**When** chiama `POST /api/users/{id}/follow/` con il proprio ID
+**Then** riceve errore 400 con messaggio specifico
 
-**Given** un utente non admin/moderatore
-**When** tenta di accedere a `/admin`
-**Then** viene reindirizzato alla Home (route protetta per ruolo)
+### Story 1.4: Filtro Video per Uploader Backend
 
-### Story 4.5: Layout Dashboard Admin — Interfaccia Frontend e Protezione Route
-
-As a admin o moderatore,
-I want una dashboard admin con navigazione tra sezioni e protezione per ruolo,
-So that possa gestire la piattaforma da un'interfaccia dedicata, organizzata e accessibile solo a chi ha i permessi.
+As a utente registrato,
+I want che il mio profilo carichi solo i miei video dal backend,
+So that la pagina profilo è performante anche con molti video sulla piattaforma.
 
 **Acceptance Criteria:**
 
-**Given** un admin o moderatore autenticato che naviga a `/admin`
-**When** la pagina si carica
-**Then** viene mostrata una dashboard con:
-- Header con titolo "Amministrazione" e nome/ruolo dell'utente loggato
-- Navigazione a tab o sidebar interna con le sezioni: **Utenti**, **Video**, **Commenti**
-- La sezione di default è "Utenti"
+**Given** un utente che visita il profilo di un altro utente
+**When** il frontend chiama `GET /api/videos/?uploader={id}`
+**Then** il backend ritorna solo i video di quell'uploader, paginati
+**And** il filtro è implementato tramite `filterset_fields = ['uploader']` nel `VideoViewSet` (django-filter già installato)
 
-**Given** un admin sulla sezione "Utenti"
-**When** la lista si carica
-**Then** vengono mostrati gli utenti in una tabella con colonne: username, email, ruolo, stato (attivo/sospeso), data registrazione
-**And** ogni riga ha le azioni: "Visualizza profilo", "Promuovi ruolo" (dropdown con ruoli disponibili), "Sospendi" / "Riattiva"
-**And** è presente una barra di ricerca per filtrare per username o email
-
-**Given** un admin sulla sezione "Video"
-**When** la lista si carica
-**Then** vengono mostrati i video in una tabella con colonne: titolo, autore, tag, data caricamento, stato
-**And** ogni riga ha le azioni: "Visualizza clip", "Elimina"
-**And** è possibile filtrare per autore (username)
-
-**Given** un moderatore sulla sezione "Commenti"
-**When** la lista si carica
-**Then** vengono mostrati i commenti in una tabella con colonne: testo (troncato), autore, clip associata, data, stato (attivo/disabilitato)
-**And** ogni riga ha le azioni: "Visualizza clip", "Disabilita" / "Riabilita"
-**And** i commenti disabilitati sono visualmente distinti (opacità ridotta, badge "Disabilitato")
-
-**Given** un admin che clicca "Elimina" su un video
-**When** l'azione viene selezionata
-**Then** viene mostrato un dialog di conferma "Sei sicuro? Questa azione è irreversibile"
-**And** solo dopo la conferma il video viene eliminato e la tabella aggiornata
-
-**Given** un admin che clicca "Sospendi" su un utente
-**When** l'azione viene selezionata
-**Then** viene mostrato un dialog di conferma
-**And** dopo la conferma l'utente viene sospeso e lo stato nella tabella si aggiorna
-
-**Given** un moderatore che clicca "Disabilita" su un commento
-**When** il commento viene disabilitato
-**Then** il commento non è più visibile nella clip pubblica
-**And** se il commento era il popup per un timestamp, il backend ricalcola il prossimo popup
-
-**Given** un utente con ruolo "user" (non admin/moderatore)
-**When** tenta di accedere a `/admin`
-**Then** viene reindirizzato a `/home` con toast "Accesso non autorizzato"
-
-**Given** un utente con ruolo "moderatore"
-**When** accede alla dashboard admin
-**Then** può vedere e usare solo la sezione "Commenti" — le sezioni "Utenti" e "Video" sono nascoste o disabilitate
-
-**Given** la dashboard admin su viewport mobile
-**When** la pagina si carica
-**Then** il layout è responsive con le tabelle che diventano card stackate o scrollabili orizzontalmente
+**Given** un uploader senza video
+**When** chiama `GET /api/videos/?uploader={id}`
+**Then** riceve risposta paginata vuota `{count: 0, next: null, previous: null, results: []}`
 
 ---
 
-## Epic 5: Sistema Contest
+## Epic 2: Upload, Player e Commenti
 
-Admin/moderatori possono creare contest, gli utenti possono iscriversi con clip, votare nei matchup, e seguire il bracket a eliminazione diretta con albero grafico interattivo. Release B separata.
+Gli utenti caricano clip con validazione completa, le guardano con il player integrato, commentano (con e senza timestamp), vedono i commenti nella dual-view, navigano nel feed Home, condividono clip via link con preview SSR, scaricano clip proprie e altrui.
 
-### Story 5.1: Evoluzione Backend Contest — Bracket e Matchup
-
-As a developer,
-I want il sistema contest backend evoluto con bracket eliminazione diretta e matchup,
-So that il frontend possa gestire contest completi con scontri, voti e avanzamento.
-
-**Acceptance Criteria:**
-
-**Given** il modello Contest backend esistente (settimanale automatico)
-**When** viene eseguita la migrazione per l'evoluzione contest
-**Then** il modello Contest supporta: creazione manuale da admin/mod, stato (aperto/in corso/completato), lista partecipanti
-**And** il modello Bracket è creato con struttura ad albero (turni, scontri)
-**And** il modello Matchup è creato (clip_a FK, clip_b FK, bracket FK, round, vincitore FK nullable)
-**And** gli endpoint CRUD contest, iscrizione, generazione bracket, votazione matchup e avanzamento turno sono implementati
-
-**Given** un contest con N partecipanti
-**When** viene generato il bracket
-**Then** la struttura è a eliminazione diretta con ceil(log2(N)) turni
-**And** se N non è potenza di 2, vengono assegnati bye automatici
-
-### Story 5.2: Creazione Contest e Iscrizione Partecipanti
-
-As a admin o moderatore,
-I want creare un contest e gestire le iscrizioni,
-So that possa organizzare competizioni per la community.
-
-**Acceptance Criteria:**
-
-**Given** un admin/moderatore autenticato sulla pagina `/contest`
-**When** clicca "Crea Contest" e inserisce titolo, descrizione e parametri
-**Then** il contest viene creato in stato "aperto" e visibile a tutti gli utenti
-
-**Given** un utente registrato che visualizza un contest aperto
-**When** naviga alla pagina del contest
-**Then** vede i dettagli del contest e il bottone "Iscriviti"
-
-**Given** un utente che vuole iscriversi
-**When** clicca "Iscriviti" e seleziona/carica una clip
-**Then** viene registrato come partecipante con la clip selezionata
-
-**Given** un utente già iscritto al contest
-**When** visualizza il contest
-**Then** il bottone "Iscriviti" è disabilitato e mostra "Iscritto"
-
-### Story 5.3: Bracket Eliminazione Diretta e Albero Interattivo
-
-As a utente,
-I want visualizzare il bracket del contest come albero grafico interattivo,
-So that possa seguire la progressione del torneo e vedere tutti gli scontri.
-
-**Acceptance Criteria:**
-
-**Given** un contest con bracket generato
-**When** l'utente naviga alla pagina contest
-**Then** viene mostrato un albero grafico interattivo del bracket (stile torneo FIFA) usando una libreria React dedicata
-**And** l'albero mostra tutti i turni, gli scontri, le clip partecipanti e i risultati per turno
-
-**Given** un utente che clicca su un matchup nell'albero
-**When** il matchup è selezionato
-**Then** vengono mostrate le due clip del matchup con player video per entrambe
-
-**Given** un matchup completato
-**When** viene visualizzato nell'albero
-**Then** il vincitore è evidenziato e il perdente è attenuato
-
-**Given** un utente su mobile
-**When** visualizza il bracket
-**Then** l'albero è scrollabile/zoomabile per adattarsi allo schermo ridotto
-
-### Story 5.4: Votazione Matchup 1-5 Stelle
+### Story 2.1: Upload Clip con Validazione Completa
 
 As a utente registrato,
-I want votare le clip di un matchup da 1 a 5 stelle,
-So that possa contribuire a decidere chi avanza nel torneo.
+I want caricare clip con validazione automatica di durata e formato,
+So that ricevo feedback immediato se il video non è accettabile.
 
 **Acceptance Criteria:**
 
-**Given** un utente autenticato che visualizza un matchup attivo
-**When** guarda entrambe le clip
-**Then** può assegnare un voto da 1 a 5 stelle a ciascuna clip del matchup
+**Given** un utente autenticato che carica un video
+**When** il video ha durata tra 10s e 1min, formato supportato (MP4/MOV/AVI/MKV/WebM) e dimensione < 500MB
+**Then** il video viene salvato su MinIO con durata estratta via MoviePy (FR7, FR15)
+**And** il campo `allow_download` (BooleanField, default True) viene salvato dal serializer (FR12)
+**And** il campo `title` (max 100 char) e `tag` vengono salvati (FR11)
+**And** la risposta contiene il video con presigned URL
 
-**Given** un utente che ha già votato per un matchup
+**Given** un utente che carica un video con durata < 10s o > 60s
+**When** il backend valida la durata dopo estrazione MoviePy
+**Then** il video viene rifiutato con errore 400: "La durata del video deve essere tra 10 secondi e 1 minuto" (FR8, FR54)
+
+**Given** un utente che carica un file con formato non supportato
+**When** il backend valida l'estensione e il content type
+**Then** il file viene rifiutato con errore 400: "Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM" (FR9)
+
+**Given** un utente che carica un file > 500MB
+**When** il backend valida la dimensione
+**Then** il file viene rifiutato con errore 400: "Il file supera la dimensione massima di 500MB"
+
+**Given** un video la cui durata non può essere estratta da MoviePy (file corrotto o codec non supportato)
+**When** il backend tenta l'estrazione dei metadati
+**Then** il video viene rifiutato con errore 400: "Impossibile leggere i metadati del video. Verifica che il file non sia corrotto"
+
+**Given** un upload che fallisce per errore di rete
+**When** il frontend mostra la modale di errore
+**Then** il bottone "Riprova" ri-esegue l'upload (FR16)
+
+### Story 2.2: Download Clip e Presigned URL Refresh
+
+As a utente registrato,
+I want scaricare le mie clip e quelle di altri utenti (se permesso), e guardare video senza interruzioni,
+So that posso salvare le clip e non subisco errori per URL scadute.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato che vuole scaricare la propria clip
+**When** richiede il download
+**Then** riceve la presigned URL per il download diretto da MinIO (FR13)
+
+**Given** un utente che vuole scaricare la clip di un altro utente con `allow_download=True`
+**When** richiede il download
+**Then** riceve la presigned URL per il download (FR14)
+
+**Given** un utente che vuole scaricare una clip con `allow_download=False`
+**When** richiede il download
+**Then** riceve errore 403: "Il download non è abilitato per questa clip"
+
+**Given** un video in riproduzione la cui presigned URL è scaduta (>1h)
+**When** il `<video>` genera un evento `onerror`
+**Then** il player mostra un mini-spinner (non errore visibile)
+**And** ri-chiama `videos.detail(id)` per ottenere una nuova presigned URL (D3)
+**And** riprova il playback automaticamente
+**And** dopo 2 tentativi falliti mostra "Video non disponibile, ricarica la pagina"
+
+### Story 2.3: Feed Home e Navigazione Clip
+
+As a utente registrato,
+I want scorrere il feed con le clip dei miei following e aprire le clip in dettaglio,
+So that posso scoprire nuovi contenuti dai creatori che seguo.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato con following
+**When** accede al feed Home
+**Then** vede le clip degli utenti seguiti ordinate per data, come card con thumbnail, titolo e metadati (FR17, FR21)
+**And** lo scroll infinito carica pagine successive (FR22)
+
+**Given** un utente che clicca su una card nel feed
+**When** naviga alla pagina dettaglio
+**Then** vede il player video con controlli, metadati della clip e sezione commenti (FR18, FR22)
+
+**Given** un visitatore non autenticato che accede a `/clip/{id}` via URL diretto
+**When** la pagina viene servita
+**Then** il server genera meta tag OG (titolo, thumbnail) per link preview su piattaforme esterne (FR19, FR20)
+**And** il video è riproducibile senza autenticazione
+**And** il CTA "Vuoi commentare e votare?" è visibile
+
+**Given** un utente senza following
+**When** accede al feed Home
+**Then** vede un EmptyState con suggerimento di seguire utenti
+
+### Story 2.4: Commenti Dual-Layer con Timestamp
+
+As a utente registrato,
+I want commentare le clip con e senza timestamp e vedere i commenti in due viste,
+So that posso esprimere reazioni precise ancorate al momento esatto del video.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato sulla pagina dettaglio clip con video in pausa
+**When** il form commento è visibile
+**Then** il timestamp corrente del video è pre-compilato nel campo timestamp (FR25)
+**And** l'utente può rimuovere il timestamp per un commento normale (FR26)
+
+**Given** un utente che invia un commento con timestamp
+**When** il backend riceve `timestamp_second` con valore tra 0 e `video.duration`
+**Then** il commento viene salvato con il timestamp associato (FR24)
+**And** appare nella vista "Nel video" ordinato per timestamp (FR30)
+
+**Given** un utente che invia un commento senza timestamp
+**When** il backend riceve `timestamp_second` nullo o assente
+**Then** il commento viene salvato come commento normale (FR23)
+**And** appare nella vista "Tutti" ordinata cronologicamente (FR29)
+
+**Given** la pagina dettaglio clip
+**When** l'utente usa i tab "Tutti" / "Nel video"
+**Then** la vista "Tutti" mostra tutti i commenti in ordine cronologico (FR29)
+**And** la vista "Nel video" mostra solo commenti temporizzati ordinati per timestamp (FR30)
+
+**Given** un utente autenticato che è autore di un commento
+**When** elimina il proprio commento
+**Then** il commento viene rimosso (hook `useDeleteComment` + endpoint `DELETE /api/comments/{id}/`)
+**And** la lista commenti si aggiorna
+
+### Story 2.5: Delete Video e Operazioni CRUD Mancanti
+
+As a utente registrato,
+I want eliminare le mie clip e modificare i miei voti,
+So that ho pieno controllo sui miei contenuti e interazioni.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato proprietario di un video
+**When** elimina il proprio video
+**Then** il video e il file su MinIO vengono rimossi (hook `useDeleteVideo` + endpoint `DELETE /api/videos/{id}/`)
+**And** la lista video nel profilo si aggiorna
+
+**Given** un utente autenticato che ha già votato una clip in un contest
+**When** modifica il voto
+**Then** il rating viene aggiornato (hook `useUpdateRating` + endpoint `PATCH /api/ratings/{id}/`)
+**And** il feedback visivo conferma la modifica
+
+**Given** un utente non proprietario
+**When** tenta di eliminare un video altrui
+**Then** riceve errore 403
+
+---
+
+## Epic 3: Like, Popup e Engagement Loop
+
+Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La Sidebar Dinamica mostra i commenti più likati. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
+
+### Story 3.1: Modelli VideoLike e CommentLike Backend
+
+As a sviluppatore,
+I want i modelli VideoLike e CommentLike con endpoint CRUD,
+So that il sistema di like è disponibile per il frontend e per il calcolo dei popup.
+
+**Acceptance Criteria:**
+
+**Given** i modelli `VideoLike` e `CommentLike` non esistenti
+**When** vengono creati come file separati in `cs_clips/models/`
+**Then** `VideoLike` ha campi `user` (FK get_user_model), `video` (FK Video), `created_at`, con `unique_together = ('user', 'video')` e `related_name='likes'`
+**And** `CommentLike` ha campi `user` (FK get_user_model), `comment` (FK Comment), `created_at`, con `unique_together = ('user', 'comment')` e `related_name='likes'`
+**And** entrambi sono registrati in `admin.py` e esportati da `models/__init__.py`
+**And** la migrazione Django è creata e applicata
+
+**Given** un utente autenticato
+**When** chiama `POST /api/videos/{id}/like/`
+**Then** un VideoLike viene creato (FR28)
+**And** un secondo like dallo stesso utente ritorna errore 409 (IntegrityError → `{code, detail}`)
+
+**Given** un utente autenticato
+**When** chiama `DELETE /api/videos/{id}/like/`
+**Then** il VideoLike viene rimosso (unlike)
+
+**Given** un utente autenticato
+**When** chiama `POST /api/comments/{id}/like/`
+**Then** un CommentLike viene creato (FR27)
+**And** un secondo like dallo stesso utente ritorna errore 409
+
+**Given** un utente autenticato
+**When** chiama `DELETE /api/comments/{id}/like/`
+**Then** il CommentLike viene rimosso (unlike)
+
+**Given** il `VideoOutputSerializer`
+**When** serializza un video
+**Then** include `like_count` (intero, annotazione `Count`) e `is_liked_by_me` (booleano, relativo all'utente autenticato)
+
+**Given** il `CommentSerializer` (output)
+**When** serializza un commento
+**Then** include `like_count` (intero) e `is_liked_by_me` (booleano)
+
+### Story 3.2: UI Like su Clip e Commenti Frontend
+
+As a utente registrato,
+I want mettere e togliere like a clip e commenti con feedback visivo immediato,
+So that posso esprimere apprezzamento e contribuire alla promozione dei migliori commenti.
+
+**Acceptance Criteria:**
+
+**Given** la pagina dettaglio clip
+**When** l'utente clicca il bottone like sulla clip
+**Then** il like viene registrato con optimistic update (FR28)
+**And** il contatore like si aggiorna immediatamente
+**And** in caso di errore, il like viene rollbackato
+
+**Given** la sezione commenti
+**When** l'utente clicca il bottone like su un commento
+**Then** il like viene registrato con optimistic update (FR27)
+**And** il contatore like sul commento si aggiorna immediatamente
+
+**Given** un utente che ha già messo like
+**When** clicca nuovamente il bottone like
+**Then** il like viene rimosso (toggle unlike)
+**And** il contatore si decrementa
+
+**Given** un utente sulla pagina dettaglio clip (mobile o desktop)
+**When** fa double-tap sul video
+**Then** viene registrato un like con la stessa logica del bottone (FR28)
+**And** un'animazione cuore appare brevemente al centro del video come feedback visivo
+
+**Given** i nuovi hook frontend
+**When** vengono creati
+**Then** `useVideoLike` e `useVideoUnlike` esistono in `use-videos.ts` con optimistic update pattern
+**And** `useCommentLike` e `useCommentUnlike` esistono in `use-comments.ts` con optimistic update pattern
+**And** le query keys sono definite in `query-keys.ts`
+**And** i tipi `Video` e `Comment` in `src/types/` includono `like_count` e `is_liked_by_me`
+
+### Story 3.3: Popup Overlay con Dati Reali e Sidebar Dinamica
+
+As a spettatore,
+I want vedere i commenti più likati apparire come popup durante la riproduzione e nella sidebar,
+So that scopro le reazioni migliori della community ancorati al momento esatto.
+
+**Acceptance Criteria:**
+
+**Given** una clip con commenti temporizzati che hanno ricevuto like
+**When** il frontend carica la pagina dettaglio clip
+**Then** un endpoint backend ritorna i popup data: per ogni timestamp con almeno 1 commento likato, il commento con più like (FR31, FR34)
+**And** i dati sono pre-caricati in una singola chiamata API (NFR8)
+
+**Given** il video in riproduzione
+**When** il playback raggiunge un timestamp con un popup disponibile
+**Then** il popup overlay appare in alto a destra con username, timestamp badge e testo del commento (FR32)
+**And** il popup scompare dopo 3 secondi con animazione fade-out Framer Motion (FR33)
+**And** la latenza tra timestamp e popup è < 200ms (NFR8)
+
+**Given** un commento con 0 like
+**When** il sistema calcola i popup
+**Then** quel commento NON diventa popup (soglia minima 1 like) (FR34)
+
+**Given** la Sidebar Dinamica (desktop ≥1280px)
+**When** viene renderizzata
+**Then** mostra i commenti con più like per la clip corrente, ordinati per like count (FR35)
+**And** NON più per data come proxy (aggiornamento dal workaround attuale)
+
+**Given** un commento che era popup e viene disabilitato dalla moderazione
+**When** il sistema ricalcola
+**Then** il prossimo commento con più like per quel timestamp diventa il nuovo popup (FR36)
+
+### Story 3.4: Aggiornamento Algoritmo Spareggio Contest con Like
+
+As a sistema,
+I want che l'algoritmo di spareggio contest usi i like reali invece dei commenti come fallback,
+So that la classifica contest riflette il reale engagement della community.
+
+**Acceptance Criteria:**
+
+**Given** l'algoritmo di spareggio in `desempate.py`
+**When** calcola il vincitore in caso di parimerito
+**Then** usa il peso 20% basato su `VideoLike.count` per video (non più commenti come fallback) (FR42a)
+**And** i pesi restano: 50% numero voti, 30% visualizzazioni, 20% like
+
+**Given** un video senza like
+**When** il sistema calcola lo spareggio
+**Then** il peso like contribuisce 0 senza errori
+
+### Story 3.5: Comment Markers sulla Timeline del Player (Opzionale)
+
+As a spettatore,
+I want vedere dei marker luminosi sulla barra di progresso del player nei punti dove ci sono commenti temporizzati,
+So that posso scoprire a colpo d'occhio dove si concentra la conversazione e saltare ai momenti più commentati.
+
+**Acceptance Criteria:**
+
+**Given** una clip con commenti temporizzati
+**When** il player viene renderizzato
+**Then** sulla progress bar appaiono dot luminosi (gradiente viola→ciano) nelle posizioni corrispondenti ai timestamp dei commenti
+**And** i dot usano posizionamento percentuale (`left: (timestamp / duration) * 100%`)
+
+**Given** un utente che fa hover su un dot marker
+**When** il tooltip appare
+**Then** mostra il testo del commento con più like per quel timestamp (o il primo se nessun like)
+**And** mostra il timestamp formattato (es. "0:18")
+
+**Given** un utente che clicca su un dot marker
+**When** il click viene registrato
+**Then** il video salta al timestamp corrispondente e inizia la riproduzione
+
+**Given** una clip senza commenti temporizzati
+**When** il player viene renderizzato
+**Then** nessun marker appare sulla progress bar
+
+**Nota:** Questa story è opzionale e può essere implementata come enhancement post-Epic 3. I dati necessari (commenti per timestamp) sono già disponibili dall'endpoint popup data della Story 3.3.
+
+---
+
+## Epic 4: Contest Settimanale
+
+Gli utenti partecipano a contest settimanali automatici caricando clip con tag. Votano 1-5 stelle, vedono la classifica in tempo reale e il vincitore. L'admin gestisce i contest da Django Admin.
+
+### Story 4.1: Backend Contest Settimanale — Endpoint e Listing
+
+As a utente registrato,
+I want vedere i contest settimanali disponibili e i loro dettagli,
+So that posso decidere a quale contest partecipare.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato
+**When** chiama `GET /api/contests/`
+**Then** riceve la lista paginata dei contest (attivi e chiusi) con campi: id, name, tag, start_date, end_date, is_closed, winner (FR38)
+
+**Given** un utente che carica una clip con tag "clutch"
+**When** la clip viene salvata
+**Then** viene auto-assegnata al contest settimanale corrente per quel tag via `get_or_create_current_contest('clutch')` (FR39a, FR39b)
+
+**Given** nessun contest attivo per il tag "funny" nella settimana corrente
+**When** un utente carica una clip con tag "funny"
+**Then** un nuovo contest settimanale viene creato automaticamente (FR39a)
+
+**Given** un contest settimanale scaduto
+**When** APScheduler esegue `close_contests` (giovedì 11:33 UTC)
+**Then** il contest viene chiuso, il vincitore viene assegnato (media voti + spareggio se parimerito) (FR41a, FR42a)
+**And** la chiusura è idempotente (ri-esecuzione non cambia risultato)
+
+### Story 4.2: Votazione Contest e Classifica Frontend
+
+As a utente registrato,
+I want votare le clip in un contest e vedere la classifica,
+So that posso partecipare attivamente e seguire la competizione.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato che visualizza un contest attivo
+**When** accede alla pagina contest
+**Then** vede la lista delle clip partecipanti con player embedded e sistema di voto 1-5 stelle (FR40a)
+
+**Given** un utente che vota una clip nel contest
+**When** seleziona un rating da 1 a 5 stelle
+**Then** il voto viene registrato (un voto per utente per clip, `unique_together` enforced) (FR40a, NFR13)
+**And** il feedback visivo conferma il voto
+
+**Given** un utente che ha già votato una clip
 **When** tenta di votare di nuovo
-**Then** l'UI mostra il voto già espresso e non permette modifiche (disabilitata dopo il voto)
-**And** il vincolo è enforced sia lato backend (constraint DB unique su user+matchup) che lato frontend
+**Then** il frontend mostra il voto esistente con UI disabilitata (NFR13)
 
-**Given** un utente che tenta di votare con double-click o da tab multipli
-**When** il sistema riceve richieste duplicate
-**Then** il constraint DB unique previene voti duplicati e l'errore è gestito gracefully
+**Given** un utente che visualizza un contest (attivo o chiuso)
+**When** accede alla pagina classifica
+**Then** vede le clip ordinate per media voti con posizione in classifica (FR43a)
+**And** per contest chiusi, il vincitore è evidenziato
 
-### Story 5.5: Avanzamento Turno e Risultati Contest
+**Given** la pagina contest nel frontend
+**When** viene riscritta
+**Then** mostra: lista contest attivi, lista contest chiusi con vincitori, pagina dettaglio singolo contest con clip + voto + classifica
+**And** utilizza `isError` + `<ErrorMessage onRetry={refetch} />`
 
-As a utente,
-I want vedere l'avanzamento automatico del contest e i risultati finali,
-So that possa seguire la competizione fino al vincitore.
+---
+
+## Epic 5: Notifiche In-App
+
+Gli utenti ricevono notifiche per commenti ricevuti, like ricevuti, commenti promossi a popup, eventi contest. Vedono il badge non-lette nella sidebar e la lista notifiche completa.
+
+### Story 5.1: Modello Notification e API Backend
+
+As a sviluppatore,
+I want il modello Notification con endpoint REST e creazione automatica per eventi chiave,
+So that il sistema può tracciare e servire notifiche agli utenti.
 
 **Acceptance Criteria:**
 
-**Given** un matchup con voti sufficienti
-**When** il sistema calcola la media dei voti per ciascuna clip
-**Then** la clip con media più alta avanza al turno successivo
-**And** il bracket si aggiorna automaticamente con il vincitore nel matchup successivo
+**Given** il modello `Notification` non esistente
+**When** viene creato in `cs_clips/models/notification.py`
+**Then** ha campi: `recipient` (FK User), `sender` (FK User nullable), `type` (CharField choices: comment_received, like_received, comment_promoted, contest_opened, bracket_invite, bracket_turn, contest_results), `is_read` (BooleanField default False), `created_at` (DateTimeField), `video` (FK nullable), `comment` (FK nullable), `contest` (FK nullable) (D1)
+**And** NON usa `GenericForeignKey`
+**And** ha `related_name` su ogni FK e `help_text` in italiano
+**And** è registrato in `admin.py` e esportato da `models/__init__.py`
 
-**Given** un turno con tutti i matchup completati
-**When** il sistema verifica il completamento
-**Then** il turno successivo viene attivato con i nuovi matchup
+**Given** un utente autenticato
+**When** chiama `GET /api/notifications/`
+**Then** riceve la lista paginata delle proprie notifiche ordinate per `-created_at` (FR51)
 
-**Given** un contest con la finale completata
-**When** il vincitore è determinato
-**Then** la pagina contest mostra il vincitore finale evidenziato nell'albero
-**And** lo stato del contest passa a "completato"
+**Given** un utente autenticato
+**When** chiama `GET /api/notifications/unread-count/`
+**Then** riceve `{count: N}` con il numero di notifiche non lette (FR52)
 
-**Given** un utente che visita un contest in qualsiasi stato
-**When** naviga alla pagina contest
-**Then** può vedere: stato attuale, risultati passati, progressione nel bracket, clip di ogni scontro
+**Given** un utente autenticato
+**When** chiama `POST /api/notifications/{id}/mark-read/`
+**Then** la notifica viene marcata come letta (`is_read=True`)
+
+**Given** un utente autenticato
+**When** chiama `POST /api/notifications/mark-all-read/`
+**Then** tutte le notifiche non lette vengono marcate come lette
+
+**Given** un evento che genera notifica (commento ricevuto, like su clip/commento, commento promosso a popup, contest aperto)
+**When** l'evento si verifica
+**Then** una `Notification` viene creata automaticamente per il destinatario (FR50)
+
+### Story 5.2: Frontend Notifiche — Pagina, Badge e Polling
+
+As a utente registrato,
+I want vedere un badge con le notifiche non lette e consultare la lista completa,
+So that sono sempre aggiornato su cosa succede con le mie clip e i miei commenti.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato
+**When** è su qualsiasi pagina dell'app
+**Then** vede un'icona campanella nella sidebar (desktop) / header (mobile) con badge numerico delle non lette (FR52)
+**And** il conteggio è aggiornato via polling ogni 15 secondi (`refetchInterval: 15000`) (D1)
+
+**Given** un utente che clicca sulla campanella
+**When** naviga a `/notifiche`
+**Then** vede la lista completa delle notifiche con: icona tipo, testo descrittivo ("Marco ha commentato al secondo 0:18 della tua clip"), timestamp relativo (FR51)
+**And** le notifiche non lette sono visivamente distinte
+**And** la pagina ha `isError` + `<ErrorMessage onRetry={refetch} />`
+
+**Given** un utente sulla pagina notifiche
+**When** clicca una notifica
+**Then** viene marcata come letta e naviga al contenuto collegato (clip, commento, contest)
+
+**Given** un utente sulla pagina notifiche
+**When** clicca "Segna tutte come lette"
+**Then** tutte le notifiche vengono marcate come lette e il badge si azzera
+
+**Given** i nuovi moduli frontend
+**When** vengono creati
+**Then** `src/lib/api/notifications.ts` con metodi getAll, getUnreadCount, markRead, markAllRead
+**And** `src/lib/hooks/use-notifications.ts` con `useNotifications` (polling 15s), `useUnreadCount`, `useMarkRead`, `useMarkAllRead`
+**And** `src/types/notification.ts` con tipo `Notification`
+**And** query keys in `query-keys.ts`: `notifications.all`, `notifications.unreadCount`
+
+---
+
+## Epic 6: Contest Bracket Champions League
+
+L'admin crea tornei bracket da Django Admin. Gli utenti si iscrivono inviando clip, votano nei matchup 1v1, seguono la progressione nell'albero grafico interattivo. Il vincitore di ogni matchup avanza per media voti. Il vincitore finale riceve un premio.
+
+### Story 6.1: Modelli Bracket Backend e Logica Turni
+
+As a sviluppatore,
+I want i modelli Bracket, ContestEntry e Matchup con logica di progressione turni,
+So that il sistema può gestire tornei a eliminazione diretta.
+
+**Acceptance Criteria:**
+
+**Given** i modelli bracket non esistenti
+**When** vengono creati in `cs_clips/models/`
+**Then** `Bracket` ha campi: name, description, status (choices: registration/active/completed), max_participants, current_round, created_by (FK User), created_at, prize_description
+**And** `ContestEntry` ha campi: bracket (FK Bracket), user (FK User), video (FK Video), created_at, con `unique_together = ('bracket', 'user')`
+**And** `Matchup` ha campi: bracket (FK Bracket), round_number, position, entry_1 (FK ContestEntry nullable), entry_2 (FK ContestEntry nullable), winner (FK ContestEntry nullable), is_completed (BooleanField)
+**And** tutti hanno `related_name`, `help_text` in italiano, registrazione in `admin.py`
+
+**Given** un bracket con N partecipanti iscritti
+**When** l'admin avvia il torneo
+**Then** il sistema genera automaticamente il bracket a eliminazione diretta (matchup per ogni coppia del primo turno) (FR40b)
+**And** partecipanti dispari ricevono un "bye" (avanzamento automatico)
+
+**Given** un matchup completato (entrambe le clip hanno ricevuto voti)
+**When** l'admin chiude il matchup
+**Then** il vincitore è la clip con media voti più alta (FR43b)
+**And** il vincitore avanza al matchup successivo nel turno seguente
+
+**Given** il turno finale completato
+**When** l'ultimo matchup viene chiuso
+**Then** il bracket status diventa "completed" e il vincitore finale è determinato (FR44b)
+
+### Story 6.2: API Bracket e Votazione Matchup
+
+As a utente registrato,
+I want iscrivermi a un bracket, votare nei matchup e vedere la progressione,
+So that posso partecipare alla competizione Champions League.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato e un bracket in stato "registration"
+**When** chiama `POST /api/brackets/{id}/enter/` con un video_id
+**Then** viene creata una ContestEntry (FR39c)
+**And** un'iscrizione duplicata ritorna errore 409
+
+**Given** un utente autenticato e un matchup attivo
+**When** chiama `POST /api/brackets/matchups/{id}/vote/` con rating 1-5
+**Then** il voto viene registrato (un voto per utente per matchup) (FR42b)
+**And** il voto è basato solo sulla media voti interni al matchup (nessun fattore esterno) (FR43b)
+
+**Given** un utente autenticato
+**When** chiama `GET /api/brackets/{id}/`
+**Then** riceve i dettagli del bracket con stato, turno corrente, lista matchup per turno, risultati (FR44)
+
+**Given** un utente autenticato
+**When** chiama `GET /api/brackets/`
+**Then** riceve la lista paginata dei bracket (attivi + completati) (FR38)
+
+**Given** dominio API separato per brackets
+**When** gli endpoint vengono creati
+**Then** risiedono in `cs_clips/api/brackets/` con views, serializers propri (D2)
+**And** route registrate in `cs_clips/urls.py`
+
+### Story 6.3: UI Bracket — Albero Interattivo e Pagina Torneo
+
+As a utente registrato,
+I want visualizzare il bracket come albero grafico interattivo e votare nei matchup,
+So that posso seguire la competizione e partecipare alle votazioni.
+
+**Acceptance Criteria:**
+
+**Given** un utente che accede alla pagina di un bracket
+**When** il bracket è visualizzato
+**Then** mostra un albero grafico interattivo stile torneo con scontri, clip passate e risultati per turno (FR41b)
+**And** usa una libreria React dedicata per bracket visualization (es. react-brackets, bracketry)
+
+**Given** un matchup attivo nell'albero
+**When** l'utente clicca su un matchup
+**Then** vede le due clip embedded con player e il sistema di voto 1-5 stelle (FR42b)
+
+**Given** un matchup completato
+**When** visualizzato nell'albero
+**Then** mostra il vincitore evidenziato e il punteggio medio di entrambe le clip
+
+**Given** un bracket completato
+**When** l'utente visualizza la pagina
+**Then** vede il vincitore finale con il premio indicato (FR44b)
+**And** l'intero albero è navigabile per rivedere tutti i matchup passati
+
+**Given** i nuovi moduli frontend
+**When** vengono creati
+**Then** `src/lib/api/brackets.ts` con metodi CRUD + enter + vote
+**And** `src/lib/hooks/use-brackets.ts` con hook per lista, dettaglio, iscrizione, voto
+**And** `src/types/bracket.ts` con tipi Bracket, ContestEntry, Matchup
+**And** componenti in `src/components/brackets/` per albero, matchup card, voto
+**And** pagina `/contest/bracket/[id]/page.tsx`
+**And** `isError` + `<ErrorMessage onRetry={refetch} />` su ogni pagina

@@ -1,101 +1,126 @@
-# Panoramica Progetto - Video_clip
+# Panoramica Progetto — Video_clip
 
-> Generato automaticamente il 2026-02-14 | Scan level: deep
+> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+
+---
 
 ## Cos'è Video_clip
 
-Video_clip è una piattaforma web di **contest video settimanali** dove gli utenti possono:
+**Video_clip** è una piattaforma web per contest settimanali di video clip gaming. Gli utenti possono caricare brevi clip, votare i migliori, commentare con timestamp e seguire altri utenti. Ogni settimana vengono premiati i vincitori nelle categorie **Clutch**, **Funny** e **Fail**.
 
-- Caricare video in tre categorie: **Clutch**, **Funny**, **Fail**
-- Votare i video degli altri utenti (scala 1-5)
-- Commentare i video con timestamp sincronizzati alla riproduzione
-- Seguire altri utenti e vedere i loro video nel feed
-- Partecipare a contest settimanali automatici con vincitore calcolato algoritmicamente
+---
+
+## Funzionalità Principali
+
+| Feature | Stato | Note |
+|---|---|---|
+| Registrazione e login (JWT) | Implementato | Token rotation, refresh automatico |
+| Caricamento video | Implementato | Upload su MinIO, estrazione durata FFmpeg |
+| Feed video (following + esplora) | Implementato | Infinite scroll, paginazione |
+| Classifica top-rated | Implementato | Filtro temporale (giorno/settimana/mese/anno/tutti) |
+| Sistema rating 1-5 stelle | Implementato | Un voto per utente per video |
+| Commenti con timestamp | Implementato | Marker sulla timeline, popup al secondo corretto |
+| Follow/unfollow utenti | Implementato | Optimistic updates nel frontend |
+| Contest settimanali | Implementato | Auto-chiusura con spareggio ponderato |
+| Profilo utente | Implementato | Bio, video caricati, followers/following |
+| Video likes | Non implementato | Modello VideoLike da creare |
+| Comment likes | Non implementato | Modello CommentLike da creare |
+| Notifiche | Non implementato | Modello Notification da creare |
+| Download video | Non implementato | Campo allow_download da aggiungere |
 
 ---
 
 ## Struttura Repository
 
-| Parte | Percorso | Stato | Tecnologia |
-|-------|----------|-------|------------|
-| **Backend** | `backend/` | Attivo | Django 5.1.6 + DRF 3.15.1 |
-| **Frontend** | `frontend/` | Da sviluppare | TBD |
-| **Database** | `db/` | Attivo (Docker) | PostgreSQL 16 |
-| **Documentazione** | `docs/` | Generata | Markdown |
+| Tipo | Dettaglio |
+|---|---|
+| **Repository** | Monorepo |
+| **Parti attive** | 2 (backend + frontend) |
+| **Infrastruttura** | Docker Compose (PostgreSQL, pgAdmin, MinIO) |
 
-**Tipo repository:** Monorepo
-**Tipo progetto:** Backend API (brownfield — frontend greenfield)
+| Parte | Tipo | Stack | Path |
+|---|---|---|---|
+| **Backend** | Django REST API | Django 5.1.6 + DRF 3.15.1 + PostgreSQL 16 + MinIO | `backend/` |
+| **Frontend** | Next.js React App | Next.js 16.1.6 + React 19 + TailwindCSS 4 + React Query 5 | `frontend/` |
 
 ---
 
 ## Stack Tecnologico
 
+### Backend
+
 | Categoria | Tecnologia | Versione |
-|-----------|-----------|----------|
-| Framework Backend | Django + DRF | 5.1.6 + 3.15.1 |
-| Database | PostgreSQL | 16 |
-| Autenticazione | JWT (SimpleJWT) | 5.3.1 |
-| API Docs | drf-spectacular (OpenAPI 3.0) | 0.28.0 |
-| Video Processing | moviepy | 2.2.1 |
-| Container | Docker Compose | — |
-| Linguaggio | Python | 3.x |
+|---|---|---|
+| Framework | Django + DRF | 5.1.6 / 3.15.1 |
+| Database | PostgreSQL + psycopg | 16 / 3.2.4 |
+| Auth | SimpleJWT | 5.3.1 |
+| Storage | MinIO (S3) | 7.2.15 |
+| Video | moviepy + FFmpeg | 2.2.1 |
+| Scheduler | APScheduler | 3.11.0 |
+| API Docs | drf-spectacular | 0.28.0 |
+
+### Frontend
+
+| Categoria | Tecnologia | Versione |
+|---|---|---|
+| Framework | Next.js (App Router) | 16.1.6 |
+| UI | React + Radix UI + shadcn/ui | 19.2.3 |
+| Styling | TailwindCSS v4 | ^4 |
+| State | React Query | 5.90.21 |
+| HTTP | axios | 1.13.5 |
+| Animation | framer-motion | 12.34.0 |
+
+### Infrastruttura
+
+| Servizio | Tecnologia | Porta |
+|---|---|---|
+| Database | PostgreSQL 16 | 5432 |
+| Admin DB | pgAdmin 4 | 5050 |
+| Object Storage | MinIO | 9000 / 9001 |
 
 ---
 
 ## Architettura
 
-**Pattern:** API-centric monolith con ViewSet-based REST
+```
+┌───────────┐    REST API     ┌───────────┐    SQL      ┌────────────┐
+│ Frontend  │ ◄── JSON/JWT ──►│  Backend  │ ◄── ORM ──►│ PostgreSQL │
+│ Next.js   │                 │  Django   │              └────────────┘
+│ Port 3000 │                 │  Port 8000│    S3
+└───────────┘                 │           │ ◄─────────►┌────────────┐
+                              └───────────┘             │   MinIO    │
+                                                        └────────────┘
+```
 
-- Django single-app (`cs_clips`) con tutta la logica di business
-- 4 ViewSets CRUD + 2 APIViews custom per contest
-- JWT stateless per autenticazione
-- Permessi basati su ruoli (groups: toconfirm, user, superuser)
-- Processing video sincrono
-- Storage media locale
+- **Backend**: API-centric monolith, ViewSet-based REST, 35 endpoint
+- **Frontend**: SPA con SSR, App Router, React Query server state
+- **Comunicazione**: REST API + JWT, presigned URL per file video
 
 ---
 
-## Funzionalità Implementate
+## Numeri del Progetto
 
-### Utenti
-- Registrazione con assegnazione automatica ruolo `toconfirm`
-- Login JWT (access 12h, refresh 1d)
-- Profilo con followers/following
-- Follow/unfollow utenti
-- CRUD completo
-
-### Video
-- Upload con calcolo automatico durata (moviepy)
-- Assegnazione automatica a contest settimanale per tag
-- Feed "following" (video degli utenti seguiti)
-- Top-rated con filtro temporale (day/week/month/year/all)
-- Incremento visualizzazioni atomico
-- Eliminazione con cleanup file fisico
-
-### Rating
-- Voto da 1 a 5 per video
-- Vincolo: un solo voto per utente per video
-- Media voto calcolata dinamicamente
-
-### Commenti
-- Commenti timestampati (ancorati a un secondo del video)
-- Validazione: timestamp entro la durata del video
-
-### Contest
-- Contest settimanali automatici (lunedì-domenica) per tag
-- Chiusura manuale con calcolo vincitore
-- Algoritmo spareggio ponderato (ratings 50%, views 30%, comments 20%)
-- Storico vincitori con paginazione
+| Metrica | Valore |
+|---|---|
+| Endpoint API | 35 |
+| Modelli dati | 5 + 3 M2M |
+| Componenti frontend | 52 |
+| React Query hooks | 21 |
+| Pagine frontend | 13 |
 
 ---
 
 ## Documentazione Generata
 
 - [Panoramica Progetto](./project-overview.md) — Questo file
-- [Architettura](./architecture.md) — Pattern architetturale, stack, diagrammi
-- [Contratti API](./api-contracts.md) — Tutti gli endpoint con request/response
-- [Modelli Dati](./data-models.md) — Schema database, relazioni, vincoli
-- [Analisi Albero Sorgente](./source-tree-analysis.md) — Struttura directory annotata
+- [Architettura Backend](./architecture-backend.md) — Pattern, stack, gap
+- [Architettura Frontend](./architecture-frontend.md) — Componenti, state, design system
+- [Integrazione](./integration-architecture.md) — Come le parti comunicano
+- [Contratti API](./api-contracts-backend.md) — 35 endpoint con request/response
+- [Modelli Dati](./data-models-backend.md) — Schema database, relazioni, vincoli, ER
+- [Componenti Frontend](./component-inventory-frontend.md) — 52 componenti inventariati
+- [State Management](./state-management-frontend.md) — React Query hooks, API layer, tipi
+- [Albero Sorgente](./source-tree-analysis.md) — Struttura directory annotata
 - [Guida Sviluppo](./development-guide.md) — Setup, comandi, convenzioni
 
 ---
@@ -103,9 +128,10 @@ Video_clip è una piattaforma web di **contest video settimanali** dove gli uten
 ## Link Rapidi
 
 | Risorsa | URL |
-|---------|-----|
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://127.0.0.1:8000/api/ |
 | Swagger UI | http://127.0.0.1:8000/api/docs/ |
-| ReDoc | http://127.0.0.1:8000/api/redoc/ |
 | Django Admin | http://127.0.0.1:8000/admin/ |
-| pgAdmin | http://127.0.0.1:8080/ |
-| API Root | http://127.0.0.1:8000/api/ |
+| pgAdmin | http://localhost:5050 |
+| MinIO Console | http://localhost:9001 |

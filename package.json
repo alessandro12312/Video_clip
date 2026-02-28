@@ -9,8 +9,8 @@
     "db:wait": "wait-on tcp:localhost:5432 --timeout 30000",
     "backend": "cd backend && ..\\.venv\\Scripts\\python manage.py runserver",
     "frontend": "cd frontend && npm run dev",
-    "open:docs": "wait-on tcp:localhost:8000 --timeout 60000 && start \"\" \"http://localhost:8000/api/docs/\" || true",
-    "open:app": "wait-on tcp:localhost:3000 --timeout 60000 && start \"\" \"http://localhost:3000/login\" || true",
+    "open:docs": "wait-on tcp:localhost:8000 --timeout 60000 && start \"\" \"http://localhost:8000/api/docs/\" || echo .",
+    "open:app": "wait-on tcp:localhost:3000 --timeout 60000 && start \"\" \"http://localhost:3000/login\" || echo .",
     "dev": "npm run docker:up && npm run db:wait && concurrently --names BACK,FRONT,DOCS,APP -c blue,green,yellow,magenta \"npm run backend\" \"npm run frontend\" \"npm run open:docs\" \"npm run open:app\""
   },
   "devDependencies": {

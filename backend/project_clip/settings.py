@@ -4,7 +4,31 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR.parent / '.env')
+PROJECT_ROOT = BASE_DIR.parent  # monorepo root (Video_clip/)
+load_dotenv(PROJECT_ROOT / '.env')
+
+# ===============================================
+# CONFIGURAZIONE MINIO E MEDIA FILES
+# ===============================================
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+USE_MINIO_STORAGE = True
+DEFAULT_FILE_STORAGE = "minio_storage.storage.MinioMediaStorage"
+STATICFILES_STORAGE = "minio_storage.storage.MinioStaticStorage"
+MINIO_STORAGE_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'http://localhost:9000').replace('http://', '').replace('https://', '')
+MINIO_STORAGE_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'root')
+MINIO_STORAGE_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'stickStick')
+MINIO_STORAGE_USE_HTTPS = False
+MINIO_STORAGE_REGION = os.getenv('MINIO_REGION', 'europe-west1')
+MINIO_STORAGE_MEDIA_OBJECT_METADATA = {"Cache-Control": "max-age=1000"}
+MINIO_STORAGE_MEDIA_BUCKET_NAME = os.getenv('MINIO_STORAGE_MEDIA_BUCKET_NAME', 'video')
+MINIO_STORAGE_MEDIA_BACKUP_BUCKET = os.getenv('MINIO_STORAGE_MEDIA_BACKUP_BUCKET', 'video-backup')
+MINIO_STORAGE_MEDIA_BACKUP_FORMAT = '%c/'
+MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = True
+MINIO_STORAGE_STATIC_BUCKET_NAME = os.getenv('MINIO_STORAGE_STATIC_BUCKET_NAME', 'video')
+MINIO_STORAGE_AUTO_CREATE_STATIC_BUCKET = True
 
 # Security settings
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "your-secret-key-here")
@@ -18,25 +42,28 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',
-    'django_filters',
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
-    'cs_clips',
+    'minio_storage',
+    'django_cleanup.apps.CleanupConfig',
+    'cs_clips.apps.CsClipsConfig',
+    'corsheaders',
 ]
 
 # Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware'
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'project_clip.urls'
 
@@ -69,6 +96,7 @@ DATABASES = {
     }
 }
 
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -87,12 +115,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_FILTER_BACKENDS': (
-        'django_filters.rest_framework.DjangoFilterBackend',
-    ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'EXCEPTION_HANDLER': 'cs_clips.exceptions.error_handler.handle_exception_with_serializer',
 }
 
 # JWT Authentication settings
@@ -108,23 +134,62 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Upload file grandi (video fino a 500MB)
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB — file più grandi vanno su disco temporaneo
-DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB — limite corpo richiesta
-
-# Static & Media files
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-# STATICFILES_DIRS = [BASE_DIR / "static"]
-MEDIA_ROOT = BASE_DIR / "media"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS — allow Next.js dev server
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
-CORS_ALLOW_CREDENTIALS = True
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        # You might have other handlers like file handlers
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            'propagate': False,
+        },
+        'minio_storage': {          # log default MinIO storage operations
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'serializers': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'views': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'exception_handler': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+print(f"DEBUG: DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}")
+print("SETTINGS MODULE LOADING...")

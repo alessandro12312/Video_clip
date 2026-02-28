@@ -1,0 +1,67 @@
+{
+  "repository_type": "monorepo",
+  "generated": "2026-02-28",
+  "parts": [
+    {
+      "part_id": "backend",
+      "project_type_id": "backend",
+      "display_name": "Django REST API Backend",
+      "root_path": "backend/",
+      "technology": {
+        "framework": "Django 5.1.6 + DRF 3.15.1",
+        "language": "Python",
+        "database": "PostgreSQL 16",
+        "auth": "SimpleJWT 5.3.1",
+        "storage": "MinIO (S3-compatible)"
+      },
+      "entry_points": ["backend/manage.py", "backend/project_clip/wsgi.py"],
+      "api_base": "http://127.0.0.1:8000/api/",
+      "endpoints_count": 35,
+      "models_count": 5
+    },
+    {
+      "part_id": "frontend",
+      "project_type_id": "web",
+      "display_name": "Next.js React Frontend",
+      "root_path": "frontend/",
+      "technology": {
+        "framework": "Next.js 16.1.6",
+        "language": "TypeScript",
+        "ui": "React 19 + Radix UI + shadcn/ui",
+        "styling": "TailwindCSS v4",
+        "state": "TanStack React Query 5"
+      },
+      "entry_points": ["frontend/src/app/layout.tsx"],
+      "url": "http://localhost:3000",
+      "components_count": 52,
+      "hooks_count": 21,
+      "pages_count": 13
+    }
+  ],
+  "integration_points": [
+    {
+      "from": "frontend",
+      "to": "backend",
+      "type": "REST API",
+      "details": "JSON/JWT via axios interceptors, 7 API modules"
+    },
+    {
+      "from": "backend",
+      "to": "PostgreSQL",
+      "type": "Database",
+      "details": "psycopg3, Django ORM, 5 modelli + 3 M2M"
+    },
+    {
+      "from": "backend",
+      "to": "MinIO",
+      "type": "Object Storage",
+      "details": "S3 API, presigned URLs (1h), bucket 'video'"
+    },
+    {
+      "from": "frontend",
+      "to": "MinIO",
+      "type": "Presigned URL",
+      "details": "Direct download via presigned URL dal backend"
+    }
+  ]
+}
