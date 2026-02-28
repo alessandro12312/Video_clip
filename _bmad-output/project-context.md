@@ -27,13 +27,13 @@ _Questo file contiene regole critiche e pattern che gli agenti AI devono seguire
   - `django-minio-backend 3.8.0` — configurazione bucket
 - **django-cleanup 9.0.0** — auto-delete file su model delete. NON fare delete manuale di file nei model
 - **drf-spectacular 0.28.0** — Swagger + ReDoc (`/api/docs/`, `/api/redoc/`)
-- **django-cors-headers 4.7.0** — `CORS_ALLOW_ALL_ORIGINS = True` (dev only)
+- **django-cors-headers 4.7.0** — `CORS_ALLOW_ALL_ORIGINS = DEBUG` (True solo in dev), `CORS_ALLOWED_ORIGINS` configurabile via env var
 - **django-filter 24.3** — filtri su ViewSet via `filterset_fields`
 - **APScheduler 3.11.0** (django-apscheduler 0.7.0) — chiusura contest automatica giovedi' 11:33
 - **moviepy 2.2.1** — `from moviepy import VideoFileClip` (v2 syntax, NON v1). Prerequisito di sistema: **ffmpeg** deve essere installato
 - **Pillow 11.1.0**, imageio-ffmpeg 0.6.0
 - **numpy 2.2.6** — spareggio ponderato contest
-- **Celery 5.5.3 + Redis 5.2.1 + Flower 2.0.1** — installati ma **NON configurati** in settings ne' in compose. NON usare — nessun task asincrono e' supportato. Per task schedulati usare SOLO APScheduler
+- **Celery/Redis/Flower** — RIMOSSI da requirements.txt (Story 0.1). NON usare — nessun task asincrono e' supportato. Per task schedulati usare SOLO APScheduler
 
 ### Frontend
 - **Next.js 16.1.6** (Turbopack) + **React 19.2.3** + **TypeScript 5** (strict, target ES2017)
@@ -294,11 +294,9 @@ _Questo file contiene regole critiche e pattern che gli agenti AI devono seguire
 - `ContestWinnersView` restituisce Video vincitori, NON oggetti Contest
 
 ### Bug/Limiti Noti
-- `[FIX-READY]` Missing `Response` import in `user_views.py` — follow/unfollow actions crashano a runtime
 - `[FIX-READY]` `get_average_rating()` in `VideoOutputSerializer` itera `obj.ratings.all()` in Python — N+1 query, usare `Avg()` annotation
-- `[FIX-READY]` `RoleBasedPermission.has_object_permission()` controlla `obj.user` ma Video ha `obj.uploader` — bug su delete Video
 - `[FIX-READY]` Scheduler: log message dice "11:24" ma il cron effettivo e' 11:33
-- `[FIX-READY]` `CorsMiddleware` in settings e' posizionato DOPO `CommonMiddleware` — dovrebbe essere PRIMA secondo la doc django-cors-headers
+- `[FIX-READY]` `RoleBasedPermission.has_object_permission()` blocca GET/PUT/PATCH per gruppo 'user' — solo DELETE e' gestito, tutto il resto cade a `return False`. Utenti normali non possono fare retrieve/update su nessun oggetto
 - `[WORKAROUND]` `VideoInputSerializer.create()` fa rollback manuale senza `transaction.atomic()` — rischio record orfani. Non fixare senza ridisegnare il flusso
 - `[WORKAROUND]` Video con `duration=0` (default vecchi record): `timestamp_second` puo' essere solo 0
 

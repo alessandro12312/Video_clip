@@ -15,8 +15,16 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 USE_MINIO_STORAGE = True
-DEFAULT_FILE_STORAGE = "minio_storage.storage.MinioMediaStorage"
-STATICFILES_STORAGE = "minio_storage.storage.MinioStaticStorage"
+
+# Django 5.x STORAGES dict (sostituisce DEFAULT_FILE_STORAGE e STATICFILES_STORAGE deprecati)
+STORAGES = {
+    "default": {
+        "BACKEND": "minio_storage.storage.MinioMediaStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "minio_storage.storage.MinioStaticStorage",
+    },
+}
 MINIO_STORAGE_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'http://localhost:9000').replace('http://', '').replace('https://', '')
 MINIO_STORAGE_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'root')
 MINIO_STORAGE_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'stickStick')
@@ -34,6 +42,9 @@ MINIO_STORAGE_AUTO_CREATE_STATIC_BUCKET = True
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "your-secret-key-here")
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost 127.0.0.1").split()
+
+# Custom User Model — dichiarato PRIMA di INSTALLED_APPS
+AUTH_USER_MODEL = 'cs_clips.User'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,16 +65,18 @@ INSTALLED_APPS = [
 # Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware'
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS — in sviluppo permetti tutto, in produzione usa CORS_ALLOWED_ORIGINS
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()] if os.getenv("CORS_ALLOWED_ORIGINS") else []
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # True solo in sviluppo
 
 ROOT_URLCONF = 'project_clip.urls'
 
@@ -104,8 +117,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
-
-AUTH_USER_MODEL = 'cs_clips.User'
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
@@ -191,5 +202,3 @@ LOGGING = {
     },
 }
 
-print(f"DEBUG: DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}")
-print("SETTINGS MODULE LOADING...")

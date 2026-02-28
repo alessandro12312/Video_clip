@@ -31,7 +31,8 @@ class RoleBasedPermission(BasePermission):
         # Gli 'user' possono eliminare solo i propri contenuti
         if request.user.groups.filter(name='user').exists():
             if request.method == 'DELETE':
-                return obj.user == request.user
+                owner = getattr(obj, 'uploader', None) or getattr(obj, 'user', None)
+                return owner == request.user
 
         # 'toconfirm' solo lettura
         if request.user.groups.filter(name='toconfirm').exists():
