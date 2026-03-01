@@ -5,6 +5,7 @@ from django.db import models
 
 class User(AbstractUser):
     email = models.EmailField("email address", unique=True, blank=False, null=False)
+    bio = models.TextField(blank=True, default="", help_text="Biografia dell'utente")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

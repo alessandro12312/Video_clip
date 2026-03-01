@@ -7,15 +7,17 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import TokenRefreshView
 
-from cs_clips.api.users.user_views import CustomTokenObtainPairView
+from cs_clips.api.users.user_views import (
+    CustomTokenObtainPairView,
+    CustomTokenRefreshView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("cs_clips.urls")),
     path("api/token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/token/refresh/", CustomTokenRefreshView.as_view(), name="token_refresh"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

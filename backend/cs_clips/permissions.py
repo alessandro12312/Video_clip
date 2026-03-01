@@ -1,10 +1,13 @@
+from django.contrib.auth import get_user_model
 from rest_framework.permissions import SAFE_METHODS, BasePermission
+
+User = get_user_model()
 
 
 class RoleBasedPermission(BasePermission):
     """
     Permission basata sui ruoli:
-    - Gli utenti 'user' possono eliminare solo i propri contenuti.
+    - Gli utenti 'user' possono modificare/eliminare solo i propri contenuti.
     - Gli utenti 'toconfirm' possono solo leggere.
     - Gli admin possono fare tutto.
     """
@@ -28,11 +31,15 @@ class RoleBasedPermission(BasePermission):
         if request.user.is_superuser:
             return True
 
-        # Gli 'user' possono eliminare solo i propri contenuti
         if request.user.groups.filter(name="user").exists():
-            if request.method == "DELETE":
-                owner = getattr(obj, "uploader", None) or getattr(obj, "user", None)
-                return owner == request.user
+            if request.method in SAFE_METHODS:
+                return True
+            # Per operazioni di scrittura (PUT, PATCH, DELETE):
+            # il modello User non ha 'uploader' né 'user' — l'oggetto È l'utente
+            if isinstance(obj, User):
+                return obj == request.user
+            owner = getattr(obj, "uploader", None) or getattr(obj, "user", None)
+            return owner == request.user
 
         # 'toconfirm' solo lettura
         if request.user.groups.filter(name="toconfirm").exists():
