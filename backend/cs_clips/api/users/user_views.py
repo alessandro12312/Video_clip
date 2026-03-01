@@ -4,7 +4,7 @@ from django.db.models import Count, Exists, OuterRef, Value
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -133,10 +133,19 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         target_user = self.get_object()
         if request.user == target_user:
-            return Response({"detail": "Non puoi seguire te stesso."}, status=400)
+            return Response(
+                {"detail": "Non puoi seguire te stesso."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         request.user.following.add(target_user)
-        return Response({"detail": f"Hai iniziato a seguire {target_user.username}."})
+        return Response(
+            {
+                "detail": f"Ora segui {target_user.username}.",
+                "is_followed": True,
+                "followers_count": target_user.followers.count(),
+            }
+        )
 
     @action(
         detail=True,
@@ -150,28 +159,38 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         target_user = self.get_object()
         request.user.following.remove(target_user)
-        return Response({"detail": f"Hai smesso di seguire {target_user.username}."})
+        return Response(
+            {
+                "detail": f"Hai smesso di seguire {target_user.username}.",
+                "is_followed": False,
+                "followers_count": target_user.followers.count(),
+            }
+        )
 
     @action(detail=True, methods=["get"], url_path="followers")
     def get_followers(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che seguono questo utente.
+        Restituisce la lista paginata degli utenti che seguono questo utente.
         """
         target_user = self.get_object()
-        followers = self.get_queryset().filter(
-            pk__in=target_user.followers.values_list("pk", flat=True)
-        )
-        serializer = UserSerializer(followers, many=True)
+        followers = self.get_queryset().filter(following=target_user)
+        page = self.paginate_queryset(followers)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(followers, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"], url_path="following")
     def get_following(self, request, pk=None):
         """
-        Restituisce la lista degli utenti che questo utente sta seguendo.
+        Restituisce la lista paginata degli utenti che questo utente sta seguendo.
         """
         target_user = self.get_object()
-        following = self.get_queryset().filter(
-            pk__in=target_user.following.values_list("pk", flat=True)
-        )
-        serializer = UserSerializer(following, many=True)
+        following = self.get_queryset().filter(followers=target_user)
+        page = self.paginate_queryset(following)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(following, many=True)
         return Response(serializer.data)

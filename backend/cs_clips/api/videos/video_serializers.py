@@ -53,7 +53,10 @@ class VideoOutputSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.FloatField)
     def get_average_rating(self, obj):
-        logger.info(f"[video_serializer] Calcolo average_rating per video ID {obj.id}")
+        # Usa annotazione avg_rating dal queryset (evita N+1)
+        if hasattr(obj, "avg_rating"):
+            return round(obj.avg_rating, 2) if obj.avg_rating is not None else 0.0
+        # Fallback per istanze senza annotazione (retrieve singolo, custom actions)
         ratings = obj.ratings.all()
         if not ratings.exists():
             return 0.0

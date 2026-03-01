@@ -15,6 +15,11 @@ export const videosApi = {
       .get<PaginatedResponse<Video>>("/videos/", { params: { page } })
       .then((r) => normalizePaginated(r.data)),
 
+  getByUploader: (uploaderId: number, page = 1) =>
+    apiClient
+      .get<PaginatedResponse<Video>>("/videos/", { params: { uploader: uploaderId, page } })
+      .then((r) => normalizePaginated(r.data)),
+
   getById: (id: number) =>
     apiClient.get<Video>(`/videos/${id}/`).then((r) => r.data),
 

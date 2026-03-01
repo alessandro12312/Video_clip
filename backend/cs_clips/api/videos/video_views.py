@@ -1,6 +1,7 @@
 import logging
 from datetime import timedelta
 
+import django_filters
 from django.db.models import Avg, F
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -24,10 +25,27 @@ from cs_clips.utils.get_date_util import get_or_create_current_contest
 logger = logging.getLogger("views")
 
 
+class VideoFilter(django_filters.FilterSet):
+    """Filtro video per uploader ID (NumberFilter per evitare validazione FK)."""
+
+    uploader = django_filters.NumberFilter(field_name="uploader_id")
+
+    class Meta:
+        model = Video
+        fields = ["uploader"]
+
+
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all().order_by("-created_at")
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+    filterset_class = VideoFilter
+
+    def get_queryset(self):
+        """Queryset con annotazione avg_rating per evitare N+1."""
+        return Video.objects.annotate(
+            avg_rating=Avg("ratings__value")
+        ).order_by("-created_at")
 
     def get_throttles(self):
         if self.action == "create":
