@@ -1,0 +1,20 @@
+{
+  "name": "video-clip-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Script di avvio per il monorepo Video_clip",
+  "scripts": {
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:wait": "wait-on tcp:localhost:5432 --timeout 30000",
+    "backend": "cd backend && ..\\.venv\\Scripts\\python manage.py runserver",
+    "frontend": "cd frontend && npm run dev",
+    "open:docs": "wait-on tcp:localhost:8000 --timeout 60000 && start \"\" \"http://localhost:8000/api/docs/\" || echo .",
+    "open:app": "wait-on tcp:localhost:3000 --timeout 60000 && start \"\" \"http://localhost:3000/login\" || echo .",
+    "dev": "npm run docker:up && npm run db:wait && concurrently --names BACK,FRONT,DOCS,APP -c blue,green,yellow,magenta \"npm run backend\" \"npm run frontend\" \"npm run open:docs\" \"npm run open:app\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "wait-on": "^8.0.3"
+  }
+}
