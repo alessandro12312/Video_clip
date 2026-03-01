@@ -9,7 +9,7 @@ from cs_clips.permissions import RoleBasedPermission
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.all()
+    queryset = Comment.objects.filter(is_disabled=False)
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
 

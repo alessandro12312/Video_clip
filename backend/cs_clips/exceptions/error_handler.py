@@ -31,12 +31,20 @@ ERROR_MAP = {
 }
 
 
-def handle_exception_with_serializer(exc):
+def handle_exception_with_serializer(exc, context=None):
     """
     Gestisce le eccezioni restituendo una risposta JSON coerente
     e strutturata per il frontend.
     """
-    logger.exception(f"[error_handler] Eccezione intercettata: {exc}")
+    view_name = ""
+    if context and "view" in context:
+        view_name = context["view"].__class__.__name__
+    logger.exception(
+        "[error_handler] %s in %s: %s",
+        exc.__class__.__name__,
+        view_name or "unknown",
+        exc,
+    )
 
     # Valori di default
     code = exc.__class__.__name__

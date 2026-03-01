@@ -58,8 +58,8 @@ development_status:
   epic-0: in-progress
   0-1-bug-fix-configurazione-settings-e-verifica-ambiente: done    # FIX-1..FIX-10, D7 (rimozione celery/redis), npm run dev verifica
   0-2-linting-formatting-e-developer-tools: done                         # D5 (ruff), D6 (throttling), .editorconfig, Debug Toolbar, React Query DevTools, rate limiting
-  0-3-testing-baseline-e-ci-cd: backlog                                   # D4 (conftest 5 fixture, MSW 5 handlers), CI GitHub Actions. Nota: CI non bloccante
-  0-4-django-admin-per-moderazione-e-gestione-contest: backlog            # FR45-49, FR55, campo is_disabled su Comment
+  0-3-testing-baseline-e-ci-cd: done                                      # D4 (conftest 5 fixture, MSW 5 handlers), CI GitHub Actions. Nota: CI non bloccante
+  0-4-django-admin-per-moderazione-e-gestione-contest: done        # FR45-49, FR55, campo is_disabled su Comment
   epic-0-retrospective: optional
 
   # --- Epic 1: Core Platform — Allineamento Backend ---

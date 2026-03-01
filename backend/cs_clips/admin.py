@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils import timezone
 
 from cs_clips.models import Comment, Contest, Rating, User, Video
 
@@ -95,7 +96,7 @@ class UserAdmin(BaseUserAdmin):
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
     list_display = ("title", "uploader", "tag", "views", "created_at", "contest")
-    list_filter = ("tag", "created_at")
+    list_filter = ("tag", "uploader", "created_at")
     search_fields = ("title", "uploader__username")
     autocomplete_fields = ["uploader", "contest"]
     readonly_fields = ("created_at", "updated_at", "duration")
@@ -111,9 +112,35 @@ class RatingAdmin(admin.ModelAdmin):
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ("user", "video", "timestamp_second", "created_at")
+    list_display = (
+        "user",
+        "video",
+        "content_preview",
+        "timestamp_second",
+        "is_disabled",
+        "created_at",
+    )
+    list_filter = ("is_disabled",)
     search_fields = ("user__username", "video__title", "content")
     autocomplete_fields = ["user", "video"]
+    actions = ["disabilita_commenti", "abilita_commenti"]
+
+    @admin.display(description="Anteprima contenuto")
+    def content_preview(self, obj):
+        """Mostra i primi 50 caratteri del commento."""
+        if len(obj.content) > 50:
+            return obj.content[:50] + "..."
+        return obj.content
+
+    @admin.action(description="Disabilita commenti selezionati")
+    def disabilita_commenti(self, request, queryset):
+        updated = queryset.update(is_disabled=True)
+        self.message_user(request, f"{updated} commenti disabilitati.")
+
+    @admin.action(description="Abilita commenti selezionati")
+    def abilita_commenti(self, request, queryset):
+        updated = queryset.update(is_disabled=False)
+        self.message_user(request, f"{updated} commenti abilitati.")
 
 
 @admin.register(Contest)
@@ -122,3 +149,13 @@ class ContestAdmin(admin.ModelAdmin):
     list_filter = ("tag", "is_closed")
     search_fields = ("name",)
     autocomplete_fields = ["winner"]
+    readonly_fields = ("closed_at",)
+    date_hierarchy = "start_date"
+    actions = ["chiudi_contest"]
+
+    @admin.action(description="Chiudi contest selezionati")
+    def chiudi_contest(self, request, queryset):
+        updated = queryset.filter(is_closed=False).update(
+            is_closed=True, closed_at=timezone.now()
+        )
+        self.message_user(request, f"{updated} contest chiusi.")

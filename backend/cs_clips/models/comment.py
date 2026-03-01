@@ -18,6 +18,10 @@ class Comment(models.Model):
         # #TODO: rimuovere default in produzione
         default=0,
     )
+    is_disabled = models.BooleanField(
+        default=False,
+        help_text="Se True, il commento è nascosto dalle risposte API (moderazione)",
+    )
 
     def __str__(self):
         return (
