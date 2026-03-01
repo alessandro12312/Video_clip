@@ -55,12 +55,12 @@ development_status:
   # --- Epic 0: Fondamenta di Sviluppo e Admin ---
   # Bug fix bloccanti, linting, testing baseline, CI/CD, Django Admin moderazione.
   # PARALLELIZZAZIONE: 0.1 → 0.2 → 0.4 → (0.3 || Epic 1)
-  epic-0: in-progress
+  epic-0: done
   0-1-bug-fix-configurazione-settings-e-verifica-ambiente: done    # FIX-1..FIX-10, D7 (rimozione celery/redis), npm run dev verifica
   0-2-linting-formatting-e-developer-tools: done                         # D5 (ruff), D6 (throttling), .editorconfig, Debug Toolbar, React Query DevTools, rate limiting
   0-3-testing-baseline-e-ci-cd: done                                      # D4 (conftest 5 fixture, MSW 5 handlers), CI GitHub Actions. Nota: CI non bloccante
   0-4-django-admin-per-moderazione-e-gestione-contest: done        # FR45-49, FR55, campo is_disabled su Comment
-  epic-0-retrospective: optional
+  epic-0-retrospective: done                                            # epic-0-retro-2026-03-01.md
 
   # --- Epic 1: Core Platform — Allineamento Backend ---
   # Auth end-to-end, profilo con bio, by-username, follow/unfollow paginato, filtro video per uploader.
