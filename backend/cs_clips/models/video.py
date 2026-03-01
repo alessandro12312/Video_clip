@@ -31,6 +31,10 @@ class Video(models.Model):
         # #TODO: rimuovere default in produzione
         default=0,
     )
+    allow_download = models.BooleanField(
+        default=True,
+        help_text="Consenti il download della clip ad altri utenti",
+    )
 
     def __str__(self):
         return self.title

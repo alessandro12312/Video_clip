@@ -7,7 +7,6 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import parsers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -43,9 +42,9 @@ class VideoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Queryset con annotazione avg_rating per evitare N+1."""
-        return Video.objects.annotate(
-            avg_rating=Avg("ratings__value")
-        ).order_by("-created_at")
+        return Video.objects.annotate(avg_rating=Avg("ratings__value")).order_by(
+            "-created_at"
+        )
 
     def get_throttles(self):
         if self.action == "create":
@@ -64,6 +63,10 @@ class VideoViewSet(viewsets.ModelViewSet):
                     },
                     "tag": {"$ref": "#/components/schemas/TagEnum"},
                     "file": {"type": "string", "format": "binary"},
+                    "allow_download": {
+                        "type": "boolean",
+                        "default": True,
+                    },
                 },
             }
         },
@@ -74,7 +77,18 @@ class VideoViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         logger.info("[video_views] Richiesta creazione video ricevuta")
-        return super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        ctx = {"request": request}
+        output = VideoOutputSerializer(instance, context=ctx)
+        headers = self.get_success_headers(output.data)
+        return Response(
+            output.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
     def perform_create(self, serializer, *args, **kwargs):
         """
@@ -87,17 +101,9 @@ class VideoViewSet(viewsets.ModelViewSet):
             serializer.validated_data,
             self.request.user,
         )
-        tag = self.request.data.get("tag")
-        if not tag:
-            logger.error(
-                "[video_views] Campo 'tag' mancante nella richiesta di upload video"
-            )
-            raise ValidationError({"tag": "Questo campo è obbligatorio."})
+        tag = serializer.validated_data["tag"]
         contest = get_or_create_current_contest(tag)
-        if not serializer.is_valid():
-            logger.error(f"[video_views] Video upload error: {serializer.errors}")
-            raise ValidationError(serializer.errors)
-        serializer.save(uploader=self.request.user, contest=contest, tag=tag)
+        serializer.save(uploader=self.request.user, contest=contest)
         logger.info("[video_views] Video creato e associato al contest")
 
     # @action(detail=True, methods=['delete', 'post'], url_path='revert')

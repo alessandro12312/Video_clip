@@ -74,8 +74,8 @@ development_status:
 
   # --- Epic 2: Upload, Player e Commenti ---
   # Upload con validazione completa, download, presigned URL refresh, feed, commenti dual-view, delete video.
-  epic-2: backlog
-  2-1-upload-clip-con-validazione-completa: backlog                       # FR7-9, FR11-12, FR15-16, FR54, allow_download, MoviePy edge case
+  epic-2: in-progress
+  2-1-upload-clip-con-validazione-completa: done                                # FR7-9, FR11-12, FR15-16, FR54, allow_download, MoviePy edge case
   2-2-download-clip-e-presigned-url-refresh: backlog                      # FR13, FR14, D3 (lazy re-fetch onerror → spinner → retry max 2)
   2-3-feed-home-e-navigazione-clip: backlog                               # FR17-22, OG tags SSR, EmptyState
   2-4-commenti-dual-layer-con-timestamp: backlog                          # FR23-26, FR29-30, dual-view "Tutti"/"Nel video", useDeleteComment

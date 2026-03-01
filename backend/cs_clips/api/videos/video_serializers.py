@@ -35,12 +35,16 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "file_url",
             "uploader",
             "average_rating",
+            "views",
             "created_at",
             "updated_at",
             "contest",
             "tag",
+            "allow_download",
         )
         read_only_fields = (
+            "id",
+            "duration",
             "created_at",
             "updated_at",
             "uploader",
@@ -49,6 +53,7 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "average_rating",
             "file",
             "file_url",
+            "allow_download",
         )
 
     @extend_schema_field(serializers.FloatField)
@@ -106,9 +111,23 @@ class VideoOutputSerializer(serializers.ModelSerializer):
 
 
 class VideoInputSerializer(serializers.ModelSerializer):
+    ALLOWED_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    ALLOWED_CONTENT_TYPES = {
+        "video/mp4",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/x-matroska",
+        "video/webm",
+    }
+    MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+
+    # DRF BooleanField.initial=False tratta assenza campo come False
+    # in multipart — serve default esplicito per preservare il model default
+    allow_download = serializers.BooleanField(default=True, required=False)
+
     class Meta:
         model = Video
-        fields = ("title", "file", "tag")
+        fields = ("title", "file", "tag", "allow_download")
 
     # TODO rivedi come genera il contest
     def create(self, validated_data):
@@ -126,6 +145,21 @@ class VideoInputSerializer(serializers.ModelSerializer):
         if not uploaded_file:
             logger.error("[video_serializer] File non fornito.")
             raise serializers.ValidationError({"file": "File non fornito."})
+
+        # ----- Validazione formato e dimensione (prima di MoviePy) -----
+        ext = Path(uploaded_file.name).suffix.lower()
+        if ext not in self.ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM"
+            )
+        if uploaded_file.content_type not in self.ALLOWED_CONTENT_TYPES:
+            raise serializers.ValidationError(
+                "Formato non supportato. Formati accettati: MP4, MOV, AVI, MKV, WebM"
+            )
+        if uploaded_file.size > self.MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                "Il file supera la dimensione massima di 500MB"
+            )
 
         temp_path = None  # servirà per la pulizia finale
 
@@ -179,12 +213,15 @@ class VideoInputSerializer(serializers.ModelSerializer):
                 validated_data["duration"],
             )
 
+        except serializers.ValidationError:
+            raise
         except Exception as e:
             logger.error(
                 f"[video_serializer] Errore durante l'analisi del video: {str(e)}"
             )
             raise serializers.ValidationError(
-                {"file": f"Impossibile analizzare il video: {str(e)}"}
+                "Impossibile leggere i metadati del video. "
+                "Verifica che il file non sia corrotto"
             )
 
         finally:
@@ -203,6 +240,13 @@ class VideoInputSerializer(serializers.ModelSerializer):
                         ex,
                     )
 
+        # ----- Validazione durata (10s – 60s) -----
+        duration = validated_data.get("duration", 0)
+        if duration < 10 or duration > 60:
+            raise serializers.ValidationError(
+                "La durata del video deve essere tra 10 secondi e 1 minuto"
+            )
+
         # ----- Salvataggio del modello -----
         instance = super().create(validated_data)
         logger.info(
@@ -219,7 +263,7 @@ class VideoInputSerializer(serializers.ModelSerializer):
 class VideoUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = ("title", "tag")
+        fields = ("title", "tag", "allow_download")
         extra_kwargs = {"title": {"required": True}, "tag": {"required": True}}
 
     def update(self, instance, validated_data):
