@@ -5,9 +5,10 @@ import { queryKeys } from "@/lib/query-keys";
 import { commentsApi } from "@/lib/api/comments";
 import type { CreateCommentData } from "@/types";
 
-export function useComments(videoId: number) {
+export function useComments(videoId: number, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.comments.byVideo(videoId),
+    enabled: options?.enabled,
     queryFn: async () => {
       // Fetch all comments for a video (may need multiple pages)
       const firstPage = await commentsApi.getByVideo(videoId, 1);
@@ -31,6 +32,18 @@ export function useCreateComment(videoId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateCommentData) => commentsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.comments.byVideo(videoId),
+      });
+    },
+  });
+}
+
+export function useDeleteComment(videoId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: number) => commentsApi.delete(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.comments.byVideo(videoId),

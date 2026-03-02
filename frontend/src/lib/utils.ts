@@ -38,6 +38,23 @@ export function formatCount(count: number): string {
   return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
 }
 
+/** Formatta secondi in "MM:SS" con zero-padding (es. 78 → "01:18") */
+export function formatMMSS(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Parsa "MM:SS" o "M:SS" in secondi. Ritorna null se non valido. */
+export function parseMMSS(value: string): number | null {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const minutes = parseInt(match[1], 10);
+  const secs = parseInt(match[2], 10);
+  if (secs >= 60) return null;
+  return minutes * 60 + secs;
+}
+
 /** Estrae il numero di pagina da un URL paginato Django */
 export function extractPageFromUrl(url: string | null): number | undefined {
   if (!url) return undefined;

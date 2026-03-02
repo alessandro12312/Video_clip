@@ -35,6 +35,12 @@ class Video(models.Model):
         default=True,
         help_text="Consenti il download della clip ad altri utenti",
     )
+    thumbnail = models.ImageField(
+        upload_to="thumbnails/",
+        blank=True,
+        null=True,
+        help_text="Thumbnail auto-generato dal primo frame del video",
+    )
 
     def __str__(self):
         return self.title

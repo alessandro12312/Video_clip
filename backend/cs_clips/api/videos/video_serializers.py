@@ -6,6 +6,7 @@ from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 
+from django.core.files import File as DjangoFile
 from django.core.files.uploadedfile import InMemoryUploadedFile, TemporaryUploadedFile
 from drf_spectacular.utils import extend_schema_field
 from minio import Minio
@@ -24,6 +25,13 @@ class VideoOutputSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     file = serializers.FileField(read_only=True, help_text="URL del file video.")
     file_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+    my_rating_id = serializers.IntegerField(
+        read_only=True, allow_null=True, default=None
+    )
+    my_rating_value = serializers.IntegerField(
+        read_only=True, allow_null=True, default=None
+    )
 
     class Meta:
         model = Video
@@ -33,6 +41,7 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "duration",
             "file",
             "file_url",
+            "thumbnail_url",
             "uploader",
             "average_rating",
             "views",
@@ -41,6 +50,8 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "contest",
             "tag",
             "allow_download",
+            "my_rating_id",
+            "my_rating_value",
         )
         read_only_fields = (
             "id",
@@ -53,7 +64,10 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "average_rating",
             "file",
             "file_url",
+            "thumbnail_url",
             "allow_download",
+            "my_rating_id",
+            "my_rating_value",
         )
 
     @extend_schema_field(serializers.FloatField)
@@ -83,6 +97,27 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             secret_key=settings.MINIO_STORAGE_SECRET_KEY,
             secure=settings.MINIO_STORAGE_USE_HTTPS,
         )
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_thumbnail_url(self, obj):
+        """Genera presigned URL per il thumbnail, se esiste."""
+        if not obj.thumbnail:
+            return None
+        try:
+            client = self._get_minio_client()
+            return client.presigned_get_object(
+                settings.MINIO_STORAGE_MEDIA_BUCKET_NAME,
+                obj.thumbnail.name,
+                expires=timedelta(hours=1),
+            )
+        except Exception as e:
+            logger.warning(
+                "[video_serializer] Impossibile generare presigned URL "
+                "per thumbnail video ID %s: %s",
+                obj.id,
+                e,
+            )
+            return None
 
     def get_file_url(self, obj):
         """
@@ -133,11 +168,12 @@ class VideoInputSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Crea un Video:
-        1. Salva l'oggetto in DB (senza durata).
-        2. Scrive il file uploadato in un temp locale *chiuso* (no lock).
-        3. Usa MoviePy/Ffmpeg per estrarne la durata.
-        4. Aggiorna e salva di nuovo il Video con la durata.
-        5. Cancella il file temporaneo.
+        1. Valida formato/dimensione del file uploadato.
+        2. Scrive il file su disco temp se InMemoryUploadedFile.
+        3. Usa MoviePy/Ffmpeg per estrarne durata e thumbnail.
+        4. Valida la durata (10s – 60s).
+        5. Salva il modello Video in DB.
+        6. Allega il thumbnail generato (graceful fallback se fallisce).
         """
         uploaded_file = validated_data.get("file")
         logger.info(f"[video_serializer] Tipo file ricevuto: {type(uploaded_file)}")
@@ -161,7 +197,8 @@ class VideoInputSerializer(serializers.ModelSerializer):
                 "Il file supera la dimensione massima di 500MB"
             )
 
-        temp_path = None  # servirà per la pulizia finale
+        temp_path = None  # file video temporaneo (solo InMemoryUploadedFile)
+        thumbnail_temp_path = None  # thumbnail JPEG estratto
 
         try:
             # ----- File già su disco (TemporaryUploadedFile) -----
@@ -174,6 +211,7 @@ class VideoInputSerializer(serializers.ModelSerializer):
 
                 with VideoFileClip(uploaded_file.temporary_file_path()) as clip:
                     validated_data["duration"] = int(clip.duration)
+                    thumbnail_temp_path = self._extract_thumbnail(clip)
 
             # ----- File in memoria (InMemoryUploadedFile) -----
             elif isinstance(uploaded_file, InMemoryUploadedFile):
@@ -199,6 +237,7 @@ class VideoInputSerializer(serializers.ModelSerializer):
                 # Ora che il file è chiuso, MoviePy può leggerlo
                 with VideoFileClip(str(temp_path)) as clip:
                     validated_data["duration"] = int(clip.duration)
+                    thumbnail_temp_path = self._extract_thumbnail(clip)
 
             # ----- Tipo non gestito -----
             else:
@@ -225,7 +264,7 @@ class VideoInputSerializer(serializers.ModelSerializer):
             )
 
         finally:
-            # Pulizia del file temporaneo, se creato
+            # Pulizia del file temporaneo video, se creato
             if temp_path and Path(temp_path).exists():
                 try:
                     Path(temp_path).unlink()
@@ -243,6 +282,7 @@ class VideoInputSerializer(serializers.ModelSerializer):
         # ----- Validazione durata (10s – 60s) -----
         duration = validated_data.get("duration", 0)
         if duration < 10 or duration > 60:
+            self._cleanup_thumbnail_temp(thumbnail_temp_path)
             raise serializers.ValidationError(
                 "La durata del video deve essere tra 10 secondi e 1 minuto"
             )
@@ -257,7 +297,42 @@ class VideoInputSerializer(serializers.ModelSerializer):
             f"[video_serializer] File URL: {getattr(instance.file, 'url', 'NO URL')}"
         )
 
+        # ----- Allegare thumbnail (graceful — non blocca l'upload) -----
+        if thumbnail_temp_path and Path(thumbnail_temp_path).exists():
+            try:
+                thumb_name = f"thumbnails/{uuid.uuid4().hex}.jpg"
+                with open(thumbnail_temp_path, "rb") as f:
+                    instance.thumbnail.save(thumb_name, DjangoFile(f), save=True)
+                logger.info("[video_serializer] Thumbnail salvato: %s", thumb_name)
+            except Exception as e:
+                logger.warning(
+                    "[video_serializer] Impossibile salvare thumbnail: %s", e
+                )
+            finally:
+                self._cleanup_thumbnail_temp(thumbnail_temp_path)
+
         return instance
+
+    @staticmethod
+    def _extract_thumbnail(clip):
+        """Estrae un frame dal video come thumbnail JPEG. Ritorna path o None."""
+        try:
+            thumb_path = Path(tempfile.gettempdir()) / f"thumb_{uuid.uuid4().hex}.jpg"
+            clip.save_frame(str(thumb_path), t=min(1.0, clip.duration / 2))
+            logger.info("[video_serializer] Thumbnail estratto: %s", thumb_path)
+            return str(thumb_path)
+        except Exception as e:
+            logger.warning("[video_serializer] Impossibile estrarre thumbnail: %s", e)
+            return None
+
+    @staticmethod
+    def _cleanup_thumbnail_temp(thumbnail_temp_path):
+        """Rimuove il file thumbnail temporaneo, se esiste."""
+        if thumbnail_temp_path:
+            try:
+                Path(thumbnail_temp_path).unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 class VideoUpdateSerializer(serializers.ModelSerializer):

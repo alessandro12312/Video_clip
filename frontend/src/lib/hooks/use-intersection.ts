@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function useIntersection(options?: IntersectionObserverInit) {
+export function useIntersection(rootMargin?: string) {
   const ref = useRef<HTMLDivElement>(null);
   const [isIntersecting, setIsIntersecting] = useState(false);
 
@@ -10,13 +10,16 @@ export function useIntersection(options?: IntersectionObserverInit) {
     const element = ref.current;
     if (!element) return;
 
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsIntersecting(entry.isIntersecting);
-    }, options);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting);
+      },
+      { rootMargin }
+    );
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [options]);
+  }, [rootMargin]);
 
   return { ref, isIntersecting };
 }

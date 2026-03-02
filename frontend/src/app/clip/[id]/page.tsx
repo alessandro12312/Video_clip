@@ -27,16 +27,28 @@ export async function generateMetadata({
   const video = await getVideo(id);
 
   if (!video) {
-    return { title: "Video non trovato — Video_clip" };
+    return { title: "Video non trovato" };
   }
 
+  const ogDescription = `Clip di ${video.uploader} — ${formatCount(video.views)} views, ${video.average_rating > 0 ? video.average_rating.toFixed(1) + "★" : "non votato"}`;
+
   return {
-    title: `${video.title} — Video_clip`,
+    title: video.title,
     description: `Guarda "${video.title}" di ${video.uploader} su Video_clip. ${formatCount(video.views)} visualizzazioni.`,
     openGraph: {
       title: video.title,
-      description: `Clip di ${video.uploader} — ${formatCount(video.views)} views, ${video.average_rating > 0 ? video.average_rating.toFixed(1) + "★" : "non votato"}`,
+      description: ogDescription,
       type: "video.other",
+      url: `/clip/${id}`,
+      ...(video.thumbnail_url && {
+        images: [{ url: video.thumbnail_url }],
+      }),
+    },
+    twitter: {
+      card: video.thumbnail_url ? "summary_large_image" : "summary",
+      title: video.title,
+      description: `Clip di ${video.uploader} su Video_clip`,
+      ...(video.thumbnail_url && { images: [video.thumbnail_url] }),
     },
   };
 }

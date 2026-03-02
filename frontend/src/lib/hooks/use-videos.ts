@@ -62,3 +62,28 @@ export function useUploadVideo() {
     },
   });
 }
+
+export function useDeleteVideo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (videoId: number) => videosApi.delete(videoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+    },
+  });
+}
+
+export function useDownloadVideo() {
+  return useMutation({
+    mutationFn: (videoId: number) => videosApi.download(videoId),
+    onSuccess: (data) => {
+      const a = document.createElement("a");
+      a.href = data.download_url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },
+  });
+}

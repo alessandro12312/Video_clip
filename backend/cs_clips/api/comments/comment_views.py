@@ -12,6 +12,8 @@ class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.filter(is_disabled=False)
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ["video"]
+    http_method_names = ["get", "post", "delete", "head", "options"]
 
     @extend_schema(
         parameters=[
