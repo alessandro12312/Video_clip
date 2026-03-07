@@ -106,8 +106,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Assegna automaticamente l'utente al gruppo 'toconfirm'
-        group, created = Group.objects.get_or_create(name="toconfirm")
+        # Assegna automaticamente l'utente al gruppo 'user' (accesso completo)
+        group, created = Group.objects.get_or_create(name="user")
         user.groups.add(group)
 
     @action(

@@ -2,18 +2,19 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Eye, MessageSquare, Play } from "lucide-react";
+import { Eye, ExternalLink, Heart, MessageCircle, MessageSquare, Monitor, Play, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VideoPlayer, type VideoPlayerHandle } from "@/components/video/video-player";
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentSidebar } from "@/components/comments/comment-sidebar";
+import { CommentSection } from "@/components/comments/comment-section";
 import { StarRating } from "@/components/rating/star-rating";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { UsernameLink } from "@/components/user/username-link";
 import { useAuth } from "@/providers/auth-provider";
-import { useComments } from "@/lib/hooks/use-comments";
+import { useComments, useDeleteComment } from "@/lib/hooks/use-comments";
 import { useIntersection } from "@/lib/hooks/use-intersection";
 import { useIsDesktop } from "@/lib/hooks/use-media-query";
 import { videosApi } from "@/lib/api/videos";
@@ -22,17 +23,19 @@ import { API_BASE_URL } from "@/lib/constants";
 import type { Video, Comment } from "@/types";
 
 const CARD_ACTIVATE_EVENT = "card-player-activate";
-
 const PREVIEW_LOOP_SECONDS = 5;
+const EMPTY_POPUP_MAP = new Map<number, Comment>();
+const EMPTY_MARKERS: number[] = [];
 
 type CardVideoState = "idle" | "hovering" | "playing";
+type CardViewMode = "popup" | "chat";
 
 interface CardAsPlayerProps {
   video: Video;
 }
 
 export function CardAsPlayer({ video }: CardAsPlayerProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const isDesktop = useIsDesktop();
   const playerRef = useRef<VideoPlayerHandle>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -42,10 +45,14 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
   // Viewport detection: load comments when card is near viewport
   const { ref: intersectionRef, isIntersecting } = useIntersection("200px");
   const { data: comments = [] } = useComments(video.id, { enabled: isIntersecting });
+  const { mutate: deleteComment } = useDeleteComment(video.id);
 
   const [videoState, setVideoState] = useState<CardVideoState>("idle");
+  const [viewMode, setViewMode] = useState<CardViewMode>("popup");
+  const [showComments, setShowComments] = useState(false);
   const [thumbError, setThumbError] = useState(false);
   const [pauseTimestamp, setPauseTimestamp] = useState<number | null>(null);
+  const [playerTime, setPlayerTime] = useState<number | null>(null);
   const [currentSrc, setCurrentSrc] = useState(
     video.file.startsWith("http") ? video.file : `${API_BASE_URL}${video.file}`
   );
@@ -55,6 +62,7 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
     if (!isIntersecting && videoState === "playing") {
       setVideoState("idle");
       setPauseTimestamp(null);
+      setPlayerTime(null);
     }
   }, [isIntersecting, videoState]);
 
@@ -65,6 +73,7 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
       if (activatedId !== cardIdRef.current && videoState === "playing") {
         setVideoState("idle");
         setPauseTimestamp(null);
+        setPlayerTime(null);
       }
     }
     window.addEventListener(CARD_ACTIVATE_EVENT, handleOtherActivate);
@@ -88,6 +97,10 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
   const markerPositions = useMemo(() => {
     return [...new Set(comments.filter((c) => c.timestamp_second > 0).map((c) => c.timestamp_second))];
   }, [comments]);
+
+  const handlePlayerTimeUpdate = useCallback((currentTime: number) => {
+    setPlayerTime(currentTime);
+  }, []);
 
   const handlePause = useCallback((currentTime: number) => {
     setPauseTimestamp(Math.floor(currentTime));
@@ -150,11 +163,33 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
 
   return (
     <Card ref={intersectionRef} className="overflow-hidden border-border/50">
+      {/* Title + view mode toggle */}
+      <div className="px-3 pt-3 pb-1 flex items-center gap-2">
+        <Link href={`/clip/${video.id}`} className="min-w-0 flex-1">
+          <h3 className="font-semibold text-base truncate hover:text-primary transition-colors">
+            {video.title}
+          </h3>
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-7 w-7 shrink-0 ${viewMode === "chat" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+          onClick={() => setViewMode((m) => (m === "popup" ? "chat" : "popup"))}
+          title={viewMode === "popup" ? "Mostra chat laterale" : "Mostra popup sul video"}
+        >
+          {viewMode === "popup" ? (
+            <MessageCircle className="h-4 w-4" />
+          ) : (
+            <Monitor className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
       {/* Video area + Sidebar */}
-      <div className="flex flex-col lg:flex-row" ref={playerContainerRef}>
+      <div className="flex flex-col sm:flex-row" ref={playerContainerRef}>
         {/* Video area */}
         <div
-          className="lg:flex-1 min-w-0 relative"
+          className="sm:flex-1 min-w-0 relative"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -164,9 +199,10 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
               src={currentSrc}
               videoId={video.id}
               duration={video.duration}
-              popupMap={popupMap}
-              markerPositions={markerPositions}
+              popupMap={viewMode === "popup" ? popupMap : EMPTY_POPUP_MAP}
+              markerPositions={viewMode === "popup" ? markerPositions : EMPTY_MARKERS}
               onPause={handlePause}
+              onTimeUpdate={handlePlayerTimeUpdate}
               onRefreshUrl={handleRefreshUrl}
             />
           ) : (
@@ -229,73 +265,99 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
           )}
         </div>
 
-        {/* Sidebar — desktop */}
-        <div className="hidden lg:block w-72 shrink-0 border-l border-border/50 p-3">
-          <CommentSidebar
-            comments={comments}
-            onTimestampClick={handleTimestampClick}
-            maxVisible={6}
-          />
+        {/* Sidebar — below on mobile, lateral on sm+ */}
+        {viewMode === "chat" && (
+          <div className="border-t sm:border-t-0 sm:border-l border-border/50 p-2 sm:p-3 sm:w-56 lg:w-72 shrink-0">
+            <CommentSidebar
+              comments={comments}
+              onTimestampClick={handleTimestampClick}
+              maxVisible={4}
+              currentTime={playerTime}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Info row — profile + tag + views + date + stars */}
+      <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <UserAvatar username={video.uploader} size="sm" />
+          <UsernameLink username={video.uploader} className="text-sm" />
+          <TagBadge tag={video.tag} />
+          <span className="text-muted-foreground">·</span>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+            <Eye className="h-3 w-3" />
+            {formatCount(video.views)}
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0">
+            {formatRelativeDate(video.created_at)}
+          </span>
         </div>
+        <StarRating value={video.average_rating} readonly size="sm" />
       </div>
 
-      {/* Sidebar — mobile */}
-      <div className="lg:hidden px-3 pt-2 pb-1 border-t border-border/50">
-        <CommentSidebar
-          comments={comments}
-          onTimestampClick={handleTimestampClick}
-          maxVisible={3}
-        />
-      </div>
-
-      {/* Metadata */}
-      <div className="px-3 py-2 flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <Link href={`/clip/${video.id}`}>
-            <h3 className="font-semibold text-base truncate hover:text-primary transition-colors">
-              {video.title}
-            </h3>
+      {/* Action bar — like, comments, detail */}
+      <div className="px-3 pb-2 border-t border-border/50 pt-2 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-red-500"
+          disabled
+          title="Mi piace (prossimamente)"
+        >
+          <Heart className="h-4 w-4 sm:mr-1.5" />
+          <span className="hidden sm:inline">Mi piace</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={showComments ? "text-primary" : "text-muted-foreground hover:text-primary"}
+          onClick={() => setShowComments((prev) => !prev)}
+          title="Commenti"
+        >
+          {showComments ? (
+            <X className="h-4 w-4 sm:mr-1.5" />
+          ) : (
+            <MessageSquare className="h-4 w-4 sm:mr-1.5" />
+          )}
+          <span className="hidden sm:inline">Commenti</span>
+          <span className="text-xs">({comments.length})</span>
+        </Button>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-primary"
+          asChild
+        >
+          <Link href={`/clip/${video.id}`} title="Vai al dettaglio">
+            <ExternalLink className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Dettaglio</span>
           </Link>
-          <div className="flex items-center gap-2 mt-1">
-            <UserAvatar username={video.uploader} size="sm" />
-            <UsernameLink username={video.uploader} className="text-sm" />
-            {videoState === "playing" || <TagBadge tag={video.tag} />}
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-0.5 shrink-0">
-          <StarRating value={video.average_rating} readonly size="sm" />
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {formatCount(video.views)}
-            </span>
-            <span>{formatRelativeDate(video.created_at)}</span>
-          </div>
-        </div>
+        </Button>
       </div>
 
-      {/* Comment form (only when playing) */}
-      {isAuthenticated && videoState === "playing" && (
-        <div className="px-3 pb-2 border-t border-border/50 pt-2">
-          <CommentForm
+      {/* Expandable comment section */}
+      {showComments && (
+        <div className="px-3 pb-3 border-t border-border/50 pt-2 space-y-3">
+          {isAuthenticated && (
+            <CommentForm
+              videoId={video.id}
+              pauseTimestamp={pauseTimestamp}
+              onClearTimestamp={handleClearTimestamp}
+              onSeekTo={videoState === "playing" ? (s) => playerRef.current?.seekTo(s) : undefined}
+              videoDuration={video.duration}
+            />
+          )}
+          <CommentSection
+            comments={comments}
+            currentUsername={user?.username}
+            onTimestampClick={handleTimestampClick}
+            onDelete={(commentId) => deleteComment(commentId)}
             videoId={video.id}
-            pauseTimestamp={pauseTimestamp}
-            onClearTimestamp={handleClearTimestamp}
-            onSeekTo={(s) => playerRef.current?.seekTo(s)}
-            videoDuration={video.duration}
           />
         </div>
       )}
-
-      {/* Link to detail */}
-      <div className="px-3 pb-3 border-t border-border/50 pt-2">
-        <Link href={`/clip/${video.id}`}>
-          <Button variant="ghost" size="sm" className="w-full text-muted-foreground hover:text-primary">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Visualizza tutti i commenti ({comments.length})
-          </Button>
-        </Link>
-      </div>
     </Card>
   );
 }

@@ -21,6 +21,7 @@ interface VideoPlayerProps {
   popupMap: Map<number, Comment>;
   markerPositions: number[];
   onPause?: (currentTime: number) => void;
+  onTimeUpdate?: (currentTime: number) => void;
   onRefreshUrl?: () => Promise<void>;
 }
 
@@ -31,6 +32,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
   popupMap,
   markerPositions,
   onPause,
+  onTimeUpdate,
   onRefreshUrl,
 }, ref) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,6 +69,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
     if (!video) return;
 
     setCurrentTime(video.currentTime);
+    onTimeUpdate?.(video.currentTime);
 
     // Update buffered
     if (video.buffered.length > 0) {
@@ -86,7 +89,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
         }, POPUP_DISPLAY_DURATION_MS);
       }
     }
-  }, [popupMap]);
+  }, [popupMap, onTimeUpdate]);
 
   // Play handler
   const handlePlay = useCallback(() => {
