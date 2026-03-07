@@ -1,49 +1,39 @@
-"use client";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 import { CommentList } from "./comment-list";
 import type { Comment } from "@/types";
 
 interface CommentSectionProps {
   comments: Comment[];
+  currentUsername?: string;
   onTimestampClick?: (seconds: number) => void;
+  onDelete?: (commentId: number) => void;
+  limit?: number;
+  videoId?: number;
 }
 
-export function CommentSection({ comments, onTimestampClick }: CommentSectionProps) {
-  const timestampedCount = comments.filter((c) => c.timestamp_second > 0).length;
-
+export function CommentSection({ comments, currentUsername, onTimestampClick, onDelete, limit, videoId }: CommentSectionProps) {
   return (
-    <Tabs defaultValue="all" className="w-full">
-      <TabsList className="w-full justify-start bg-transparent border-b border-border rounded-none h-auto p-0">
-        <TabsTrigger
-          value="all"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-        >
-          Tutti ({comments.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value="timestamped"
-          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-        >
-          Nel video ({timestampedCount})
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="all" className="mt-2">
-        <CommentList
-          comments={comments}
-          mode="all"
-          onTimestampClick={onTimestampClick}
-        />
-      </TabsContent>
-
-      <TabsContent value="timestamped" className="mt-2">
-        <CommentList
-          comments={comments}
-          mode="timestamped"
-          onTimestampClick={onTimestampClick}
-        />
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground">
+          Commenti ({comments.length})
+        </h3>
+        {videoId !== undefined && limit !== undefined && comments.length > limit && (
+          <Link
+            href={`/clip/${videoId}`}
+            className="text-xs text-primary hover:underline"
+          >
+            Visualizza tutti i commenti
+          </Link>
+        )}
+      </div>
+      <CommentList
+        comments={comments}
+        limit={limit}
+        currentUsername={currentUsername}
+        onTimestampClick={onTimestampClick}
+        onDelete={onDelete}
+      />
+    </div>
   );
 }

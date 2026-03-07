@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageLoader } from "@/components/shared/page-loader";
 import { useUserVideos } from "@/lib/hooks/use-videos";
 import { useUserByUsername } from "@/lib/hooks/use-users";
-import { Film, UserX } from "lucide-react";
+import { AlertTriangle, Film, UserX } from "lucide-react";
 
 export default function ProfiloPage() {
   const params = useParams<{ username: string }>();
@@ -17,13 +17,15 @@ export default function ProfiloPage() {
 
   const { data: profileUser, isLoading: usersLoading, isError } = useUserByUsername(username);
 
-  const { data: userVideosData, isLoading: videosLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useUserVideos(username);
+  const { data: userVideosData, isLoading: videosLoading, isError: videosError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useUserVideos(profileUser?.id ?? 0);
 
   const videos = useMemo(
     () => userVideosData?.pages.flatMap((p) => p.results) ?? [],
     [userVideosData]
   );
+
+  const totalVideoCount = userVideosData?.pages[0]?.count ?? 0;
 
   if (usersLoading) return <PageLoader />;
 
@@ -38,12 +40,18 @@ export default function ProfiloPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <ProfileHeader profileUser={profileUser} videoCount={videos.length} />
+    <div className="mx-auto max-w-5xl space-y-6">
+      <ProfileHeader profileUser={profileUser} videoCount={totalVideoCount} />
 
       <div>
         <h2 className="text-lg font-semibold mb-4">Le clip di {username}</h2>
-        {videosLoading ? (
+        {videosError ? (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Errore nel caricamento"
+            description="Impossibile caricare le clip. Riprova più tardi."
+          />
+        ) : videosLoading ? (
           <FeedGrid videos={[]} isLoading />
         ) : videos.length === 0 ? (
           <EmptyState

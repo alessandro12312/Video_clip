@@ -3,38 +3,35 @@ import type { Comment } from "@/types";
 
 interface CommentListProps {
   comments: Comment[];
-  mode: "all" | "timestamped";
+  limit?: number;
+  currentUsername?: string;
   onTimestampClick?: (seconds: number) => void;
+  onDelete?: (commentId: number) => void;
 }
 
-export function CommentList({ comments, mode, onTimestampClick }: CommentListProps) {
-  const filtered =
-    mode === "timestamped"
-      ? [...comments]
-          .filter((c) => c.timestamp_second > 0)
-          .sort((a, b) => a.timestamp_second - b.timestamp_second)
-      : [...comments].sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+export function CommentList({ comments, limit, currentUsername, onTimestampClick, onDelete }: CommentListProps) {
+  const sorted = [...comments].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const displayed = limit !== undefined ? sorted.slice(0, limit) : sorted;
 
-  if (filtered.length === 0) {
+  if (displayed.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        {mode === "timestamped"
-          ? "Nessun commento temporizzato."
-          : "Nessun commento."}
+        Nessun commento.
       </p>
     );
   }
 
   return (
     <div className="divide-y divide-border/50">
-      {filtered.map((comment) => (
+      {displayed.map((comment) => (
         <CommentItem
           key={comment.id}
           comment={comment}
+          currentUsername={currentUsername}
           onTimestampClick={onTimestampClick}
+          onDelete={onDelete}
         />
       ))}
     </div>

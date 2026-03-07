@@ -67,8 +67,8 @@ class CommentModerationTests(APITestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_is_disabled_not_exposed_via_api_serializer(self):
-        """is_disabled non e' nel serializer: nemmeno un superuser
-        puo' modificarlo via API."""
+        """is_disabled non modificabile via API: PATCH bloccato (405).
+        La moderazione avviene solo via Django Admin."""
         superuser = User.objects.create_superuser(
             username="superadmin",
             password="superpass123",
@@ -85,7 +85,8 @@ class CommentModerationTests(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 200)
+        # PATCH non consentito su commenti (http_method_names restrittivo)
+        self.assertEqual(response.status_code, 405)
         self.visible_comment.refresh_from_db()
         self.assertFalse(self.visible_comment.is_disabled)
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Eye, Star, MessageSquare } from "lucide-react";
+import { Eye, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { UserAvatar } from "@/components/user/user-avatar";
@@ -13,16 +14,29 @@ interface ClipCardProps {
 }
 
 export function ClipCard({ video }: ClipCardProps) {
+  const [thumbError, setThumbError] = useState(false);
+  const showThumbnail = video.thumbnail_url && !thumbError;
+
   return (
     <Link href={`/clip/${video.id}`}>
       <Card className="group overflow-hidden border-border/50 transition-all duration-200 hover:border-border hover:shadow-lg hover:shadow-primary/5 hover:scale-[1.02]">
-        {/* Thumbnail placeholder */}
+        {/* Thumbnail */}
         <div className="relative aspect-video bg-muted">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-4xl font-bold text-muted-foreground/20">
-              ▶
+          {showThumbnail ? (
+            <img
+              src={video.thumbnail_url!}
+              alt={video.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              onError={() => setThumbError(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-4xl font-bold text-muted-foreground/20">
+                ▶
+              </div>
             </div>
-          </div>
+          )}
           {/* Duration badge */}
           <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-mono text-white">
             {formatTimestamp(video.duration)}

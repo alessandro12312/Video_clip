@@ -1,13 +1,15 @@
 import logging
+import re
 from datetime import timedelta
+from pathlib import PurePosixPath
 
-from django.db.models import Avg, F
+import django_filters
+from django.db.models import Avg, F, IntegerField, OuterRef, Subquery, Value
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import parsers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -17,17 +19,56 @@ from cs_clips.api.videos.video_serializers import (
     VideoUpdateSerializer,
 )
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
-from cs_clips.models import Video
-from cs_clips.permissions import RoleBasedPermission
+from cs_clips.models import Rating, Video
+from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from cs_clips.utils.get_date_util import get_or_create_current_contest
+from project_clip import settings
 
 logger = logging.getLogger("views")
 
 
+class VideoFilter(django_filters.FilterSet):
+    """Filtro video per uploader ID (NumberFilter per evitare validazione FK)."""
+
+    uploader = django_filters.NumberFilter(field_name="uploader_id")
+
+    class Meta:
+        model = Video
+        fields = ["uploader"]
+
+
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all().order_by("-created_at")
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+    filterset_class = VideoFilter
+
+    def get_permissions(self):
+        """Retrieve pubblico per SSR (OG tags, condivisione link)."""
+        if self.action == "retrieve":
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        """Queryset con annotazioni avg_rating e my_rating per evitare N+1."""
+        qs = Video.objects.annotate(avg_rating=Avg("ratings__value")).order_by(
+            "-created_at"
+        )
+        if self.request.user.is_authenticated:
+            my_rating_qs = Rating.objects.filter(
+                video=OuterRef("pk"), user=self.request.user
+            )
+            qs = qs.annotate(
+                my_rating_id=Subquery(my_rating_qs.values("id")[:1]),
+                my_rating_value=Subquery(my_rating_qs.values("value")[:1]),
+            )
+        else:
+            qs = qs.annotate(
+                my_rating_id=Value(None, output_field=IntegerField()),
+                my_rating_value=Value(None, output_field=IntegerField()),
+            )
+        return qs
 
     def get_throttles(self):
         if self.action == "create":
@@ -46,6 +87,10 @@ class VideoViewSet(viewsets.ModelViewSet):
                     },
                     "tag": {"$ref": "#/components/schemas/TagEnum"},
                     "file": {"type": "string", "format": "binary"},
+                    "allow_download": {
+                        "type": "boolean",
+                        "default": True,
+                    },
                 },
             }
         },
@@ -56,7 +101,18 @@ class VideoViewSet(viewsets.ModelViewSet):
     )
     def create(self, request, *args, **kwargs):
         logger.info("[video_views] Richiesta creazione video ricevuta")
-        return super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        ctx = {"request": request}
+        output = VideoOutputSerializer(instance, context=ctx)
+        headers = self.get_success_headers(output.data)
+        return Response(
+            output.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
     def perform_create(self, serializer, *args, **kwargs):
         """
@@ -69,17 +125,9 @@ class VideoViewSet(viewsets.ModelViewSet):
             serializer.validated_data,
             self.request.user,
         )
-        tag = self.request.data.get("tag")
-        if not tag:
-            logger.error(
-                "[video_views] Campo 'tag' mancante nella richiesta di upload video"
-            )
-            raise ValidationError({"tag": "Questo campo è obbligatorio."})
+        tag = serializer.validated_data["tag"]
         contest = get_or_create_current_contest(tag)
-        if not serializer.is_valid():
-            logger.error(f"[video_views] Video upload error: {serializer.errors}")
-            raise ValidationError(serializer.errors)
-        serializer.save(uploader=self.request.user, contest=contest, tag=tag)
+        serializer.save(uploader=self.request.user, contest=contest)
         logger.info("[video_views] Video creato e associato al contest")
 
     # @action(detail=True, methods=['delete', 'post'], url_path='revert')
@@ -142,33 +190,25 @@ class VideoViewSet(viewsets.ModelViewSet):
         """
         logger.info("[video_views] Richiesta video utenti seguiti")
         user = request.user
-
-        # Controllo permessi: solo user e superuser SOLO PER TEST
-        # if not user.is_authenticated or (
-        #     not user.is_superuser and not user.groups.filter(name='user').exists()
-        # ):
-        #     return Response({'detail': 'Accesso negato. Solo per utenti confermati.'},
-        #                     status=status.HTTP_403_FORBIDDEN)
-
         following_users = user.following.all()
 
-        # Filtra i video caricati dagli utenti seguiti
-        videos = Video.objects.filter(uploader__in=following_users).order_by(
-            "-created_at"
-        )
+        # Usa get_queryset() per ereditare annotazione avg_rating (evita N+1)
+        videos = self.get_queryset().filter(uploader__in=following_users)
 
-        # Applica paginazione globale
+        # page is not None distingue "paginazione applicata (anche vuota)"
+        # da "nessun paginatore configurato"
         page = self.paginate_queryset(videos)
-        serializer = self.get_serializer(page or videos, many=True)
+        serializer = self.get_serializer(
+            page if page is not None else videos, many=True
+        )
 
         logger.info(
-            f"[video_views] Trovati {len(serializer.data)} video dagli utenti seguiti"
+            "[video_views] Trovati %s video dagli utenti seguiti",
+            len(serializer.data),
         )
-        return (
-            self.get_paginated_response(serializer.data)
-            if page
-            else Response(serializer.data)
-        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
     # Documentazione OpenAPI per l'endpoint top_rated
     @extend_schema(
@@ -210,24 +250,22 @@ class VideoViewSet(viewsets.ModelViewSet):
                 {"detail": f"Intervallo non valido: {range_param}"}, status=400
             )
 
-        queryset = Video.objects.all()
+        queryset = self.get_queryset()
         if time_ranges[range_param]:
             queryset = queryset.filter(created_at__gte=time_ranges[range_param])
 
-        # Calcolo della media voto
-        queryset = queryset.annotate(average_rating=Avg("ratings__value")).order_by(
-            "-average_rating"
-        )
+        # Riordina per media voto (avg_rating già annotato da get_queryset)
+        queryset = queryset.order_by(F("avg_rating").desc(nulls_last=True))
 
-        # Paginazione
+        # Paginazione — page is not None (non "if page") per gestire pagine vuote
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page or queryset, many=True)
-        logger.info(f"[video_views] Trovati {len(serializer.data)} video top-rated")
-        return (
-            self.get_paginated_response(serializer.data)
-            if page
-            else Response(serializer.data)
+        serializer = self.get_serializer(
+            page if page is not None else queryset, many=True
         )
+        logger.info(f"[video_views] Trovati {len(serializer.data)} video top-rated")
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="views", parser_classes=[])
     def views(self, request, pk=None):
@@ -243,6 +281,65 @@ class VideoViewSet(viewsets.ModelViewSet):
         video.refresh_from_db()  # aggiorna il valore da DB
         logger.info(f"[video_views] Nuovo numero di visualizzazioni: {video.views}")
         return Response({"views": video.views}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _sanitize_filename(title, original_path):
+        """Sanitizza il titolo per uso in Content-Disposition header."""
+        ext = PurePosixPath(original_path).suffix or ".mp4"
+        # Rimuovi caratteri non sicuri per header HTTP
+        safe_title = re.sub(r"[^\w \-.]", "", title).strip()
+        if not safe_title:
+            safe_title = "clip"
+        return f"{safe_title}{ext}"
+
+    @extend_schema(
+        summary="Download clip",
+        description="Genera presigned URL per il download della clip. "
+        "Il proprietario può sempre scaricare, "
+        "altri utenti solo se allow_download=True.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {"download_url": {"type": "string"}},
+            },
+            403: {
+                "type": "object",
+                "properties": {"detail": {"type": "string"}},
+            },
+        },
+    )
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="download",
+        permission_classes=[IsAuthenticated, OnlyUsersPermission],
+    )
+    def download(self, request, pk=None):
+        """Genera presigned URL con Content-Disposition: attachment per il download."""
+        video = self.get_object()
+
+        # Il proprietario può SEMPRE scaricare
+        if video.uploader != request.user and not video.allow_download:
+            return Response(
+                {"detail": "Il download non è abilitato per questa clip"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Genera presigned URL con Content-Disposition: attachment
+        safe_filename = self._sanitize_filename(video.title, video.file.name)
+        client = VideoOutputSerializer._get_minio_client()
+        download_url = client.presigned_get_object(
+            settings.MINIO_STORAGE_MEDIA_BUCKET_NAME,
+            video.file.name,
+            expires=timedelta(hours=1),
+            response_headers={
+                "response-content-disposition": (
+                    f'attachment; filename="{safe_filename}"'
+                )
+            },
+        )
+
+        return Response({"download_url": download_url})
 
     def get_serializer_class(self):
         logger.info(

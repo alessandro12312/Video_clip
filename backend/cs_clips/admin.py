@@ -95,7 +95,15 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "uploader", "tag", "views", "created_at", "contest")
+    list_display = (
+        "title",
+        "uploader",
+        "tag",
+        "views",
+        "allow_download",
+        "created_at",
+        "contest",
+    )
     list_filter = ("tag", "uploader", "created_at")
     search_fields = ("title", "uploader__username")
     autocomplete_fields = ["uploader", "contest"]

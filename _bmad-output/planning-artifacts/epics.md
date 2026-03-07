@@ -4,10 +4,13 @@ stepsCompleted:
   - step-02-design-epics
   - step-03-create-stories
   - step-04-final-validation
+  - epic-intermedio-added-2026-03-02
+  - step-02-party-mode-review-2026-03-02
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
   - _bmad-output/planning-artifacts/ux-design-specification.md
+lastEdited: '2026-03-02'
 ---
 
 # Video_clip - Epic Breakdown
@@ -40,30 +43,32 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 - FR15: Il sistema archivia le clip su storage cloud con URL di accesso autenticato a scadenza temporale
 - FR16: Il sistema mostra una modale di errore con opzione "Riprova" quando l'upload fallisce
 
-**Scoperta & Fruizione Contenuti (6 FR):**
-- FR17: Utente registrato può visualizzare un feed Home con le clip degli utenti seguiti
-- FR18: Utente può visualizzare la pagina dettaglio clip con player, commenti e metadati
+**Scoperta & Fruizione Contenuti (8 FR):**
+- FR17: Utente registrato può visualizzare un feed Home con le clip degli utenti seguiti, presentate come card a colonna singola con player video inline
+- FR18: Utente può visualizzare la pagina dettaglio clip con player espanso, sidebar commenti completa e lista completa di tutti i commenti
 - FR19: Le pagine dettaglio clip sono accessibili tramite URL diretto per la condivisione
 - FR20: Il sistema genera link preview ricche (titolo, thumbnail) per gli URL delle clip condivisi su piattaforme esterne
-- FR21: Il feed presenta le clip come card con thumbnail, titolo e metadati
-- FR22: Utente può navigare dalla card nel feed alla pagina dettaglio della clip
+- FR21: Il feed presenta le clip come card a colonna singola con player inline, sidebar commenti laterale e metadati (titolo, autore, tag, like)
+- FR22: Su desktop, l'utente può vedere un'anteprima animata della clip (primi 3-5 secondi in loop, senza audio) al passaggio del mouse sulla card
+- FR57: Utente può visualizzare un feed Esplora con clip pubbliche recenti, stesso layout card-as-player del feed Home
+- FR58: Utente può navigare dalla card nel feed alla pagina dettaglio completa della clip tramite bottone "Visualizza tutti i commenti"
 
-**Sistema Commenti & Interazioni (8 FR):**
+**Sistema Commenti & Interazioni (9 FR):**
 - FR23: Utente registrato può pubblicare un commento su una clip senza timestamp
 - FR24: Utente registrato può pubblicare un commento temporizzato su una clip con timestamp specifico
-- FR25: Il timestamp corrente del video viene pre-compilato nel form commento quando il video è in pausa
-- FR26: Utente può rimuovere il timestamp pre-suggerito per pubblicare un commento normale
+- FR25: Il form commento presenta un campo MM:SS sempre visibile. Quando l'utente pausa il video, il campo si popola automaticamente con il timestamp corrente
+- FR26: Quando l'utente compila manualmente il campo MM:SS, il video salta a quel secondo. L'utente può cancellare il valore per pubblicare un commento normale
 - FR27: Utente registrato può mettere like a un commento
 - FR28: Utente registrato può mettere like a una clip
-- FR29: La pagina dettaglio mostra tutti i commenti in vista gerarchica
-- FR30: La pagina dettaglio offre due viste commenti: "Tutti" (cronologica) e "Nel video" (solo temporizzati, ordinati per timestamp)
+- FR59: Utente registrato può assegnare un rating da 1 a 5 stelle a una clip nel feed. Il rating è modificabile e la media viene mostrata sulla card
+- FR29: La sidebar della card mostra i top commenti temporizzati organizzati per slot temporali (~1 slot ogni 3 secondi), con il commento più likato per slot
+- FR30: La lista sotto il player mostra tutti i commenti: temporizzati con badge minutaggio MM:SS e normali senza badge, in ordine cronologico
 
-**Popup & Loop di Engagement (6 FR):**
+**Popup & Loop di Engagement (5 FR):**
 - FR31: Il sistema identifica il commento con più like per ogni timestamp di una clip
 - FR32: Durante la riproduzione video, popup overlay mostrano il commento con più like per il timestamp corrente
 - FR33: I popup overlay scompaiono dopo 3 secondi con fade-out
 - FR34: I popup richiedono una soglia minima di 1 like per essere promossi
-- FR35: La Sidebar Dinamica mostra i commenti con più like per la clip corrente
 - FR36: Quando un commento viene disabilitato dalla moderazione, il sistema ricalcola il prossimo commento con più like per quel timestamp
 
 **Sistema Contest (13 FR):**
@@ -99,9 +104,11 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 - FR51: Utente registrato può visualizzare la propria lista notifiche
 - FR52: Il sistema mostra un badge con il conteggio delle notifiche non lette
 
+**Creazione & Gestione Contenuti (aggiuntivi):**
+- FR56: Utente registrato può eliminare le proprie clip caricate
+
 **Requisiti Aggiuntivi PRD:**
 - FR53: Utente può visualizzare il profilo di un altro utente tramite username
-- FR54: Il sistema valida la durata del video all'upload e rifiuta automaticamente clip fuori range 10s-1min
 - FR55: Admin può gestire contest tramite backoffice dedicato nel frontend (creazione, monitoraggio, chiusura manuale)
 
 ### NonFunctional Requirements
@@ -245,29 +252,31 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 - FR16: Epic 2 — Modale errore upload con retry
 
 **Scoperta & Fruizione Contenuti:**
-- FR17: Epic 2 — Feed Home (following)
-- FR18: Epic 2 — Pagina dettaglio clip
+- FR17: Epic 2 — Feed Home (following) → layout aggiornato in Epic Intermedio
+- FR18: Epic 2 — Pagina dettaglio clip → layout aggiornato in Epic Intermedio
 - FR19: Epic 2 — URL diretto per condivisione
 - FR20: Epic 2 — Link preview SSR (OG tags)
-- FR21: Epic 2 — Card nel feed
-- FR22: Epic 2 — Navigazione card → dettaglio
+- FR21: Epic Intermedio — Card a colonna singola con player inline e sidebar commenti
+- FR22: Epic Intermedio — Hover preview desktop (3-5s loop, muted)
+- FR57: Epic 2 → layout aggiornato in Epic Intermedio — Feed Esplora
+- FR58: Epic Intermedio — Bottone "Visualizza tutti i commenti" card→dettaglio
 
 **Sistema Commenti & Interazioni:**
 - FR23: Epic 2 — Commento senza timestamp
 - FR24: Epic 2 — Commento temporizzato con timestamp
-- FR25: Epic 2 — Timestamp pre-compilato alla pausa
-- FR26: Epic 2 — Rimozione timestamp pre-suggerito
+- FR25: Epic Intermedio — Input MM:SS bidirezionale (player→campo alla pausa)
+- FR26: Epic Intermedio — Input MM:SS bidirezionale (campo→player al input manuale)
+- FR59: Epic 2 (backend) → Epic Intermedio (UI nella card) — Rating 1-5 stelle nel feed
 - FR27: Epic 3 — Like su commento (richiede CommentLike)
 - FR28: Epic 3 — Like su clip (richiede VideoLike)
-- FR29: Epic 2 — Vista commenti gerarchica
-- FR30: Epic 2 — Dual-view "Tutti" / "Nel video"
+- FR29: Epic Intermedio — Sidebar card con top commenti temporizzati per slot (~1/3s)
+- FR30: Epic Intermedio — Lista unificata sotto player (temporizzati con badge + normali)
 
 **Popup & Loop di Engagement:**
 - FR31: Epic 3 — Commento con più like per timestamp
 - FR32: Epic 3 — Popup overlay durante riproduzione
 - FR33: Epic 3 — Popup fade-out dopo 3s
 - FR34: Epic 3 — Soglia minima 1 like per popup
-- FR35: Epic 3 — Sidebar Dinamica (commenti più likati)
 - FR36: Epic 3 — Ricalcolo popup dopo disabilitazione commento
 
 **Sistema Contest — Tipologia A Settimanale:**
@@ -304,10 +313,10 @@ This document provides the complete epic and story breakdown for Video_clip, dec
 
 **Requisiti Aggiuntivi PRD:**
 - FR53: Epic 1 — Profilo per username (endpoint by-username)
-- FR54: Epic 2 — Validazione durata con reject automatico
 - FR55: Epic 4 (parziale) — Gestione contest da Django Admin
+- FR56: Epic 2 — Delete video
 
-**Copertura:** 55 FR totali → 54 coperti, 1 escluso MVP (FR10 transcoding).
+**Copertura:** 64 FR totali → 63 coperti, 1 escluso MVP (FR10 transcoding).
 
 ## Epic List
 
@@ -322,14 +331,20 @@ Gli utenti possono registrarsi, accedere, gestire il profilo completo (con bio),
 **FRs coperti:** FR1, FR2, FR3, FR4, FR5, FR6, FR53
 **Include:** endpoint `by-username`, `followers_count`/`following_count`/`is_followed_by_me` nel UserSerializer, campo `bio` User, paginazione followers/following, fix bug `Response` import, fix `RoleBasedPermission`, endpoint `?uploader=` su video
 
-### Epic 2: Upload, Player e Commenti
-Gli utenti caricano clip con validazione completa, le guardano con il player integrato, commentano (con e senza timestamp), vedono i commenti nella dual-view, navigano nel feed Home, condividono clip via link con preview SSR, scaricano clip proprie e altrui.
-**FRs coperti:** FR7, FR8, FR9, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR29, FR30, FR54
-**Include:** campo `allow_download` Video, validazione durata con reject (FR54), lazy re-fetch presigned URL (D3), hook `useDeleteComment`/`useDeleteVideo` frontend
+### Epic 2: Upload, Player e Commenti *(completato)*
+Gli utenti caricano clip con validazione completa, le guardano con il player integrato, commentano (con e senza timestamp), navigano nel feed Home e Esplora, condividono clip via link con preview SSR, scaricano clip proprie e altrui, eliminano le proprie clip.
+**FRs coperti:** FR7, FR8, FR9, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR20, FR23, FR24, FR56, FR57, FR59 (backend)
+**Include:** campo `allow_download` Video, validazione durata con reject, lazy re-fetch presigned URL (D3), thumbnail generation, feed Esplora, delete video, rating CRUD backend
+**Nota:** FR21, FR22, FR25, FR26, FR29, FR30 hanno implementazione base in Epic 2. L'Epic Intermedio li trasforma nel paradigma card-as-player.
+
+### Epic Intermedio: Redesign Layout Card-as-Player *(prossimo)*
+Trasformazione del layout feed e della pagina dettaglio dal paradigma griglia/tab al paradigma card-as-player: colonna singola con player video inline, sidebar commenti laterale per slot temporizzati, input MM:SS bidirezionale, hover preview desktop, bottone navigazione a dettaglio. Layout identico per Home, Esplora e Profilo.
+**FRs coperti:** FR21, FR22, FR25, FR26, FR29, FR30, FR58, FR59 (UI card)
+**Include:** refactor ClipCard → card-as-player, rimozione tab Tutti/Nel video → vista unificata, sidebar slot temporizzati, input MM:SS bidirezionale, hover preview desktop, lazy loading viewport-based, bottone "Visualizza tutti i commenti", rating stelle nella card
 
 ### Epic 3: Like, Popup e Engagement Loop
-Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La Sidebar Dinamica mostra i commenti più likati. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
-**FRs coperti:** FR27, FR28, FR31, FR32, FR33, FR34, FR35, FR36
+Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La sidebar dinamica (già creata in Epic Intermedio) si popola con dati reali basati sui like. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
+**FRs coperti:** FR27, FR28, FR31, FR32, FR33, FR34, FR36
 **Include:** modelli `VideoLike` e `CommentLike`, endpoint CRUD like, hook frontend `useVideoLike`/`useCommentLike`, UI bottoni like, aggiornamento popup/sidebar con dati reali, ricalcolo popup dopo moderazione
 
 ### Epic 4: Contest Settimanale
@@ -709,9 +724,175 @@ So that ho pieno controllo sui miei contenuti e interazioni.
 
 ---
 
+## Epic Intermedio: Redesign Layout Card-as-Player
+
+Trasformazione del layout feed e della pagina dettaglio dal paradigma griglia/tab al paradigma card-as-player: colonna singola con player video inline, sidebar commenti laterale per slot temporizzati, input MM:SS bidirezionale, hover preview desktop. Layout identico per Home, Esplora e Profilo.
+
+**Prerequisiti:** Epic 2 completato (player, commenti, feed Home/Esplora funzionanti con layout attuale).
+
+**Nota parallelizzazione:** Le Story I.1 e I.2 possono procedere in parallelo (layout e input MM:SS sono indipendenti). Story I.3 (hover preview) richiede che il layout card-as-player (I.1) sia completato. Story I.4 (performance) è l'ultima.
+
+### Story I.1: Layout Card-as-Player e Vista Commenti Unificata
+
+As a utente registrato,
+I want vedere le clip nel feed come card a colonna singola con player inline e sidebar commenti laterale,
+So that posso guardare, commentare e interagire con ogni clip direttamente nel feed senza cambiare pagina.
+
+**Acceptance Criteria:**
+
+**Given** un utente autenticato nel feed Home o Esplora
+**When** la pagina si carica
+**Then** le clip sono presentate come card a colonna singola (non griglia) (FR21)
+**And** ogni card contiene: player video inline, sidebar commenti laterale, form commento, metadati (titolo, autore, tag, rating medio)
+**And** la card ha dimensione contenuta: la card successiva deve essere parzialmente visibile nel viewport (pattern scroll hint)
+**And** il layout è identico per Home, Esplora e Profilo
+
+**Given** una card nel feed
+**When** l'utente guarda la sidebar commenti laterale
+**Then** mostra i top commenti temporizzati organizzati per slot (~1 slot ogni 3 secondi della durata video) (FR29)
+**And** per ogni slot: il commento con più like (placeholder: più recente se nessun like — `like_count` arriva in Epic 3)
+**And** solo gli slot con commenti reali sono visibili (no slot vuoti)
+**And** la sidebar mostra max 5-6 slot visibili con scroll verticale (video lunghi possono avere 20 slot)
+
+**Given** una card nel feed
+**When** l'utente guarda la lista sotto il player
+**Then** mostra tutti i commenti in ordine cronologico (FR30)
+**And** i commenti temporizzati hanno badge MM:SS visibile
+**And** i commenti normali non hanno badge
+**And** NON ci sono tab "Tutti"/"Nel video" (vista unificata)
+
+**Given** una card nel feed
+**When** l'utente clicca "Visualizza tutti i commenti"
+**Then** naviga alla pagina dettaglio `/clip/{id}` (FR58)
+**And** la pagina dettaglio ha lo stesso layout espanso: player + sidebar completa + lista completa di TUTTI i commenti
+
+**Given** la card nel feed con rating
+**When** l'utente visualizza i metadati
+**Then** il rating medio (stelle) è visibile nella card (FR59 — UI)
+
+**Given** un viewport desktop (>1024px)
+**When** il layout si renderizza
+**Then** sidebar commenti è posizionata lateralmente al player
+**And** sidebar navigazione sinistra è presente (stile Reddit/Discord)
+
+**Given** un viewport mobile (<768px)
+**When** il layout si renderizza
+**Then** sidebar commenti è posizionata sotto il player (non laterale)
+**And** MobileBottomBar con Home, Esplora, Upload, Profilo
+
+**Technical Notes:**
+- Refactor `ClipCard` (`clip-card.tsx`) → nuovo componente `CardAsPlayer` con player inline + sidebar + form
+- Refactor `FeedGrid` (`feed-grid.tsx`) → layout single-column
+- Rimuovere componente `Tabs` ("Tutti"/"Nel video") da `CommentSection`
+- `CommentList` diventa lista unificata con badge condizionale
+- Creare `CommentSidebar` per slot temporizzati
+- Calcolo slot: `Math.ceil(video.duration / 3)` slot, raggruppare commenti per `Math.floor(timestamp_second / 3)`
+
+### Story I.2: Input Timestamp MM:SS Bidirezionale
+
+As a utente registrato,
+I want un campo MM:SS sempre visibile nel form commento che comunica bidirezionalmente con il player,
+So that posso commentare al momento esatto che mi interessa con zero friction.
+
+**Acceptance Criteria:**
+
+**Given** il form commento con campo MM:SS visibile
+**When** l'utente pausa il video
+**Then** il campo MM:SS si popola automaticamente con il timestamp corrente del video (FR25 — direzione player→campo)
+
+**Given** il campo MM:SS con un valore
+**When** l'utente modifica manualmente il valore MM:SS (es. digita "00:25")
+**Then** il video salta a quel secondo (FR26 — direzione campo→player)
+
+**Given** il campo MM:SS con un valore
+**When** l'utente cancella il valore (svuota il campo)
+**Then** il commento verrà pubblicato come commento normale senza timestamp
+
+**Given** il campo MM:SS
+**When** l'utente inserisce un valore > durata del video
+**Then** il campo mostra errore di validazione "Timestamp oltre la durata del video"
+
+**Given** il campo MM:SS
+**When** è vuoto e il video non è in pausa
+**Then** resta vuoto (non si auto-popola durante la riproduzione, solo alla pausa)
+
+**Technical Notes:**
+- Refactor `CommentForm` (`comment-form.tsx`): campo MM:SS come input controllato `<input type="text" pattern="[0-9]{1,2}:[0-9]{2}" />`
+- Sync bidirezionale via `ref` al player: `videoRef.current.currentTime = seconds` (campo→player), `onPause` handler popola il campo (player→campo)
+- Validazione: `parseMMSS(value) <= video.duration`
+- Il campo è SEMPRE visibile (non nascosto in un accordion o condizionale)
+- Placeholder del campo: `"Àncora al video (MM:SS)"` — micro-copy che chiarisce l'intento per utenti nuovi
+
+### Story I.3: Hover Preview Video su Desktop
+
+As a utente desktop,
+I want vedere un'anteprima animata della clip quando passo il mouse sulla card,
+So that posso decidere rapidamente se voglio guardare la clip completa.
+
+**Acceptance Criteria:**
+
+**Given** un viewport desktop (>1024px) e una card nel feed
+**When** l'utente passa il mouse sopra la card
+**Then** il video mostra un'anteprima animata dei primi 3-5 secondi in loop (FR22)
+**And** l'anteprima è senza audio (muted)
+
+**Given** un'anteprima animata in corso
+**When** il mouse esce dalla card
+**Then** l'anteprima si interrompe e torna alla thumbnail statica
+
+**Given** un'anteprima animata in corso
+**When** l'utente clicca sulla card
+**Then** il video inizia il playback completo con audio
+
+**Given** un viewport mobile (<768px)
+**When** l'utente tocca una card
+**Then** NON c'è hover preview (il tap avvia direttamente il playback)
+
+**Technical Notes:**
+- `onMouseEnter`: imposta `video.currentTime = 0`, chiama `video.play()` con `muted = true`, loop sui primi 3-5 secondi via `timeupdate` handler
+- `onMouseLeave`: chiama `video.pause()`, mostra thumbnail
+- `onClick`: transizione a playback completo, `muted = false`
+- Preload: `preload="metadata"` per evitare download completo prima dell'hover
+
+### Story I.4: Performance Multi-Player e Lazy Loading
+
+As a utente,
+I want che il feed con molte card non degradi le performance,
+So that posso scorrere fluidamente anche con 20+ card caricate.
+
+**Acceptance Criteria:**
+
+**Given** un feed con 20+ card
+**When** l'utente scrolla
+**Then** solo il player nel viewport è attivo (in riproduzione o pronto per hover) (NFR multi-player)
+**And** gli altri player mostrano thumbnail statico
+**And** il frame rate di scroll non degrada visibilmente
+
+**Given** una card che entra nel viewport
+**When** l'utente scrolla fino a vederla
+**Then** il player si inizializza (thumbnail → player pronto)
+**And** i dati commenti della sidebar vengono fetchati
+
+**Given** una card che esce dal viewport
+**When** l'utente scrolla oltre
+**Then** il player si de-inizializza (player → thumbnail)
+**And** la riproduzione si interrompe se era in corso
+
+**Given** il feed con infinite scroll
+**When** l'utente raggiunge il fondo della pagina
+**Then** nuove card vengono caricate senza interruzioni
+
+**Technical Notes:**
+- `IntersectionObserver` per rilevare card nel viewport
+- Stato `isInViewport` per ogni card → controlla se il `<video>` è montato o solo `<img>` thumbnail
+- Un solo player attivo alla volta: se una card entra nel viewport con playback, le altre si pausano
+- `useInfiniteQuery` già implementato — mantenere, solo aggiungere logica viewport
+
+---
+
 ## Epic 3: Like, Popup e Engagement Loop
 
-Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La Sidebar Dinamica mostra i commenti più likati. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
+Gli utenti mettono like a clip e commenti. Il commento con più like per ogni timestamp diventa popup overlay visibile a tutti durante la riproduzione. La sidebar dinamica (creata in Epic Intermedio) si popola con dati reali basati sui like. Il commentatore diventa co-protagonista della clip — il cuore del prodotto.
 
 ### Story 3.1: Modelli VideoLike e CommentLike Backend
 

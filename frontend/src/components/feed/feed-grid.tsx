@@ -1,6 +1,6 @@
 import type { Video } from "@/types";
-import { ClipCard } from "./clip-card";
-import { ClipCardSkeleton } from "./clip-card-skeleton";
+import { CardAsPlayer } from "./card-as-player";
+import { CardAsPlayerSkeleton } from "./card-as-player-skeleton";
 
 interface FeedGridProps {
   videos: Video[];
@@ -10,18 +10,18 @@ interface FeedGridProps {
 export function FeedGrid({ videos, isLoading }: FeedGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <ClipCardSkeleton key={i} />
+      <div className="flex flex-col gap-6">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <CardAsPlayerSkeleton key={i} />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="flex flex-col gap-6">
       {videos.map((video) => (
-        <ClipCard key={video.id} video={video} />
+        <CardAsPlayer key={video.id} video={video} />
       ))}
     </div>
   );

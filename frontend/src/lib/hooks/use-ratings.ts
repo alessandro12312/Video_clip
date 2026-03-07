@@ -16,3 +16,16 @@ export function useCreateRating(videoId: number) {
     },
   });
 }
+
+export function useUpdateRating(videoId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ratingId, value }: { ratingId: number; value: number }) =>
+      ratingsApi.update(ratingId, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.videos.detail(videoId),
+      });
+    },
+  });
+}

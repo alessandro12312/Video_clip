@@ -31,6 +31,16 @@ class Video(models.Model):
         # #TODO: rimuovere default in produzione
         default=0,
     )
+    allow_download = models.BooleanField(
+        default=True,
+        help_text="Consenti il download della clip ad altri utenti",
+    )
+    thumbnail = models.ImageField(
+        upload_to="thumbnails/",
+        blank=True,
+        null=True,
+        help_text="Thumbnail auto-generato dal primo frame del video",
+    )
 
     def __str__(self):
         return self.title

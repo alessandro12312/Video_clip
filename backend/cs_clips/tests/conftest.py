@@ -23,6 +23,18 @@ def create_authenticated_user(username="testuser", password="testpass123"):
     return user
 
 
+def create_toconfirm_user(username="pendinguser", password="testpass123"):
+    """Crea utente con gruppo 'toconfirm' (sola lettura)."""
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        email=f"{username}@test.com",
+    )
+    group, _ = Group.objects.get_or_create(name="toconfirm")
+    user.groups.add(group)
+    return user
+
+
 def create_admin_user(username="adminuser", password="adminpass123"):
     """Crea utente admin con gruppo 'admin' e is_staff=True."""
     user = User.objects.create_user(

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { PaginatedResponse, Video, TopRatedRange } from "@/types";
+import type { PaginatedResponse, Video, TopRatedRange, DownloadResponse } from "@/types";
 
 // Normalize response: backend may return a plain array instead of paginated format
 function normalizePaginated<T>(data: PaginatedResponse<T> | T[]): PaginatedResponse<T> {
@@ -13,6 +13,11 @@ export const videosApi = {
   getAll: (page = 1) =>
     apiClient
       .get<PaginatedResponse<Video>>("/videos/", { params: { page } })
+      .then((r) => normalizePaginated(r.data)),
+
+  getByUploader: (uploaderId: number, page = 1) =>
+    apiClient
+      .get<PaginatedResponse<Video>>("/videos/", { params: { uploader: uploaderId, page } })
       .then((r) => normalizePaginated(r.data)),
 
   getById: (id: number) =>
@@ -47,6 +52,9 @@ export const videosApi = {
 
   incrementViews: (id: number) =>
     apiClient.post<{ views: number }>(`/videos/${id}/views/`).then((r) => r.data),
+
+  download: (id: number) =>
+    apiClient.get<DownloadResponse>(`/videos/${id}/download/`).then((r) => r.data),
 
   delete: (id: number) => apiClient.delete(`/videos/${id}/`),
 };

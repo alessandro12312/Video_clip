@@ -9,7 +9,7 @@ export const queryKeys = {
     followingAll: ["videos", "following"] as const,
     topRated: (range: TopRatedRange) =>
       ["videos", "top-rated", range] as const,
-    byUser: (username: string) => ["videos", "user", username] as const,
+    byUser: (userId: number) => ["videos", "user", userId] as const,
   },
   comments: {
     byVideo: (videoId: number) => ["comments", "video", videoId] as const,

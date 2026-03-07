@@ -31,19 +31,13 @@ export function useTopRatedVideos(range: TopRatedRange = "all") {
   });
 }
 
-export function useUserVideos(username: string) {
+export function useUserVideos(userId: number) {
   return useInfiniteQuery({
-    queryKey: queryKeys.videos.byUser(username),
-    queryFn: ({ pageParam = 1 }) => videosApi.getAll(pageParam),
+    queryKey: queryKeys.videos.byUser(userId),
+    queryFn: ({ pageParam = 1 }) => videosApi.getByUploader(userId, pageParam),
     getNextPageParam: (lastPage) => extractPageFromUrl(lastPage.next),
     initialPageParam: 1,
-    select: (data) => ({
-      ...data,
-      pages: data.pages.map((page) => ({
-        ...page,
-        results: page.results.filter((v) => v.uploader === username),
-      })),
-    }),
+    enabled: userId > 0,
   });
 }
 
@@ -65,6 +59,31 @@ export function useUploadVideo() {
     }) => videosApi.upload(data, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+    },
+  });
+}
+
+export function useDeleteVideo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (videoId: number) => videosApi.delete(videoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.videos.all });
+    },
+  });
+}
+
+export function useDownloadVideo() {
+  return useMutation({
+    mutationFn: (videoId: number) => videosApi.download(videoId),
+    onSuccess: (data) => {
+      const a = document.createElement("a");
+      a.href = data.download_url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     },
   });
 }

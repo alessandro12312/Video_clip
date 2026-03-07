@@ -2,7 +2,10 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from cs_clips.api.ratings.rating_serializers import RatingSerializer
+from cs_clips.api.ratings.rating_serializers import (
+    RatingSerializer,
+    RatingUpdateSerializer,
+)
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.models import Rating
 from cs_clips.permissions import RoleBasedPermission
@@ -11,7 +14,13 @@ from cs_clips.permissions import RoleBasedPermission
 class RatingViewSet(viewsets.ModelViewSet):
     queryset = Rating.objects.all()
     serializer_class = RatingSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
     permission_classes = [IsAuthenticated, RoleBasedPermission]
+
+    def get_serializer_class(self):
+        if self.action == "partial_update":
+            return RatingUpdateSerializer
+        return RatingSerializer
 
     @extend_schema(
         parameters=[

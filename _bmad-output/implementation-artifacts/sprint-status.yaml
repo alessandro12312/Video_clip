@@ -65,22 +65,32 @@ development_status:
   # --- Epic 1: Core Platform — Allineamento Backend ---
   # Auth end-to-end, profilo con bio, by-username, follow/unfollow paginato, filtro video per uploader.
   # Il frontend esiste già — queste storie allineano il backend.
-  epic-1: in-progress
+  epic-1: done
   1-1-registrazione-e-login-end-to-end: done                              # FR1, FR2, JWT refresh rotation, errori in italiano, 13 test
   1-2-profilo-utente-completo-con-bio-e-by-username: done                # FR3, FR53, campo bio, endpoint by-username, Count annotation
-  1-3-follow-unfollow-e-liste-paginate: backlog                           # FR4, FR5, FR6, paginazione followers/following (fix array piatti)
-  1-4-filtro-video-per-uploader-backend: backlog                          # filterset_fields uploader, fix useUserVideos client-side
-  epic-1-retrospective: optional
+  1-3-follow-unfollow-e-liste-paginate: done                       # FR4, FR5, FR6, paginazione followers/following (fix array piatti)
+  1-4-filtro-video-per-uploader-backend: done                              # filterset_fields uploader, fix useUserVideos client-side — review OK
+  epic-1-retrospective: done                                            # epic-1-retro-2026-03-01.md
 
   # --- Epic 2: Upload, Player e Commenti ---
   # Upload con validazione completa, download, presigned URL refresh, feed, commenti dual-view, delete video.
-  epic-2: backlog
-  2-1-upload-clip-con-validazione-completa: backlog                       # FR7-9, FR11-12, FR15-16, FR54, allow_download, MoviePy edge case
-  2-2-download-clip-e-presigned-url-refresh: backlog                      # FR13, FR14, D3 (lazy re-fetch onerror → spinner → retry max 2)
-  2-3-feed-home-e-navigazione-clip: backlog                               # FR17-22, OG tags SSR, EmptyState
-  2-4-commenti-dual-layer-con-timestamp: backlog                          # FR23-26, FR29-30, dual-view "Tutti"/"Nel video", useDeleteComment
-  2-5-delete-video-e-operazioni-crud-mancanti: backlog                    # useDeleteVideo, useUpdateRating
-  epic-2-retrospective: optional
+  epic-2: done
+  2-1-upload-clip-con-validazione-completa: done                                # FR7-9, FR11-12, FR15-16, FR54, allow_download, MoviePy edge case
+  2-2-download-clip-e-presigned-url-refresh: done                  # FR13, FR14, D3 (lazy re-fetch onerror → spinner → retry max 2)
+  2-3-feed-home-e-navigazione-clip: done                                  # FR17-22, OG tags SSR, EmptyState, thumbnail generation — reviewed + 8 fix
+  2-4-commenti-dual-layer-con-timestamp: done                             # FR23-26, FR29-30, dual-view "Tutti"/"Nel video", useDeleteComment — reviewed + 3 fix
+  2-5-delete-video-e-operazioni-crud-mancanti: done                # useDeleteVideo, useUpdateRating, my_rating annotation, http_method_names — reviewed + 5 fix
+  epic-2-retrospective: done                                           # epic-2-retro-2026-03-01.md
+
+  # --- Epic Intermedio: Redesign Layout Card-as-Player ---
+  # Layout card-as-player (1 colonna), sidebar commenti temporizzati, input MM:SS bidirezionale,
+  # hover preview desktop, performance multi-player (IntersectionObserver, single active player).
+  epic-intermedio: done
+  I-1-layout-card-as-player-e-vista-commenti-unificata: done           # forwardRef VideoPlayer, CommentSidebar slot 3s, feed colonna singola, rimozione tabs
+  I-2-input-timestamp-mm-ss-bidirezionale: done                        # formatMMSS/parseMMSS, campo sempre visibile, player↔field sync
+  I-3-hover-preview-video-su-desktop: done                             # State machine idle/hovering/playing, preview loop 5s, mobile direct play
+  I-4-performance-multi-player-e-lazy-loading: done                    # IntersectionObserver 200px, useComments enabled, single player via CustomEvent, viewport exit reset
+  epic-intermedio-retrospective: done                                  # epic-intermedio-retro-2026-03-02.md
 
   # --- Epic 3: Like, Popup e Engagement Loop ---
   # Modelli VideoLike/CommentLike, UI like, popup overlay, sidebar dinamica, spareggio contest.

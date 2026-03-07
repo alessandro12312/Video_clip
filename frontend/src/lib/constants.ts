@@ -28,3 +28,4 @@ export const NAV_ITEMS = [
 export const POPUP_DISPLAY_DURATION_MS = 4000;
 export const VIEW_COUNT_DELAY_MS = 5000;
 export const COMMENT_MARKER_SIZE_PX = 6;
+export const COMMENT_SLOT_SECONDS = 3;
