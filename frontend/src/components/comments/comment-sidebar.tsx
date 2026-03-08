@@ -58,7 +58,7 @@ export function CommentSidebar({ comments, onTimestampClick, maxVisible = 6, cur
   return (
     <div className="flex flex-col gap-1">
       <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {isLive ? "Chat live" : "Chat"}
+        {isLive ? "Chat live" : "Commenti temporizzati"}
       </h3>
       <ScrollArea style={{ maxHeight: `${maxVisible * 3.5}rem` }}>
         <div className="space-y-0.5 pr-2">

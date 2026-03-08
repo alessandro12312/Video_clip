@@ -1,6 +1,6 @@
 # Analisi Albero Sorgente — Video_clip
 
-> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+> Aggiornato il 2026-03-08 | Deep Scan | Workflow: document-project v1.2.0
 
 ---
 
@@ -151,24 +151,26 @@ frontend/
     │   │   └── settings/page.tsx    # Impostazioni
     │   │
     │   └── clip/[id]/           # 🎬 Dettaglio video (route dinamica)
-    │       └── page.tsx
+    │       ├── layout.tsx       # Layout condizionale (auth/public)
+    │       ├── page.tsx         # Server component (metadata + ID)
+    │       └── clip-content.tsx # Client component (player, commenti, rating)
     │
-    ├── components/              # 🧩 Componenti (52 totali)
+    ├── components/              # 🧩 Componenti (54 totali)
     │   ├── layout/              # Navigazione (5): Sidebar, Header, BottomBar, NavBar, UserMenu
-    │   ├── feed/                # Feed (3): ClipCard, Skeleton, Grid
+    │   ├── feed/                # Feed (5): CardAsPlayer, CardAsPlayerSkeleton, FeedGrid, ClipCard*, ClipCardSkeleton*
     │   ├── video/               # Video (5): Player, Controls, ProgressBar, Popup, Marker
-    │   ├── comments/            # Commenti (5): Section, Form, List, Popup, Sidebar
+    │   ├── comments/            # Commenti (5): Section, Form, List, Item, CommentSidebar
     │   ├── rating/              # Rating (1): StarRating
     │   ├── user/                # Utente (7): Avatar, Follow, Profile, Search, etc.
     │   ├── shared/              # Condivisi (8): EmptyState, Error, Spinner, InfiniteScroll, etc.
-    │   └── ui/                  # shadcn/ui (17): Button, Card, Dialog, Input, etc.
+    │   └── ui/                  # shadcn/ui (18): AlertDialog, Button, Card, Dialog, Input, etc.
     │
     ├── lib/                     # 📚 Librerie
     │   ├── api/                 # HTTP: client.ts + 6 moduli (auth, users, videos, etc.)
-    │   ├── hooks/               # React Query: 21 hooks
+    │   ├── hooks/               # React Query + utility: 22 hooks (incl. useSnapScroll)
     │   ├── query-keys.ts        # Factory chiavi cache
     │   ├── constants.ts         # Config app
-    │   └── utils.ts             # cn(), format, extractPage
+    │   └── utils.ts             # cn(), format, extractPage, formatMMSS, parseMMSS
     │
     ├── providers/               # 🔌 Providers (3)
     │   ├── auth-provider.tsx    # JWT auth (in-memory + localStorage)
@@ -184,9 +186,9 @@ frontend/
 
 | Directory | Scopo | Frequenza Modifica |
 |---|---|---|
-| `src/components/` | Componenti UI (52 totali) | Alta |
+| `src/components/` | Componenti UI (54 totali) | Alta |
 | `src/lib/api/` | Client HTTP e moduli API | Media |
-| `src/lib/hooks/` | React Query hooks (21) | Media |
+| `src/lib/hooks/` | React Query + utility hooks (22) | Media |
 | `src/app/` | Pagine e layout (13 pagine) | Alta |
 | `src/providers/` | Auth, Query, Transition | Bassa |
 

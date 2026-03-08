@@ -1,6 +1,6 @@
 # Panoramica Progetto — Video_clip
 
-> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+> Aggiornato il 2026-03-08 | Deep Scan | Workflow: document-project v1.2.0
 
 ---
 
@@ -16,17 +16,20 @@
 |---|---|---|
 | Registrazione e login (JWT) | Implementato | Token rotation, refresh automatico |
 | Caricamento video | Implementato | Upload su MinIO, estrazione durata FFmpeg |
-| Feed video (following + esplora) | Implementato | Infinite scroll, paginazione |
+| Feed video (following + esplora) | Implementato | Snap scroll card-by-card, card-as-player inline |
 | Classifica top-rated | Implementato | Filtro temporale (giorno/settimana/mese/anno/tutti) |
 | Sistema rating 1-5 stelle | Implementato | Un voto per utente per video |
-| Commenti con timestamp | Implementato | Marker sulla timeline, popup al secondo corretto |
+| Commenti con timestamp | Implementato | Popup overlay + sidebar chat, marker timeline |
 | Follow/unfollow utenti | Implementato | Optimistic updates nel frontend |
 | Contest settimanali | Implementato | Auto-chiusura con spareggio ponderato |
 | Profilo utente | Implementato | Bio, video caricati, followers/following |
-| Video likes | Non implementato | Modello VideoLike da creare |
+| Download video | Implementato | Campo allow_download, DownloadButton |
+| Eliminazione video | Implementato | Solo proprietario, AlertDialog conferma |
+| Eliminazione commenti | Implementato | Solo autore, con invalidazione cache |
+| Vista pubblica clip | Implementato | Pagina clip accessibile senza login (SSR metadata) |
+| Video likes | Non implementato | Bottone placeholder presente, modello VideoLike da creare |
 | Comment likes | Non implementato | Modello CommentLike da creare |
 | Notifiche | Non implementato | Modello Notification da creare |
-| Download video | Non implementato | Campo allow_download da aggiungere |
 
 ---
 
@@ -104,8 +107,8 @@
 |---|---|
 | Endpoint API | 35 |
 | Modelli dati | 5 + 3 M2M |
-| Componenti frontend | 52 |
-| React Query hooks | 21 |
+| Componenti frontend | 54 |
+| React Query hooks | 22 |
 | Pagine frontend | 13 |
 
 ---
@@ -118,7 +121,7 @@
 - [Integrazione](./integration-architecture.md) — Come le parti comunicano
 - [Contratti API](./api-contracts-backend.md) — 35 endpoint con request/response
 - [Modelli Dati](./data-models-backend.md) — Schema database, relazioni, vincoli, ER
-- [Componenti Frontend](./component-inventory-frontend.md) — 52 componenti inventariati
+- [Componenti Frontend](./component-inventory-frontend.md) — 54 componenti inventariati
 - [State Management](./state-management-frontend.md) — React Query hooks, API layer, tipi
 - [Albero Sorgente](./source-tree-analysis.md) — Struttura directory annotata
 - [Guida Sviluppo](./development-guide.md) — Setup, comandi, convenzioni

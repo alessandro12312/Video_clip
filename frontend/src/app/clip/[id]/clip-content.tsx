@@ -32,7 +32,7 @@ import { useCreateRating, useUpdateRating } from "@/lib/hooks/use-ratings";
 import { useIsDesktop } from "@/lib/hooks/use-media-query";
 import { formatRelativeDate, formatCount, formatTimestamp } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/constants";
-import { Eye, Star, LogIn, Trash2 } from "lucide-react";
+import { Eye, Heart, MessageCircle, Monitor, Star, LogIn, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Comment } from "@/types";
@@ -56,6 +56,10 @@ export function ClipContent({ videoId }: ClipContentProps) {
   const { mutate: deleteComment } = useDeleteComment(videoId);
 
   const [pauseTimestamp, setPauseTimestamp] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"popup" | "chat">("popup");
+
+  const EMPTY_POPUP_MAP = useMemo(() => new Map<number, Comment>(), []);
+  const EMPTY_MARKERS: number[] = useMemo(() => [], []);
 
   // Build popup map: Map<second, top comment for that second>
   const popupMap = useMemo(() => {
@@ -227,8 +231,8 @@ export function ClipContent({ videoId }: ClipContentProps) {
             src={videoSrc}
             videoId={video.id}
             duration={video.duration}
-            popupMap={popupMap}
-            markerPositions={markerPositions}
+            popupMap={viewMode === "popup" ? popupMap : EMPTY_POPUP_MAP}
+            markerPositions={viewMode === "popup" ? markerPositions : EMPTY_MARKERS}
             onPause={handlePause}
             onRefreshUrl={handleRefreshUrl}
           />
@@ -261,10 +265,34 @@ export function ClipContent({ videoId }: ClipContentProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-7 px-2 ${viewMode === "chat" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+              onClick={() => setViewMode((m) => (m === "popup" ? "chat" : "popup"))}
+              title={viewMode === "popup" ? "Mostra chat laterale" : "Mostra popup sul video"}
+            >
+              {viewMode === "popup" ? (
+                <MessageCircle className="h-3.5 w-3.5 sm:mr-1" />
+              ) : (
+                <Monitor className="h-3.5 w-3.5 sm:mr-1" />
+              )}
+              <span className="hidden sm:inline text-xs">{viewMode === "popup" ? "Chat" : "Popup"}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-red-500 h-7 px-2 opacity-40"
+              disabled
+              title="Mi piace (in arrivo)"
+            >
+              <Heart className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline text-xs">Mi piace</span>
+            </Button>
+            <span className="flex items-center gap-1 ml-2">
               <Eye className="h-3.5 w-3.5" />
-              {formatCount(video.views)} visualizzazioni
+              {formatCount(video.views)}
             </span>
             <span>{formatRelativeDate(video.created_at)}</span>
             <DownloadButton
@@ -331,7 +359,7 @@ export function ClipContent({ videoId }: ClipContentProps) {
         )}
       </div>
 
-      {isDesktop && (
+      {isDesktop && viewMode === "chat" && (
         <aside className="w-72 shrink-0">
           <div className="sticky top-4">
             <CommentSidebar

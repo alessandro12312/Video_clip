@@ -34,7 +34,7 @@ export default function MainLayout({
         <Header />
         <DesktopNavbar />
 
-        <main className="flex-1 overflow-y-auto p-4 pb-[var(--bottom-bar-height)] lg:pb-4 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto px-2 py-4 sm:px-4 pb-[var(--bottom-bar-height)] lg:pb-4 scrollbar-thin">
           {children}
         </main>
       </div>

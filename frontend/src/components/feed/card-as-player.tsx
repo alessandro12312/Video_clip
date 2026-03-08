@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Eye, ExternalLink, Heart, MessageCircle, MessageSquare, Monitor, Play, X } from "lucide-react";
+import { Eye, ExternalLink, Heart, MessageCircle, MessageSquare, Monitor, Play } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VideoPlayer, type VideoPlayerHandle } from "@/components/video/video-player";
@@ -161,35 +161,17 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
     setVideoState("playing");
   }, [video.id]);
 
-  return (
-    <Card ref={intersectionRef} className="overflow-hidden border-border/50">
-      {/* Title + view mode toggle */}
-      <div className="px-3 pt-3 pb-1 flex items-center gap-2">
-        <Link href={`/clip/${video.id}`} className="min-w-0 flex-1">
-          <h3 className="font-semibold text-base truncate hover:text-primary transition-colors">
-            {video.title}
-          </h3>
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-7 w-7 shrink-0 ${viewMode === "chat" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-          onClick={() => setViewMode((m) => (m === "popup" ? "chat" : "popup"))}
-          title={viewMode === "popup" ? "Mostra chat laterale" : "Mostra popup sul video"}
-        >
-          {viewMode === "popup" ? (
-            <MessageCircle className="h-4 w-4" />
-          ) : (
-            <Monitor className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
+  const toggleViewMode = useCallback(() => {
+    setViewMode((m) => (m === "popup" ? "chat" : "popup"));
+  }, []);
 
-      {/* Video area + Sidebar */}
-      <div className="flex flex-col sm:flex-row" ref={playerContainerRef}>
+  return (
+    <Card ref={intersectionRef} data-snap-target className="overflow-hidden border-border/50 flex flex-col h-[calc(100dvh-5.5rem)]">
+      {/* Video area + Sidebar (YouTube/Twitch style) */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0" ref={playerContainerRef}>
         {/* Video area */}
         <div
-          className="sm:flex-1 min-w-0 relative"
+          className="flex-1 min-w-0 min-h-0 relative"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -207,7 +189,7 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
             />
           ) : (
             <div
-              className="relative aspect-video bg-black cursor-pointer"
+              className="relative bg-black cursor-pointer overflow-hidden h-full"
               onClick={handleActivatePlayer}
             >
               {/* Hover preview video */}
@@ -220,7 +202,7 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
                   playsInline
                   preload="metadata"
                   onTimeUpdate={handlePreviewTimeUpdate}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               )}
 
@@ -231,12 +213,12 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
                     <img
                       src={video.thumbnail_url!}
                       alt={video.title}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="w-full h-full object-contain"
                       loading="lazy"
                       onError={() => setThumbError(true)}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                    <div className="flex items-center justify-center bg-muted h-full">
                       <Play className="h-12 w-12 text-muted-foreground/30" />
                     </div>
                   )}
@@ -265,9 +247,9 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
           )}
         </div>
 
-        {/* Sidebar — below on mobile, lateral on sm+ */}
+        {/* Chat sidebar — below on mobile/tablet, lateral on lg+ (Twitch style) */}
         {viewMode === "chat" && (
-          <div className="border-t sm:border-t-0 sm:border-l border-border/50 p-2 sm:p-3 sm:w-56 lg:w-72 shrink-0">
+          <div className="border-t lg:border-t-0 lg:border-l border-border/50 p-2 lg:p-3 lg:w-72 shrink-0 overflow-y-auto max-h-48 lg:max-h-none">
             <CommentSidebar
               comments={comments}
               onTimestampClick={handleTimestampClick}
@@ -278,68 +260,85 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
         )}
       </div>
 
-      {/* Info row — profile + tag + views + date + stars */}
-      <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <UserAvatar username={video.uploader} size="sm" />
-          <UsernameLink username={video.uploader} className="text-sm" />
-          <TagBadge tag={video.tag} />
-          <span className="text-muted-foreground">·</span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-            <Eye className="h-3 w-3" />
-            {formatCount(video.views)}
-          </span>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {formatRelativeDate(video.created_at)}
-          </span>
-        </div>
-        <StarRating value={video.average_rating} readonly size="sm" />
+      {/* Title (YouTube style — below video) */}
+      <div className="px-3 pt-2">
+        <Link href={`/clip/${video.id}`} className="block">
+          <h3 className="font-bold text-lg leading-snug line-clamp-2 hover:text-primary transition-colors">
+            {video.title}
+          </h3>
+        </Link>
       </div>
 
-      {/* Action bar — like, comments, detail */}
-      <div className="px-3 pb-2 border-t border-border/50 pt-2 flex items-center gap-1">
+      {/* Profile row */}
+      <div className="px-3 pt-1.5 flex items-center gap-2 min-w-0">
+        <UserAvatar username={video.uploader} size="sm" />
+        <UsernameLink username={video.uploader} className="text-sm" />
+        <span className="text-muted-foreground">·</span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+          <Eye className="h-3 w-3" />
+          {formatCount(video.views)}
+        </span>
+        <span className="text-xs text-muted-foreground shrink-0">
+          {formatRelativeDate(video.created_at)}
+        </span>
+      </div>
+
+      {/* Actions row */}
+      <div className="px-3 pt-1 pb-2 flex flex-wrap items-center gap-1">
+        {/* View mode toggle — moved outside video */}
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-red-500"
-          disabled
-          title="Mi piace (prossimamente)"
+          className={`h-7 px-2 ${viewMode === "chat" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+          onClick={toggleViewMode}
+          title={viewMode === "popup" ? "Mostra chat laterale" : "Mostra popup sul video"}
         >
-          <Heart className="h-4 w-4 sm:mr-1.5" />
-          <span className="hidden sm:inline">Mi piace</span>
+          {viewMode === "popup" ? (
+            <MessageCircle className="h-3.5 w-3.5 sm:mr-1" />
+          ) : (
+            <Monitor className="h-3.5 w-3.5 sm:mr-1" />
+          )}
+          <span className="hidden sm:inline text-xs">{viewMode === "popup" ? "Chat" : "Popup"}</span>
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className={showComments ? "text-primary" : "text-muted-foreground hover:text-primary"}
+          className="text-muted-foreground hover:text-red-500 h-7 px-2 opacity-40"
+          disabled
+          title="Mi piace (in arrivo)"
+        >
+          <Heart className="h-3.5 w-3.5 sm:mr-1" />
+          <span className="hidden sm:inline text-xs">Mi piace</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`h-7 px-2 ${showComments ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
           onClick={() => setShowComments((prev) => !prev)}
           title="Commenti"
         >
-          {showComments ? (
-            <X className="h-4 w-4 sm:mr-1.5" />
-          ) : (
-            <MessageSquare className="h-4 w-4 sm:mr-1.5" />
-          )}
-          <span className="hidden sm:inline">Commenti</span>
+          <MessageSquare className="h-3.5 w-3.5 sm:mr-1" />
+          <span className="hidden sm:inline text-xs">Commenti</span>
           <span className="text-xs">({comments.length})</span>
         </Button>
-        <div className="flex-1" />
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-primary"
+          className="text-muted-foreground hover:text-primary h-7 px-2"
           asChild
         >
           <Link href={`/clip/${video.id}`} title="Vai al dettaglio">
-            <ExternalLink className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline">Dettaglio</span>
+            <ExternalLink className="h-3.5 w-3.5 sm:mr-1" />
+            <span className="hidden sm:inline text-xs">Dettaglio</span>
           </Link>
         </Button>
+        <div className="flex-1" />
+        <StarRating value={video.average_rating} readonly size="sm" />
       </div>
 
       {/* Expandable comment section */}
       {showComments && (
-        <div className="px-3 pb-3 border-t border-border/50 pt-2 space-y-3">
+        <div className="px-3 pb-3 border-t border-border/50 pt-2 space-y-3 overflow-y-auto max-h-48">
           {isAuthenticated && (
             <CommentForm
               videoId={video.id}

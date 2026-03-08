@@ -1,6 +1,6 @@
 # Inventario Componenti — Frontend Video_clip
 
-> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+> Aggiornato il 2026-03-08 | Deep Scan | Workflow: document-project v1.2.0
 
 ---
 
@@ -8,10 +8,10 @@
 
 | Metrica | Valore |
 |---------|--------|
-| Componenti totali | **52** |
+| Componenti totali | **54** |
 | Categorie | 8 (Layout, Feed, Video, Commenti, Rating, Utente, Condivisi, UI) |
-| Primitivi UI (shadcn/ui) | 17 |
-| Componenti custom | 35 |
+| Primitivi UI (shadcn/ui) | 18 |
+| Componenti custom | 36 |
 | Provider globali | 3 (AuthProvider, QueryProvider, LoginTransitionProvider) |
 | Route groups | 3 (`(auth)`, `(main)`, `clip/[id]`) |
 
@@ -20,13 +20,13 @@
 | Cartella | File |
 |----------|------|
 | `components/layout/` | 5 |
-| `components/feed/` | 3 |
+| `components/feed/` | 5 |
 | `components/video/` | 5 |
 | `components/comments/` | 5 |
 | `components/rating/` | 1 |
 | `components/user/` | 7 |
 | `components/shared/` | 8 |
-| `components/ui/` | 17 |
+| `components/ui/` | 18 |
 | `app/` (pagine/layout) | 20 |
 | `providers/` | 3 |
 
@@ -121,35 +121,38 @@
 
 ## 3. Componenti Feed
 
-### ClipCard
+### CardAsPlayer
 
 | | |
 |---|---|
-| **File** | `frontend/src/components/feed/clip-card.tsx` |
+| **File** | `frontend/src/components/feed/card-as-player.tsx` |
 | **Props** | `video: Video` |
 | **Direttiva** | `"use client"` |
 
 **Comportamento chiave:**
-- Card cliccabile che naviga a `/clip/${video.id}`.
-- Thumbnail placeholder con icona play (nessuna immagine reale — area `bg-muted` con aspect-video).
-- Badge durata in basso a destra (font-mono, bg nero semi-trasparente).
-- `TagBadge` in alto a sinistra.
-- Riga info: titolo (line-clamp-1), avatar+username dell'uploader, stats (views + rating medio + data relativa).
-- Hover: `scale-[1.02]`, border accent, shadow `primary/5`, titolo diventa `text-primary`.
+- Card feed con player video inline — riempie il viewport (`h-[calc(100dvh-5.5rem)]`).
+- State machine a 3 stati: `idle | hovering | playing`.
+- **Idle**: thumbnail/placeholder con icona Play; hover avvia preview (primi 5 sec in loop, muted).
+- **Playing**: `VideoPlayer` completo con controlli, popup commenti, marker timeline.
+- `CustomEvent("card-player-activate")` per garantire un solo player attivo nel feed.
+- `IntersectionObserver` (rootMargin 200px) per lazy loading commenti.
+- Layout flex colonna: video + sidebar desktop (CommentSidebar) nella riga principale, commenti inline sotto.
+- Footer: avatar, username, titolo, tag, stats (views, rating, data), link al dettaglio.
+- Toggle Chat/Popup per commenti, bottone Like placeholder (disabilitato).
 
 ---
 
-### ClipCardSkeleton
+### CardAsPlayerSkeleton
 
 | | |
 |---|---|
-| **File** | `frontend/src/components/feed/clip-card-skeleton.tsx` |
+| **File** | `frontend/src/components/feed/card-as-player-skeleton.tsx` |
 | **Props** | Nessuna |
 
 **Comportamento chiave:**
-- Skeleton loading della `ClipCard`: area aspect-video + titolo + avatar + stats.
+- Skeleton loading della `CardAsPlayer`: area video + sidebar + info.
+- Ha attributo `data-snap-target` per il sistema di snap scroll.
 - Usa primitivi `Skeleton` di shadcn/ui.
-- Non ha direttiva `"use client"` (server component).
 
 ---
 
@@ -159,11 +162,37 @@
 |---|---|
 | **File** | `frontend/src/components/feed/feed-grid.tsx` |
 | **Props** | `videos: Video[]`, `isLoading?: boolean` |
+| **Direttiva** | `"use client"` |
 
 **Comportamento chiave:**
-- Grid responsiva: 1 colonna mobile, 2 colonne `sm:`, 3 colonne `xl:`.
-- Se `isLoading` e' true, renderizza 6 `ClipCardSkeleton`.
-- Server component (nessuna direttiva `"use client"`).
+- Colonna singola (`flex flex-col gap-6`) con `CardAsPlayer` per ogni video.
+- Attiva `useSnapScroll()` per navigazione card-by-card con wheel.
+- Se `isLoading`, renderizza 3 `CardAsPlayerSkeleton`.
+
+---
+
+### ClipCard (legacy)
+
+| | |
+|---|---|
+| **File** | `frontend/src/components/feed/clip-card.tsx` |
+| **Props** | `video: Video` |
+
+**Comportamento chiave:**
+- Card cliccabile originale (non piu' importata, sostituita da `CardAsPlayer`).
+- Conservata nel codebase ma non utilizzata.
+
+---
+
+### ClipCardSkeleton (legacy)
+
+| | |
+|---|---|
+| **File** | `frontend/src/components/feed/clip-card-skeleton.tsx` |
+| **Props** | Nessuna |
+
+**Comportamento chiave:**
+- Skeleton della `ClipCard` originale (non piu' importata).
 
 ---
 
@@ -280,7 +309,7 @@
 
 **Comportamento chiave:**
 - Singolo commento: avatar (nascosto se `compact`), `UsernameLink`, `TimestampBadge` cliccabile (se `timestamp_second > 0`), data relativa, testo.
-- Modalita' compact: font piu' piccolo (`text-xs`), senza avatar. Usata nella `DynamicSidebar`.
+- Modalita' compact: font piu' piccolo (`text-xs`), senza avatar. Usata nella `CommentSidebar`.
 
 ---
 
@@ -314,20 +343,22 @@
 
 ---
 
-### DynamicSidebar
+### CommentSidebar
 
 | | |
 |---|---|
-| **File** | `frontend/src/components/comments/dynamic-sidebar.tsx` |
-| **Props** | `comments: Comment[]`, `onTimestampClick?: (seconds: number) => void` |
+| **File** | `frontend/src/components/comments/comment-sidebar.tsx` |
+| **Props** | `comments: Comment[]`, `onTimestampClick?: (seconds: number) => void`, `maxVisible?: number`, `currentTime?: number \| null` |
 | **Direttiva** | `"use client"` |
 
 **Comportamento chiave:**
-- Sidebar laterale destra visibile solo su schermi larghi (`useIsWideDesktop`, >= 1280 px).
-- Mostra i top 20 commenti temporizzati (ordinati per data, proxy per "most liked" fino a implementazione likes).
-- Usa `ScrollArea` di shadcn/ui. Titolo: "Commenti in evidenza".
-- `CommentItem` in modalita' `compact`.
-- Messaggio empty state se nessun commento temporizzato.
+- Sidebar laterale destra per commenti temporizzati.
+- Slot temporali: `Math.floor(second / COMMENT_SLOT_SECONDS)` (3 sec), mostra 1 commento per slot (il piu' recente).
+- Animazione con framer-motion `AnimatePresence` per ingresso/uscita commenti.
+- `maxVisible` limita il numero di commenti visibili (default 10).
+- `currentTime` opzionale: se presente, i commenti appaiono in sync con il player.
+- Usa `ScrollArea` di shadcn/ui. `TimestampBadge` cliccabile per seek nel video.
+- Usata sia in `CardAsPlayer` (feed) sia in `ClipContent` (dettaglio, modalita' chat).
 
 ---
 
@@ -600,6 +631,7 @@ Tutti i componenti in `frontend/src/components/ui/` sono primitivi shadcn/ui bas
 
 | Componente | File | Descrizione |
 |-----------|------|-------------|
+| **AlertDialog** | `ui/alert-dialog.tsx` | Dialog di conferma con azioni (Radix AlertDialog) |
 | **Avatar** | `ui/avatar.tsx` | Avatar con AvatarImage e AvatarFallback |
 | **Badge** | `ui/badge.tsx` | Badge con varianti (default, secondary, destructive, outline) |
 | **Button** | `ui/button.tsx` | Pulsante con varianti e dimensioni multiple |
@@ -627,10 +659,10 @@ Tutti i componenti in `frontend/src/components/ui/` sono primitivi shadcn/ui bas
 
 | Breakpoint | Valore | Comportamento |
 |-----------|--------|---------------|
-| Default (mobile) | < 640 px | 1 colonna, Header + MobileBottomBar, logo solo "V" |
-| `sm:` | >= 640 px | 2 colonne nel feed grid |
-| `lg:` | >= 1024 px | Desktop layout: LeftSidebar + DesktopNavbar, Header nascosto, MobileBottomBar nascosto |
-| `xl:` | >= 1280 px | 3 colonne nel feed grid, DynamicSidebar visibile nella pagina clip |
+| Default (mobile) | < 640 px | 1 colonna, Header + MobileBottomBar, logo solo "V", snap scroll verticale |
+| `sm:` | >= 640 px | Card feed con info espansa |
+| `lg:` | >= 1024 px | Desktop layout: LeftSidebar + DesktopNavbar, Header nascosto, MobileBottomBar nascosto, CommentSidebar visibile nel feed e nella pagina clip (modalita' chat) |
+| `xl:` | >= 1280 px | Layout piu' ampio |
 
 ### Tema Dark Gaming
 
@@ -742,3 +774,4 @@ app/
 | `useMediaQuery` | `lib/hooks/use-media-query.ts` | Media query generica |
 | `useIsDesktop` | `lib/hooks/use-media-query.ts` | `>= 1024px` |
 | `useIsWideDesktop` | `lib/hooks/use-media-query.ts` | `>= 1280px` |
+| `useSnapScroll` | `lib/hooks/use-snap-scroll.ts` | Snap scroll card-by-card nel feed |

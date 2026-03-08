@@ -233,18 +233,20 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
   }, []);
 
   return (
-    <div className="relative overflow-hidden rounded-lg bg-black">
+    <div className="relative flex flex-col overflow-hidden rounded-lg bg-black max-h-[70vh]">
       {/* Video element */}
       <video
         ref={videoRef}
         src={src}
-        className="w-full aspect-video cursor-pointer"
+        className="w-full min-h-0 flex-1 object-contain cursor-pointer"
         onTimeUpdate={handleTimeUpdate}
         onEnded={() => setIsPlaying(false)}
         onClick={togglePlay}
         onError={handleVideoError}
         onLoadedData={handleLoadedData}
+        onPlay={() => setIsPlaying(true)}
         playsInline
+        autoPlay
       />
 
       {/* Spinner durante refresh URL */}

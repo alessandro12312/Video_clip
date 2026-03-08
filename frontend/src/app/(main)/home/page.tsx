@@ -21,7 +21,7 @@ export default function HomePage() {
   const videos = data?.pages.flatMap((page) => page.results) ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
+    <div>
       <h1 className="mb-6 text-2xl font-bold">Home</h1>
 
       {isError && <ErrorMessage onRetry={refetch} />}

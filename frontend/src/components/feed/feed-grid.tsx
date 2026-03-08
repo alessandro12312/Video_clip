@@ -1,6 +1,9 @@
+"use client";
+
 import type { Video } from "@/types";
 import { CardAsPlayer } from "./card-as-player";
 import { CardAsPlayerSkeleton } from "./card-as-player-skeleton";
+import { useSnapScroll } from "@/lib/hooks/use-snap-scroll";
 
 interface FeedGridProps {
   videos: Video[];
@@ -8,6 +11,8 @@ interface FeedGridProps {
 }
 
 export function FeedGrid({ videos, isLoading }: FeedGridProps) {
+  useSnapScroll();
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6">

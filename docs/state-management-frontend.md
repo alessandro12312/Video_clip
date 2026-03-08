@@ -1,6 +1,6 @@
 # State Management e API Layer — Frontend Video_clip
 
-> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+> Aggiornato il 2026-03-08 | Deep Scan | Workflow: document-project v1.2.0
 
 ---
 
@@ -145,14 +145,16 @@ queryKeys = {
 
 | Hook | Tipo | Query Key | Opzioni |
 |---|---|---|---|
-| `useComments(videoId)` | useQuery | `comments.byVideo(videoId)` | staleTime: 60s, loop multi-pagina |
+| `useComments(videoId, opts?)` | useQuery | `comments.byVideo(videoId)` | staleTime: 60s, loop multi-pagina, `enabled` opzionale |
 | `useCreateComment(videoId)` | useMutation | — | Invalida `comments.byVideo(videoId)` |
+| `useDeleteComment(videoId)` | useMutation | — | Invalida `comments.byVideo(videoId)` |
 
 ### Ratings (`src/lib/hooks/use-ratings.ts`)
 
 | Hook | Tipo | Query Key | Opzioni |
 |---|---|---|---|
 | `useCreateRating(videoId)` | useMutation | — | Invalida `videos.detail(videoId)` |
+| `useUpdateRating(videoId)` | useMutation | — | Invalida `videos.detail(videoId)` |
 
 ### Utenti (`src/lib/hooks/use-users.ts`)
 
@@ -179,6 +181,7 @@ queryKeys = {
 | `useUserVideos(username)` | useInfiniteQuery | `videos.byUser(username)` | **Filtraggio client-side** (problema performance) |
 | `useIncrementViews()` | useMutation | — | Nessuna invalidazione |
 | `useUploadVideo()` | useMutation | — | Invalida `videos.all` |
+| `useDeleteVideo()` | useMutation | — | Invalida `videos.all` |
 
 ### Utility (non React Query)
 
@@ -188,6 +191,7 @@ queryKeys = {
 | `useMediaQuery(query)` | `use-media-query.ts` | CSS media query listener |
 | `useIsDesktop()` | `use-media-query.ts` | `(min-width: 1024px)` |
 | `useIsWideDesktop()` | `use-media-query.ts` | `(min-width: 1280px)` |
+| `useSnapScroll()` | `use-snap-scroll.ts` | Snap scroll card-by-card con RAF animation |
 
 ---
 
@@ -276,6 +280,7 @@ QueryProvider → AuthProvider → LoginTransitionProvider → {children}
 | `POPUP_DISPLAY_DURATION_MS` | 4000 | Popup commenti |
 | `VIEW_COUNT_DELAY_MS` | 5000 | Delay conteggio views |
 | `COMMENT_MARKER_SIZE_PX` | 6 | Marker timeline |
+| `COMMENT_SLOT_SECONDS` | 3 | Raggruppamento commenti in slot temporali (CommentSidebar) |
 
 ---
 
@@ -288,6 +293,8 @@ QueryProvider → AuthProvider → LoginTransitionProvider → {children}
 | `formatRelativeDate(isoDate)` | Data relativa in italiano |
 | `formatCount(count)` | 1200 → "1.2K" |
 | `extractPageFromUrl(url)` | Estrae `?page=N` per infinite queries |
+| `formatMMSS(seconds)` | Secondi → "MM:SS" (bidirezionale con `parseMMSS`) |
+| `parseMMSS(str)` | "MM:SS" → secondi (bidirezionale con `formatMMSS`) |
 
 ---
 
@@ -295,12 +302,15 @@ QueryProvider → AuthProvider → LoginTransitionProvider → {children}
 
 ```
 useCreateComment(videoId)   → comments.byVideo(videoId)
+useDeleteComment(videoId)   → comments.byVideo(videoId)
 useCreateRating(videoId)    → videos.detail(videoId)
+useUpdateRating(videoId)    → videos.detail(videoId)
 useFollow()                 → users.detail, users.byUsername, users.followers,
                               users.following(currentUser), videos.followingAll
 useUnfollow()               → (stessa mappa di useFollow)
 useUpdateProfile()          → users.detail(id), users.byUsername(username)
 useUploadVideo()            → videos.all
+useDeleteVideo()            → videos.all
 useIncrementViews()         → (nessuna invalidazione)
 ```
 
@@ -313,7 +323,4 @@ useIncrementViews()         → (nessuna invalidazione)
 3. **`PAGE_SIZE` mai usata** — paginazione gestita dal backend
 4. **`queryKeys.ratings.byVideo` mai usata** — nessun hook la utilizza
 5. **`queryKeys.videos.list(page)` mai usata** — nessun hook corrispondente
-6. **Nessun hook per `commentsApi.delete()`** — API esiste, hook mancante
-7. **Nessun hook per `ratingsApi.update()`** — API esiste, hook mancante
-8. **Nessun hook per `videosApi.delete()`** — API esiste, hook mancante
-9. **Tipo `Contest` non usato dagli API modules** — `getWinners()` ritorna `PaginatedResponse<Video>`
+6. **Tipo `Contest` non usato dagli API modules** — `getWinners()` ritorna `PaginatedResponse<Video>`
