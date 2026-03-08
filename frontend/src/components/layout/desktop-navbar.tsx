@@ -2,6 +2,7 @@
 
 import { UserSearchBar } from "@/components/user/user-search-bar";
 import { DesktopUserMenu } from "@/components/layout/desktop-user-menu";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 export function DesktopNavbar() {
   return (
@@ -12,7 +13,8 @@ export function DesktopNavbar() {
         <UserSearchBar />
       </div>
 
-      <div className="flex flex-1 justify-end">
+      <div className="flex flex-1 justify-end items-center gap-1">
+        <NotificationBell />
         <DesktopUserMenu />
       </div>
     </header>

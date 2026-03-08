@@ -9,8 +9,9 @@ from rest_framework.response import Response
 from cs_clips.api.comments.comment_serializers import CommentSerializer
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
-from cs_clips.models import Comment, CommentLike
+from cs_clips.models import Comment, CommentLike, Notification
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
+from cs_clips.utils.notification_helpers import create_notification
 
 
 class CommentViewSet(viewsets.ModelViewSet):
@@ -56,7 +57,14 @@ class CommentViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        comment = serializer.save(user=self.request.user)
+        create_notification(
+            recipient=comment.video.uploader,
+            sender=self.request.user,
+            type=Notification.Type.COMMENT_RECEIVED,
+            video=comment.video,
+            comment=comment,
+        )
 
     @extend_schema(
         request=None,
@@ -80,6 +88,13 @@ class CommentViewSet(viewsets.ModelViewSet):
         comment = self.get_object()
         if request.method == "POST":
             CommentLike.objects.create(user=request.user, comment=comment)
+            create_notification(
+                recipient=comment.user,
+                sender=request.user,
+                type=Notification.Type.LIKE_RECEIVED,
+                video=comment.video,
+                comment=comment,
+            )
             return Response(
                 {"detail": "Like aggiunto."}, status=status.HTTP_201_CREATED
             )

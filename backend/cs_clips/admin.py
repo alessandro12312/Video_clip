@@ -6,6 +6,7 @@ from cs_clips.models import (
     Comment,
     CommentLike,
     Contest,
+    Notification,
     Rating,
     User,
     Video,
@@ -171,6 +172,15 @@ class CommentLikeAdmin(admin.ModelAdmin):
     list_display = ("user", "comment", "created_at")
     search_fields = ("user__username",)
     autocomplete_fields = ["user", "comment"]
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("recipient", "sender", "type", "is_read", "created_at")
+    list_filter = ("type", "is_read")
+    search_fields = ("recipient__username", "sender__username")
+    autocomplete_fields = ["recipient", "sender", "video", "comment", "contest"]
+    readonly_fields = ("created_at",)
 
 
 @admin.register(Contest)

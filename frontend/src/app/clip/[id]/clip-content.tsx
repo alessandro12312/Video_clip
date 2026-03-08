@@ -7,7 +7,6 @@ import { VideoPlayer, type VideoPlayerHandle } from "@/components/video/video-pl
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentSection } from "@/components/comments/comment-section";
 import { CommentSidebar } from "@/components/comments/comment-sidebar";
-import { StarRating } from "@/components/rating/star-rating";
 import { DownloadButton } from "@/components/video/download-button";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { UsernameLink } from "@/components/user/username-link";
@@ -29,12 +28,11 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { useVideo, useDeleteVideo, useLikeVideo, useUnlikeVideo, usePopupComments } from "@/lib/hooks/use-videos";
 import { useComments, useDeleteComment } from "@/lib/hooks/use-comments";
-import { useCreateRating, useUpdateRating } from "@/lib/hooks/use-ratings";
 import { useMarkerComments } from "@/lib/hooks/use-marker-comments";
 import { useIsDesktop } from "@/lib/hooks/use-media-query";
 import { cn, formatRelativeDate, formatCount, formatTimestamp } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/constants";
-import { Eye, Heart, MessageCircle, Monitor, Star, LogIn, Trash2 } from "lucide-react";
+import { Eye, Heart, MessageCircle, Monitor, LogIn, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { Comment } from "@/types";
@@ -53,8 +51,6 @@ export function ClipContent({ videoId }: ClipContentProps) {
   const { data: video, isLoading: videoLoading, error: videoError, refetch: refetchVideo } = useVideo(videoId);
   const { data: comments = [], isLoading: commentsLoading } = useComments(videoId);
   const { data: popupComments = [] } = usePopupComments(videoId);
-  const { mutate: createRating } = useCreateRating(videoId);
-  const updateRating = useUpdateRating(videoId);
   const deleteVideo = useDeleteVideo();
   const { mutate: deleteComment } = useDeleteComment(videoId);
   const likeMutation = useLikeVideo();
@@ -126,30 +122,6 @@ export function ClipContent({ videoId }: ClipContentProps) {
     }
     lastTapRef.current = now;
   }, [video, likeMutation]);
-
-  const handleRate = useCallback(
-    (value: number) => {
-      if (updateRating.isPending) return;
-      if (video?.my_rating_id) {
-        updateRating.mutate(
-          { ratingId: video.my_rating_id, value },
-          {
-            onSuccess: () => toast.success("Voto aggiornato!"),
-            onError: () => toast.error("Errore nell'aggiornamento del voto."),
-          }
-        );
-      } else {
-        createRating(
-          { video: videoId, value },
-          {
-            onSuccess: () => toast.success("Voto registrato!"),
-            onError: () => toast.error("Errore nel salvataggio del voto."),
-          }
-        );
-      }
-    },
-    [video?.my_rating_id, createRating, updateRating, videoId]
-  );
 
   const handleDeleteVideo = useCallback(() => {
     if (!video || deleteVideo.isPending) return;
@@ -228,12 +200,6 @@ export function ClipContent({ videoId }: ClipContentProps) {
                 <Eye className="h-4 w-4" />
                 {formatCount(video.views)} visualizzazioni
               </span>
-              {video.average_rating > 0 && (
-                <span className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  {video.average_rating.toFixed(1)}
-                </span>
-              )}
             </div>
           </div>
 
@@ -307,20 +273,6 @@ export function ClipContent({ videoId }: ClipContentProps) {
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <StarRating
-                value={video.my_rating_value ?? 0}
-                onChange={handleRate}
-                size="md"
-              />
-              <span className="text-xs text-muted-foreground">
-                {video.my_rating_value
-                  ? `Il tuo voto: ${video.my_rating_value} · Media: ${video.average_rating > 0 ? video.average_rating.toFixed(1) : "—"}`
-                  : video.average_rating > 0
-                    ? `Media: ${video.average_rating.toFixed(1)}`
-                    : "Non votato"}
-              </span>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">

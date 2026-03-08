@@ -10,7 +10,6 @@ import { VideoPlayer, type VideoPlayerHandle } from "@/components/video/video-pl
 import { CommentForm } from "@/components/comments/comment-form";
 import { CommentSidebar } from "@/components/comments/comment-sidebar";
 import { CommentSection } from "@/components/comments/comment-section";
-import { StarRating } from "@/components/rating/star-rating";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { UsernameLink } from "@/components/user/username-link";
@@ -403,7 +402,6 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
           </Link>
         </Button>
         <div className="flex-1" />
-        <StarRating value={video.average_rating} readonly size="sm" />
       </div>
 
       {/* Expandable comment section */}

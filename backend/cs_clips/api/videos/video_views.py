@@ -33,9 +33,10 @@ from cs_clips.api.videos.video_serializers import (
 )
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
-from cs_clips.models import Comment, CommentLike, Rating, Video, VideoLike
+from cs_clips.models import Comment, CommentLike, Notification, Rating, Video, VideoLike
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from cs_clips.utils.get_date_util import get_or_create_current_contest
+from cs_clips.utils.notification_helpers import create_notification
 from project_clip import settings
 
 logger = logging.getLogger("views")
@@ -384,6 +385,12 @@ class VideoViewSet(viewsets.ModelViewSet):
         video = self.get_object()
         if request.method == "POST":
             VideoLike.objects.create(user=request.user, video=video)
+            create_notification(
+                recipient=video.uploader,
+                sender=request.user,
+                type=Notification.Type.LIKE_RECEIVED,
+                video=video,
+            )
             return Response(
                 {"detail": "Like aggiunto."}, status=status.HTTP_201_CREATED
             )
@@ -436,9 +443,7 @@ class VideoViewSet(viewsets.ModelViewSet):
 
         popup_comments = []
         for ts in sorted(by_ts.keys()):
-            top = max(
-                by_ts[ts], key=lambda c: (c.like_count, c.created_at)
-            )
+            top = max(by_ts[ts], key=lambda c: (c.like_count, c.created_at))
             popup_comments.append(top)
 
         serializer = CommentSerializer(

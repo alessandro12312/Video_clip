@@ -104,16 +104,16 @@ development_status:
 
   # --- Epic 4: Contest Settimanale ---
   # Listing contest, auto-creazione settimanale, votazione 1-5 stelle, classifica, chiusura automatica.
-  epic-4: backlog
-  4-1-backend-contest-settimanale-endpoint-e-listing: backlog             # FR37-39b, FR41a-42a, APScheduler close_contests
-  4-2-votazione-contest-e-classifica-frontend: backlog                    # FR40a, FR43a, NFR13 (un voto per utente per clip)
+  epic-4: in-progress
+  4-1-backend-contest-settimanale-endpoint-e-listing: done         # FR37-39b, FR41a-42a, APScheduler close_contests — reviewed + 6 fix
+  4-2-votazione-contest-e-classifica-frontend: done                # FR40a, FR43a, NFR13 (un voto per utente per clip) — reviewed + 6 fix
   epic-4-retrospective: optional
 
   # --- Epic 5: Notifiche In-App ---
   # Modello Notification (7 tipi, FK espliciti), API REST, polling 15s, campanella badge, pagina notifiche.
-  epic-5: backlog
-  5-1-modello-notification-e-api-backend: backlog                         # FR50-52, D1 (polling, no GenericFK), 7 tipi notifica
-  5-2-frontend-notifiche-pagina-badge-e-polling: backlog                  # Campanella, badge, /notifiche, refetchInterval 15s
+  epic-5: in-progress
+  5-1-modello-notification-e-api-backend: done                          # FR50-52, D1 (polling, no GenericFK), 7 tipi notifica — reviewed + 5 fix
+  5-2-frontend-notifiche-pagina-badge-e-polling: done                    # Campanella, badge, /notifiche, refetchInterval 15s — reviewed + 3 fix
   epic-5-retrospective: optional
 
   # --- Epic 6: Contest Bracket Champions League ---
