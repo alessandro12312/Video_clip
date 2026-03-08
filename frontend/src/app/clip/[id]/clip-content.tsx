@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { VideoPlayer, type VideoPlayerHandle } from "@/components/video/video-player";
 import { CommentForm } from "@/components/comments/comment-form";
@@ -26,11 +27,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/providers/auth-provider";
-import { useVideo, useDeleteVideo } from "@/lib/hooks/use-videos";
+import { useVideo, useDeleteVideo, useLikeVideo, useUnlikeVideo, usePopupComments } from "@/lib/hooks/use-videos";
 import { useComments, useDeleteComment } from "@/lib/hooks/use-comments";
 import { useCreateRating, useUpdateRating } from "@/lib/hooks/use-ratings";
+import { useMarkerComments } from "@/lib/hooks/use-marker-comments";
 import { useIsDesktop } from "@/lib/hooks/use-media-query";
-import { formatRelativeDate, formatCount, formatTimestamp } from "@/lib/utils";
+import { cn, formatRelativeDate, formatCount, formatTimestamp } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/constants";
 import { Eye, Heart, MessageCircle, Monitor, Star, LogIn, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -50,33 +52,50 @@ export function ClipContent({ videoId }: ClipContentProps) {
 
   const { data: video, isLoading: videoLoading, error: videoError, refetch: refetchVideo } = useVideo(videoId);
   const { data: comments = [], isLoading: commentsLoading } = useComments(videoId);
+  const { data: popupComments = [] } = usePopupComments(videoId);
   const { mutate: createRating } = useCreateRating(videoId);
   const updateRating = useUpdateRating(videoId);
   const deleteVideo = useDeleteVideo();
   const { mutate: deleteComment } = useDeleteComment(videoId);
+  const likeMutation = useLikeVideo();
+  const unlikeMutation = useUnlikeVideo();
+
+  const lastTapRef = useRef<number>(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Cleanup tap timer on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(tapTimerRef.current);
+    };
+  }, []);
 
   const [pauseTimestamp, setPauseTimestamp] = useState<number | null>(null);
+  const [playerTime, setPlayerTime] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"popup" | "chat">("popup");
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
 
   const EMPTY_POPUP_MAP = useMemo(() => new Map<number, Comment>(), []);
   const EMPTY_MARKERS: number[] = useMemo(() => [], []);
 
-  // Build popup map: Map<second, top comment for that second>
+  // Build popup map from backend-filtered popup comments (like >= 1, top per timestamp)
   const popupMap = useMemo(() => {
     const map = new Map<number, Comment>();
-    for (const comment of comments) {
-      if (comment.timestamp_second <= 0) continue;
-      const existing = map.get(comment.timestamp_second);
-      if (!existing || new Date(comment.created_at) > new Date(existing.created_at)) {
-        map.set(comment.timestamp_second, comment);
-      }
+    for (const comment of popupComments) {
+      map.set(comment.timestamp_second, comment);
     }
     return map;
-  }, [comments]);
+  }, [popupComments]);
 
   const markerPositions = useMemo(() => {
     return [...new Set(comments.filter((c) => c.timestamp_second > 0).map((c) => c.timestamp_second))];
   }, [comments]);
+
+  const markerCommentsMap = useMarkerComments(popupComments, comments);
+
+  const handlePlayerTimeUpdate = useCallback((currentTime: number) => {
+    setPlayerTime(currentTime);
+  }, []);
 
   const handlePause = useCallback((currentTime: number) => {
     setPauseTimestamp(Math.floor(currentTime));
@@ -90,6 +109,23 @@ export function ClipContent({ videoId }: ClipContentProps) {
     playerRef.current?.seekTo(seconds);
     playerContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
+
+  const handleVideoTap = useCallback(() => {
+    if (!video) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      clearTimeout(tapTimerRef.current);
+      if (!video.is_liked_by_me) {
+        likeMutation.mutate(video.id);
+        setShowHeartAnimation(true);
+      }
+    } else {
+      tapTimerRef.current = setTimeout(() => {
+        playerRef.current?.togglePlay();
+      }, 300);
+    }
+    lastTapRef.current = now;
+  }, [video, likeMutation]);
 
   const handleRate = useCallback(
     (value: number) => {
@@ -225,7 +261,7 @@ export function ClipContent({ videoId }: ClipContentProps) {
   return (
     <div className="flex gap-6">
       <div className="flex-1 min-w-0 space-y-4">
-        <div ref={playerContainerRef}>
+        <div ref={playerContainerRef} className="relative">
           <VideoPlayer
             ref={playerRef}
             src={videoSrc}
@@ -233,9 +269,31 @@ export function ClipContent({ videoId }: ClipContentProps) {
             duration={video.duration}
             popupMap={viewMode === "popup" ? popupMap : EMPTY_POPUP_MAP}
             markerPositions={viewMode === "popup" ? markerPositions : EMPTY_MARKERS}
+            markerComments={viewMode === "popup" ? markerCommentsMap : undefined}
             onPause={handlePause}
+            onTimeUpdate={handlePlayerTimeUpdate}
             onRefreshUrl={handleRefreshUrl}
           />
+          {/* Double-tap overlay — only covers video, not controls */}
+          <div
+            className="absolute inset-0 bottom-20 z-10"
+            onClick={handleVideoTap}
+          />
+          {/* Heart animation */}
+          <AnimatePresence>
+            {showHeartAnimation && (
+              <motion.div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+                initial={{ scale: 0, opacity: 1 }}
+                animate={{ scale: 1.2, opacity: 1 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                onAnimationComplete={() => setShowHeartAnimation(false)}
+              >
+                <Heart className="h-20 w-20 text-red-500 fill-current drop-shadow-lg" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="space-y-3">
@@ -283,12 +341,22 @@ export function ClipContent({ videoId }: ClipContentProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-red-500 h-7 px-2 opacity-40"
-              disabled
-              title="Mi piace (in arrivo)"
+              className={cn(
+                "h-7 px-2",
+                video.is_liked_by_me
+                  ? "text-red-500 hover:text-red-400"
+                  : "text-muted-foreground hover:text-red-500"
+              )}
+              onClick={() =>
+                video.is_liked_by_me
+                  ? unlikeMutation.mutate(video.id)
+                  : likeMutation.mutate(video.id)
+              }
+              disabled={likeMutation.isPending || unlikeMutation.isPending}
+              title="Mi piace"
             >
-              <Heart className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline text-xs">Mi piace</span>
+              <Heart className={cn("h-3.5 w-3.5 sm:mr-1", video.is_liked_by_me && "fill-current")} />
+              <span className="hidden sm:inline text-xs">{video.like_count}</span>
             </Button>
             <span className="flex items-center gap-1 ml-2">
               <Eye className="h-3.5 w-3.5" />
@@ -348,6 +416,7 @@ export function ClipContent({ videoId }: ClipContentProps) {
         <CommentSection
           comments={comments}
           currentUsername={user?.username}
+          videoId={videoId}
           onTimestampClick={handleTimestampClick}
           onDelete={handleDeleteComment}
         />
@@ -366,6 +435,7 @@ export function ClipContent({ videoId }: ClipContentProps) {
               comments={comments}
               onTimestampClick={handleTimestampClick}
               maxVisible={10}
+              currentTime={playerTime}
             />
           </div>
         </aside>

@@ -12,6 +12,8 @@ export interface Video {
   duration: number;
   thumbnail_url: string | null;
   allow_download: boolean;
+  like_count: number;
+  is_liked_by_me: boolean;
   my_rating_id: number | null;
   my_rating_value: number | null;
   contest: number | null;

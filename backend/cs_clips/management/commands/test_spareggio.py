@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from cs_clips.api.videos.video_serializers import VideoOutputSerializer
-from cs_clips.models import Comment, Contest, Rating, Video
+from cs_clips.models import Contest, Rating, Video, VideoLike
 from cs_clips.utils.desempate import desempate_ponderato
 
 User = get_user_model()
@@ -19,7 +19,7 @@ class Command(BaseCommand):
         User.objects.all().delete()
         Video.objects.all().delete()
         Rating.objects.all().delete()
-        Comment.objects.all().delete()
+        VideoLike.objects.all().delete()
         Contest.objects.all().delete()
 
         # 1. Creazione utenti
@@ -53,13 +53,13 @@ class Command(BaseCommand):
         Rating.objects.create(user=user1, video=video2, value=8)
         Rating.objects.create(user=user3, video=video2, value=7)
 
-        # 6. Commenti (più commenti su video2)
-        Comment.objects.create(user=user1, video=video1, content="Bravo!")
-        Comment.objects.create(user=user2, video=video1, content="Bello!")
-        # Video2 riceve più commenti
-        Comment.objects.create(user=user1, video=video2, content="Top!")
-        Comment.objects.create(user=user2, video=video2, content="Mi piace molto")
-        Comment.objects.create(user=user3, video=video2, content="sega a pedali")
+        # 6. Like (più like su video2)
+        VideoLike.objects.create(user=user1, video=video1)
+        VideoLike.objects.create(user=user2, video=video1)
+        # Video2 riceve più like
+        VideoLike.objects.create(user=user1, video=video2)
+        VideoLike.objects.create(user=user2, video=video2)
+        VideoLike.objects.create(user=user3, video=video2)
 
         # 7. Visualizzazioni (manualmente, per test)
         video1.views = 10
@@ -76,7 +76,7 @@ class Command(BaseCommand):
             print(
                 f"{v.title}: media voto={avg:.2f}, "
                 f"n_voti={v.ratings.count()}, "
-                f"n_commenti={v.comments.count()}, "
+                f"n_like={v.likes.count()}, "
                 f"views={v.views}"
             )
 

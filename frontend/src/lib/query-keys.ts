@@ -10,6 +10,8 @@ export const queryKeys = {
     topRated: (range: TopRatedRange) =>
       ["videos", "top-rated", range] as const,
     byUser: (userId: number) => ["videos", "user", userId] as const,
+    popupComments: (videoId: number) =>
+      ["videos", "popup-comments", videoId] as const,
   },
   comments: {
     byVideo: (videoId: number) => ["comments", "video", videoId] as const,

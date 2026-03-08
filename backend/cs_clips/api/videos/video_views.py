@@ -1,5 +1,6 @@
 import logging
 import re
+from collections import defaultdict
 from datetime import timedelta
 from pathlib import PurePosixPath
 
@@ -24,6 +25,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
+from cs_clips.api.comments.comment_serializers import CommentSerializer
 from cs_clips.api.videos.video_serializers import (
     VideoInputSerializer,
     VideoOutputSerializer,
@@ -31,7 +33,7 @@ from cs_clips.api.videos.video_serializers import (
 )
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
 from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
-from cs_clips.models import Rating, Video, VideoLike
+from cs_clips.models import Comment, CommentLike, Rating, Video, VideoLike
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from cs_clips.utils.get_date_util import get_or_create_current_contest
 from project_clip import settings
@@ -390,6 +392,59 @@ class VideoViewSet(viewsets.ModelViewSet):
         if not deleted:
             raise NotFound("Like non trovato.")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        summary="Popup comments per video",
+        description="Ritorna il commento con più like per ogni timestamp_second "
+        "(soglia minima: 1 like). Commenti disabilitati esclusi.",
+        responses={200: CommentSerializer(many=True)},
+    )
+    @action(detail=True, methods=["get"], url_path="popup-comments")
+    def popup_comments(self, request, pk=None):
+        """Ritorna i commenti popup: per ogni timestamp, il più likato (≥1 like)."""
+        video = self.get_object()
+
+        # Query: commenti attivi con timestamp > 0 e almeno 1 like
+        qs = (
+            Comment.objects.filter(
+                video=video,
+                is_disabled=False,
+                timestamp_second__gt=0,
+            )
+            .annotate(like_count=Count("likes", distinct=True))
+            .filter(like_count__gte=1)
+        )
+
+        # Annota is_liked_by_me per utente autenticato
+        if request.user.is_authenticated:
+            qs = qs.annotate(
+                is_liked_by_me=Exists(
+                    CommentLike.objects.filter(
+                        comment=OuterRef("pk"), user=request.user
+                    )
+                ),
+            )
+        else:
+            qs = qs.annotate(
+                is_liked_by_me=Value(False, output_field=BooleanField()),
+            )
+
+        # Raggruppa per timestamp_second: tieni il top-liked (parità → più recente)
+        by_ts = defaultdict(list)
+        for comment in qs:
+            by_ts[comment.timestamp_second].append(comment)
+
+        popup_comments = []
+        for ts in sorted(by_ts.keys()):
+            top = max(
+                by_ts[ts], key=lambda c: (c.like_count, c.created_at)
+            )
+            popup_comments.append(top)
+
+        serializer = CommentSerializer(
+            popup_comments, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
 
     def get_serializer_class(self):
         logger.info(

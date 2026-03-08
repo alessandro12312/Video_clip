@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Heart } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TimestampBadge } from "@/components/shared/timestamp-badge";
-import { COMMENT_SLOT_SECONDS } from "@/lib/constants";
 import type { Comment } from "@/types";
 
 interface CommentSidebarProps {
@@ -18,39 +18,23 @@ interface CommentSidebarProps {
 export function CommentSidebar({ comments, onTimestampClick, maxVisible = 6, currentTime }: CommentSidebarProps) {
   const isLive = currentTime != null;
 
-  const slots = useMemo(() => {
-    const slotMap = new Map<number, Comment>();
-
-    for (const comment of comments) {
-      if (comment.timestamp_second <= 0) continue;
-      const slot = Math.floor(comment.timestamp_second / COMMENT_SLOT_SECONDS);
-      const existing = slotMap.get(slot);
-      if (!existing || new Date(comment.created_at) > new Date(existing.created_at)) {
-        slotMap.set(slot, comment);
-      }
-    }
-
-    return [...slotMap.values()].sort(
-      (a, b) => a.timestamp_second - b.timestamp_second
-    );
+  // Filtra commenti con like >= 1, ordinati per like_count decrescente
+  const topLiked = useMemo(() => {
+    return comments
+      .filter((c) => c.timestamp_second > 0 && c.like_count >= 1)
+      .sort((a, b) => b.like_count - a.like_count);
   }, [comments]);
 
   // Live: filtra per currentTime. Altrimenti mostra tutti.
-  const visibleSlots = useMemo(() => {
-    if (!isLive) return slots;
-    return slots.filter((c) => c.timestamp_second <= currentTime!);
-  }, [slots, isLive, currentTime]);
+  const visible = useMemo(() => {
+    if (!isLive) return topLiked;
+    return topLiked.filter((c) => c.timestamp_second <= currentTime!);
+  }, [topLiked, isLive, currentTime]);
 
-  // Live: i più recenti in alto (appena apparsi).
-  const displaySlots = useMemo(() => {
-    if (isLive) return [...visibleSlots].reverse();
-    return visibleSlots;
-  }, [visibleSlots, isLive]);
-
-  if (slots.length === 0) {
+  if (topLiked.length === 0) {
     return (
       <div className="p-3 text-center text-xs text-muted-foreground">
-        Ancora nessun commento temporizzato.
+        Nessun commento con like ancora.
       </div>
     );
   }
@@ -58,12 +42,12 @@ export function CommentSidebar({ comments, onTimestampClick, maxVisible = 6, cur
   return (
     <div className="flex flex-col gap-1">
       <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {isLive ? "Chat live" : "Commenti temporizzati"}
+        {isLive ? "Top commenti live" : "Top commenti"}
       </h3>
       <ScrollArea style={{ maxHeight: `${maxVisible * 3.5}rem` }}>
         <div className="space-y-0.5 pr-2">
           <AnimatePresence initial={false}>
-            {displaySlots.map((comment) => (
+            {visible.map((comment) => (
               <motion.button
                 key={comment.id}
                 layout
@@ -79,6 +63,10 @@ export function CommentSidebar({ comments, onTimestampClick, maxVisible = 6, cur
                     {comment.user}
                   </span>
                   <TimestampBadge seconds={comment.timestamp_second} />
+                  <span className="ml-auto flex items-center gap-0.5 text-xs text-muted-foreground">
+                    <Heart className="h-3 w-3" />
+                    {comment.like_count}
+                  </span>
                 </div>
                 <p className="text-xs text-foreground/80 break-words whitespace-normal">
                   {comment.content}

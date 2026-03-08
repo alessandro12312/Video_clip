@@ -9,6 +9,8 @@ interface ProgressBarProps {
   buffered: number;
   duration: number;
   markers: number[];
+  markerComments?: Map<number, { text: string }>;
+  onMarkerSeek?: (timestamp: number) => void;
   onSeek: (time: number) => void;
 }
 
@@ -17,6 +19,8 @@ export function ProgressBar({
   buffered,
   duration,
   markers,
+  markerComments,
+  onMarkerSeek,
   onSeek,
 }: ProgressBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
@@ -91,6 +95,8 @@ export function ProgressBar({
             timestamp={timestamp}
             position={position}
             size={COMMENT_MARKER_SIZE_PX}
+            commentText={markerComments?.get(timestamp)?.text}
+            onSeek={onMarkerSeek}
           />
         );
       })}

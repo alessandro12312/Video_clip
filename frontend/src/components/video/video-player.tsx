@@ -12,6 +12,7 @@ const MAX_RETRIES = 2;
 
 export interface VideoPlayerHandle {
   seekTo: (seconds: number) => void;
+  togglePlay: () => void;
 }
 
 interface VideoPlayerProps {
@@ -20,6 +21,7 @@ interface VideoPlayerProps {
   duration: number;
   popupMap: Map<number, Comment>;
   markerPositions: number[];
+  markerComments?: Map<number, { text: string }>;
   onPause?: (currentTime: number) => void;
   onTimeUpdate?: (currentTime: number) => void;
   onRefreshUrl?: () => Promise<void>;
@@ -31,6 +33,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
   duration,
   popupMap,
   markerPositions,
+  markerComments,
   onPause,
   onTimeUpdate,
   onRefreshUrl,
@@ -60,6 +63,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
       video.currentTime = seconds;
       setCurrentTime(seconds);
       lastPopupSecondRef.current = -1;
+    },
+    togglePlay: () => {
+      togglePlay();
     },
   }));
 
@@ -137,6 +143,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
     setCurrentTime(time);
     lastPopupSecondRef.current = -1;
   }, []);
+
+  // Marker seek handler — seek + auto-play (AC #3: "inizia la riproduzione")
+  const handleMarkerSeek = useCallback((timestamp: number) => {
+    handleSeek(timestamp);
+    const video = videoRef.current;
+    if (video && video.paused) {
+      video.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  }, [handleSeek]);
 
   // Volume handler
   const handleVolumeChange = useCallback((newVolume: number) => {
@@ -272,6 +288,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(funct
         buffered={buffered}
         duration={duration}
         markers={markerPositions}
+        markerComments={markerComments}
+        onMarkerSeek={handleMarkerSeek}
         onSeek={handleSeek}
       />
 

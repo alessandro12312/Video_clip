@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { Eye, ExternalLink, Heart, MessageCircle, MessageSquare, Monitor, Play } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,12 @@ import { UserAvatar } from "@/components/user/user-avatar";
 import { UsernameLink } from "@/components/user/username-link";
 import { useAuth } from "@/providers/auth-provider";
 import { useComments, useDeleteComment } from "@/lib/hooks/use-comments";
+import { useLikeVideo, useUnlikeVideo, usePopupComments } from "@/lib/hooks/use-videos";
 import { useIntersection } from "@/lib/hooks/use-intersection";
+import { useMarkerComments } from "@/lib/hooks/use-marker-comments";
 import { useIsDesktop } from "@/lib/hooks/use-media-query";
 import { videosApi } from "@/lib/api/videos";
-import { formatCount, formatRelativeDate, formatTimestamp } from "@/lib/utils";
+import { cn, formatCount, formatRelativeDate, formatTimestamp } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/constants";
 import type { Video, Comment } from "@/types";
 
@@ -45,11 +48,25 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
   // Viewport detection: load comments when card is near viewport
   const { ref: intersectionRef, isIntersecting } = useIntersection("200px");
   const { data: comments = [] } = useComments(video.id, { enabled: isIntersecting });
+  const { data: popupComments = [] } = usePopupComments(video.id, { enabled: isIntersecting });
   const { mutate: deleteComment } = useDeleteComment(video.id);
+  const likeMutation = useLikeVideo();
+  const unlikeMutation = useUnlikeVideo();
+
+  const lastTapRef = useRef<number>(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Cleanup tap timer on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(tapTimerRef.current);
+    };
+  }, []);
 
   const [videoState, setVideoState] = useState<CardVideoState>("idle");
   const [viewMode, setViewMode] = useState<CardViewMode>("popup");
   const [showComments, setShowComments] = useState(false);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [thumbError, setThumbError] = useState(false);
   const [pauseTimestamp, setPauseTimestamp] = useState<number | null>(null);
   const [playerTime, setPlayerTime] = useState<number | null>(null);
@@ -84,19 +101,17 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
 
   const popupMap = useMemo(() => {
     const map = new Map<number, Comment>();
-    for (const comment of comments) {
-      if (comment.timestamp_second <= 0) continue;
-      const existing = map.get(comment.timestamp_second);
-      if (!existing || new Date(comment.created_at) > new Date(existing.created_at)) {
-        map.set(comment.timestamp_second, comment);
-      }
+    for (const comment of popupComments) {
+      map.set(comment.timestamp_second, comment);
     }
     return map;
-  }, [comments]);
+  }, [popupComments]);
 
   const markerPositions = useMemo(() => {
     return [...new Set(comments.filter((c) => c.timestamp_second > 0).map((c) => c.timestamp_second))];
   }, [comments]);
+
+  const markerCommentsMap = useMarkerComments(popupComments, comments);
 
   const handlePlayerTimeUpdate = useCallback((currentTime: number) => {
     setPlayerTime(currentTime);
@@ -161,6 +176,28 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
     setVideoState("playing");
   }, [video.id]);
 
+  const handleVideoTap = useCallback(() => {
+    if (!isAuthenticated) {
+      playerRef.current?.togglePlay();
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap → like (only if not already liked)
+      clearTimeout(tapTimerRef.current);
+      if (!video.is_liked_by_me) {
+        likeMutation.mutate(video.id);
+        setShowHeartAnimation(true);
+      }
+    } else {
+      // Single tap → delay then toggle play/pause
+      tapTimerRef.current = setTimeout(() => {
+        playerRef.current?.togglePlay();
+      }, 300);
+    }
+    lastTapRef.current = now;
+  }, [isAuthenticated, video.is_liked_by_me, video.id, likeMutation]);
+
   const toggleViewMode = useCallback(() => {
     setViewMode((m) => (m === "popup" ? "chat" : "popup"));
   }, []);
@@ -176,17 +213,40 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
           onMouseLeave={handleMouseLeave}
         >
           {videoState === "playing" ? (
-            <VideoPlayer
-              ref={playerRef}
-              src={currentSrc}
-              videoId={video.id}
-              duration={video.duration}
-              popupMap={viewMode === "popup" ? popupMap : EMPTY_POPUP_MAP}
-              markerPositions={viewMode === "popup" ? markerPositions : EMPTY_MARKERS}
-              onPause={handlePause}
-              onTimeUpdate={handlePlayerTimeUpdate}
-              onRefreshUrl={handleRefreshUrl}
-            />
+            <div className="relative h-full">
+              <VideoPlayer
+                ref={playerRef}
+                src={currentSrc}
+                videoId={video.id}
+                duration={video.duration}
+                popupMap={viewMode === "popup" ? popupMap : EMPTY_POPUP_MAP}
+                markerPositions={viewMode === "popup" ? markerPositions : EMPTY_MARKERS}
+                markerComments={viewMode === "popup" ? markerCommentsMap : undefined}
+                onPause={handlePause}
+                onTimeUpdate={handlePlayerTimeUpdate}
+                onRefreshUrl={handleRefreshUrl}
+              />
+              {/* Double-tap overlay — only covers video, not controls */}
+              <div
+                className="absolute inset-0 bottom-20 z-10"
+                onClick={handleVideoTap}
+              />
+              {/* Heart animation */}
+              <AnimatePresence>
+                {showHeartAnimation && (
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 1.2, opacity: 1 }}
+                    exit={{ scale: 1.5, opacity: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    onAnimationComplete={() => setShowHeartAnimation(false)}
+                  >
+                    <Heart className="h-20 w-20 text-red-500 fill-current drop-shadow-lg" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           ) : (
             <div
               className="relative bg-black cursor-pointer overflow-hidden h-full"
@@ -303,12 +363,22 @@ export function CardAsPlayer({ video }: CardAsPlayerProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-red-500 h-7 px-2 opacity-40"
-          disabled
-          title="Mi piace (in arrivo)"
+          className={cn(
+            "h-7 px-2",
+            video.is_liked_by_me
+              ? "text-red-500 hover:text-red-400"
+              : "text-muted-foreground hover:text-red-500"
+          )}
+          onClick={() =>
+            video.is_liked_by_me
+              ? unlikeMutation.mutate(video.id)
+              : likeMutation.mutate(video.id)
+          }
+          disabled={!isAuthenticated || likeMutation.isPending || unlikeMutation.isPending}
+          title="Mi piace"
         >
-          <Heart className="h-3.5 w-3.5 sm:mr-1" />
-          <span className="hidden sm:inline text-xs">Mi piace</span>
+          <Heart className={cn("h-3.5 w-3.5 sm:mr-1", video.is_liked_by_me && "fill-current")} />
+          <span className="hidden sm:inline text-xs">{video.like_count}</span>
         </Button>
         <Button
           variant="ghost"
