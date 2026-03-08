@@ -2,7 +2,15 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils import timezone
 
-from cs_clips.models import Comment, Contest, Rating, User, Video
+from cs_clips.models import (
+    Comment,
+    CommentLike,
+    Contest,
+    Rating,
+    User,
+    Video,
+    VideoLike,
+)
 
 
 @admin.register(User)
@@ -149,6 +157,20 @@ class CommentAdmin(admin.ModelAdmin):
     def abilita_commenti(self, request, queryset):
         updated = queryset.update(is_disabled=False)
         self.message_user(request, f"{updated} commenti abilitati.")
+
+
+@admin.register(VideoLike)
+class VideoLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "video", "created_at")
+    search_fields = ("user__username", "video__title")
+    autocomplete_fields = ["user", "video"]
+
+
+@admin.register(CommentLike)
+class CommentLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "comment", "created_at")
+    search_fields = ("user__username",)
+    autocomplete_fields = ["user", "comment"]
 
 
 @admin.register(Contest)

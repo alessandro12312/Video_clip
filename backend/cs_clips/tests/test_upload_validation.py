@@ -308,6 +308,8 @@ class TestUploadValidation(APITestCase):
             "allow_download",
             "my_rating_id",
             "my_rating_value",
+            "like_count",
+            "is_liked_by_me",
             "contest",
             "created_at",
             "updated_at",

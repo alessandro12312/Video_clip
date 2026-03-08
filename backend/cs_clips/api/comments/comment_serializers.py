@@ -6,6 +6,8 @@ from cs_clips.models import Comment
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source="user.username")
+    like_count = serializers.IntegerField(read_only=True, default=0)
+    is_liked_by_me = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Comment
@@ -17,8 +19,15 @@ class CommentSerializer(serializers.ModelSerializer):
             "timestamp_second",
             "created_at",
             "updated_at",
+            "like_count",
+            "is_liked_by_me",
         )
-        read_only_fields = ("created_at", "updated_at")
+        read_only_fields = (
+            "created_at",
+            "updated_at",
+            "like_count",
+            "is_liked_by_me",
+        )
 
     def validate(self, data):
         """

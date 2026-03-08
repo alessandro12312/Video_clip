@@ -94,8 +94,8 @@ development_status:
 
   # --- Epic 3: Like, Popup e Engagement Loop ---
   # Modelli VideoLike/CommentLike, UI like, popup overlay, sidebar dinamica, spareggio contest.
-  epic-3: backlog
-  3-1-modelli-videolike-e-commentlike-backend: backlog                     # FR27, FR28, like_count/is_liked_by_me annotation
+  epic-3: in-progress
+  3-1-modelli-videolike-e-commentlike-backend: done                       # FR27, FR28, like_count/is_liked_by_me annotation, 23 test
   3-2-ui-like-su-clip-e-commenti-frontend: backlog                        # Optimistic update, double-tap like, animazione cuore
   3-3-popup-overlay-con-dati-reali-e-sidebar-dinamica: backlog            # FR31-36, pre-caricamento popup, fade-out 3s, soglia 1 like
   3-4-aggiornamento-algoritmo-spareggio-contest-con-like: backlog         # FR42a, peso 20% like reali

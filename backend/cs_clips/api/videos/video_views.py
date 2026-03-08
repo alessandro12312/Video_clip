@@ -4,11 +4,22 @@ from datetime import timedelta
 from pathlib import PurePosixPath
 
 import django_filters
-from django.db.models import Avg, F, IntegerField, OuterRef, Subquery, Value
+from django.db.models import (
+    Avg,
+    BooleanField,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Subquery,
+    Value,
+)
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import parsers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -19,7 +30,8 @@ from cs_clips.api.videos.video_serializers import (
     VideoUpdateSerializer,
 )
 from cs_clips.exceptions.error_handler import handle_exception_with_serializer
-from cs_clips.models import Rating, Video
+from cs_clips.exceptions.error_response_serializer import ErrorResponseSerializer
+from cs_clips.models import Rating, Video, VideoLike
 from cs_clips.permissions import OnlyUsersPermission, RoleBasedPermission
 from cs_clips.utils.get_date_util import get_or_create_current_contest
 from project_clip import settings
@@ -51,10 +63,11 @@ class VideoViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        """Queryset con annotazioni avg_rating e my_rating per evitare N+1."""
-        qs = Video.objects.annotate(avg_rating=Avg("ratings__value")).order_by(
-            "-created_at"
-        )
+        """Queryset con annotazioni avg_rating, my_rating, like, is_liked."""
+        qs = Video.objects.annotate(
+            avg_rating=Avg("ratings__value"),
+            like_count=Count("likes", distinct=True),
+        ).order_by("-created_at")
         if self.request.user.is_authenticated:
             my_rating_qs = Rating.objects.filter(
                 video=OuterRef("pk"), user=self.request.user
@@ -62,11 +75,17 @@ class VideoViewSet(viewsets.ModelViewSet):
             qs = qs.annotate(
                 my_rating_id=Subquery(my_rating_qs.values("id")[:1]),
                 my_rating_value=Subquery(my_rating_qs.values("value")[:1]),
+                is_liked_by_me=Exists(
+                    VideoLike.objects.filter(
+                        video=OuterRef("pk"), user=self.request.user
+                    )
+                ),
             )
         else:
             qs = qs.annotate(
                 my_rating_id=Value(None, output_field=IntegerField()),
                 my_rating_value=Value(None, output_field=IntegerField()),
+                is_liked_by_me=Value(False, output_field=BooleanField()),
             )
         return qs
 
@@ -340,6 +359,37 @@ class VideoViewSet(viewsets.ModelViewSet):
         )
 
         return Response({"download_url": download_url})
+
+    @extend_schema(
+        request=None,
+        responses={
+            201: {"type": "object", "properties": {"detail": {"type": "string"}}},
+            204: None,
+            404: ErrorResponseSerializer,
+            409: ErrorResponseSerializer,
+        },
+        summary="Like/unlike un video",
+        description="POST per mettere like, DELETE per rimuovere il like.",
+    )
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path="like",
+        permission_classes=[IsAuthenticated, OnlyUsersPermission],
+    )
+    def like(self, request, pk=None):
+        """Mette o rimuove like a un video."""
+        video = self.get_object()
+        if request.method == "POST":
+            VideoLike.objects.create(user=request.user, video=video)
+            return Response(
+                {"detail": "Like aggiunto."}, status=status.HTTP_201_CREATED
+            )
+        # DELETE
+        deleted, _ = VideoLike.objects.filter(user=request.user, video=video).delete()
+        if not deleted:
+            raise NotFound("Like non trovato.")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
         logger.info(
