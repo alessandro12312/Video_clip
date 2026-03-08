@@ -3,9 +3,12 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils import timezone
 
 from cs_clips.models import (
+    Bracket,
     Comment,
     CommentLike,
     Contest,
+    ContestEntry,
+    Matchup,
     Notification,
     Rating,
     User,
@@ -181,6 +184,68 @@ class NotificationAdmin(admin.ModelAdmin):
     search_fields = ("recipient__username", "sender__username")
     autocomplete_fields = ["recipient", "sender", "video", "comment", "contest"]
     readonly_fields = ("created_at",)
+
+
+@admin.register(Bracket)
+class BracketAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "status",
+        "max_participants",
+        "current_round",
+        "created_by",
+        "created_at",
+    ]
+    list_filter = ["status"]
+    search_fields = ["name"]
+    autocomplete_fields = ["created_by"]
+    readonly_fields = ["created_at"]
+    actions = ["start_bracket"]
+
+    @admin.action(description="Avvia torneo (genera matchup)")
+    def start_bracket(self, request, queryset):
+        from django.contrib import messages
+        from django.core.exceptions import ValidationError
+
+        from cs_clips.utils.bracket_logic import generate_bracket
+
+        started = 0
+        errors = []
+        for bracket in queryset.filter(status=Bracket.Status.REGISTRATION):
+            try:
+                generate_bracket(bracket)
+                started += 1
+            except ValidationError as e:
+                errors.append(f"{bracket.name}: {e.message}")
+        if started:
+            self.message_user(request, f"{started} tornei avviati.")
+        if errors:
+            self.message_user(
+                request,
+                "Errori: " + "; ".join(errors),
+                messages.ERROR,
+            )
+
+
+@admin.register(ContestEntry)
+class ContestEntryAdmin(admin.ModelAdmin):
+    list_display = ["bracket", "user", "video", "created_at"]
+    list_filter = ["bracket"]
+    autocomplete_fields = ["bracket", "user", "video"]
+
+
+@admin.register(Matchup)
+class MatchupAdmin(admin.ModelAdmin):
+    list_display = [
+        "bracket",
+        "round_number",
+        "position",
+        "entry_1",
+        "entry_2",
+        "winner",
+        "is_completed",
+    ]
+    list_filter = ["bracket", "round_number", "is_completed"]
 
 
 @admin.register(Contest)
