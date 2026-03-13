@@ -94,32 +94,32 @@ development_status:
 
   # --- Epic 3: Like, Popup e Engagement Loop ---
   # Modelli VideoLike/CommentLike, UI like, popup overlay, sidebar dinamica, spareggio contest.
-  epic-3: backlog
-  3-1-modelli-videolike-e-commentlike-backend: backlog                     # FR27, FR28, like_count/is_liked_by_me annotation
-  3-2-ui-like-su-clip-e-commenti-frontend: backlog                        # Optimistic update, double-tap like, animazione cuore
-  3-3-popup-overlay-con-dati-reali-e-sidebar-dinamica: backlog            # FR31-36, pre-caricamento popup, fade-out 3s, soglia 1 like
-  3-4-aggiornamento-algoritmo-spareggio-contest-con-like: backlog         # FR42a, peso 20% like reali
-  3-5-comment-markers-sulla-timeline-del-player: backlog                  # OPZIONALE: dot sulla progress bar, hover preview, click-to-seek
-  epic-3-retrospective: optional
+  epic-3: done
+  3-1-modelli-videolike-e-commentlike-backend: done                       # FR27, FR28, like_count/is_liked_by_me annotation, 23 test
+  3-2-ui-like-su-clip-e-commenti-frontend: done                          # Optimistic update, double-tap like, animazione cuore — reviewed + 7 fix
+  3-3-popup-overlay-con-dati-reali-e-sidebar-dinamica: done             # FR31-36, pre-caricamento popup, fade-out 3s, soglia 1 like — reviewed + 6 fix
+  3-4-aggiornamento-algoritmo-spareggio-contest-con-like: done          # FR42a, peso 20% like reali, 8 test (reviewed + 5 fix)
+  3-5-comment-markers-sulla-timeline-del-player: done                      # OPZIONALE: dot sulla progress bar, hover preview, click-to-seek — reviewed + 5 fix
+  epic-3-retrospective: done                                          # epic-3-retro-2026-03-08.md
 
   # --- Epic 4: Contest Settimanale ---
   # Listing contest, auto-creazione settimanale, votazione 1-5 stelle, classifica, chiusura automatica.
-  epic-4: backlog
-  4-1-backend-contest-settimanale-endpoint-e-listing: backlog             # FR37-39b, FR41a-42a, APScheduler close_contests
-  4-2-votazione-contest-e-classifica-frontend: backlog                    # FR40a, FR43a, NFR13 (un voto per utente per clip)
+  epic-4: in-progress
+  4-1-backend-contest-settimanale-endpoint-e-listing: done         # FR37-39b, FR41a-42a, APScheduler close_contests — reviewed + 6 fix
+  4-2-votazione-contest-e-classifica-frontend: done                # FR40a, FR43a, NFR13 (un voto per utente per clip) — reviewed + 6 fix
   epic-4-retrospective: optional
 
   # --- Epic 5: Notifiche In-App ---
   # Modello Notification (7 tipi, FK espliciti), API REST, polling 15s, campanella badge, pagina notifiche.
-  epic-5: backlog
-  5-1-modello-notification-e-api-backend: backlog                         # FR50-52, D1 (polling, no GenericFK), 7 tipi notifica
-  5-2-frontend-notifiche-pagina-badge-e-polling: backlog                  # Campanella, badge, /notifiche, refetchInterval 15s
+  epic-5: in-progress
+  5-1-modello-notification-e-api-backend: done                          # FR50-52, D1 (polling, no GenericFK), 7 tipi notifica — reviewed + 5 fix
+  5-2-frontend-notifiche-pagina-badge-e-polling: done                    # Campanella, badge, /notifiche, refetchInterval 15s — reviewed + 3 fix
   epic-5-retrospective: optional
 
   # --- Epic 6: Contest Bracket Champions League ---
   # Modelli Bracket/ContestEntry/Matchup, API /api/brackets/, votazione matchup, albero interattivo.
-  epic-6: backlog
-  6-1-modelli-bracket-backend-e-logica-turni: backlog                     # D2 (modelli separati), eliminazione diretta, bye
+  epic-6: in-progress
+  6-1-modelli-bracket-backend-e-logica-turni: done                              # D2 (modelli separati), eliminazione diretta, bye — reviewed + 6 fix
   6-2-api-bracket-e-votazione-matchup: backlog                            # FR39c, FR42b-43b, FR44, dominio /api/brackets/
   6-3-ui-bracket-albero-interattivo-e-pagina-torneo: backlog              # FR41b, FR44b, libreria React bracket, premio vincitore
   epic-6-retrospective: optional

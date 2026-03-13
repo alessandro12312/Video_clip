@@ -10,6 +10,8 @@ export const queryKeys = {
     topRated: (range: TopRatedRange) =>
       ["videos", "top-rated", range] as const,
     byUser: (userId: number) => ["videos", "user", userId] as const,
+    popupComments: (videoId: number) =>
+      ["videos", "popup-comments", videoId] as const,
   },
   comments: {
     byVideo: (videoId: number) => ["comments", "video", videoId] as const,
@@ -25,6 +27,16 @@ export const queryKeys = {
     search: (query: string) => ["users", "search", query] as const,
   },
   contests: {
+    all: ["contests"] as const,
+    list: (params?: { is_closed?: boolean }) =>
+      ["contests", "list", params] as const,
+    detail: (id: number) => ["contests", "detail", id] as const,
+    videos: (id: number) => ["contests", "videos", id] as const,
     winners: ["contests", "winners"] as const,
+  },
+  notifications: {
+    all: ["notifications"] as const,
+    list: (page?: number) => ["notifications", "list", page] as const,
+    unreadCount: ["notifications", "unread-count"] as const,
   },
 } as const;

@@ -2,7 +2,19 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils import timezone
 
-from cs_clips.models import Comment, Contest, Rating, User, Video
+from cs_clips.models import (
+    Bracket,
+    Comment,
+    CommentLike,
+    Contest,
+    ContestEntry,
+    Matchup,
+    Notification,
+    Rating,
+    User,
+    Video,
+    VideoLike,
+)
 
 
 @admin.register(User)
@@ -149,6 +161,91 @@ class CommentAdmin(admin.ModelAdmin):
     def abilita_commenti(self, request, queryset):
         updated = queryset.update(is_disabled=False)
         self.message_user(request, f"{updated} commenti abilitati.")
+
+
+@admin.register(VideoLike)
+class VideoLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "video", "created_at")
+    search_fields = ("user__username", "video__title")
+    autocomplete_fields = ["user", "video"]
+
+
+@admin.register(CommentLike)
+class CommentLikeAdmin(admin.ModelAdmin):
+    list_display = ("user", "comment", "created_at")
+    search_fields = ("user__username",)
+    autocomplete_fields = ["user", "comment"]
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("recipient", "sender", "type", "is_read", "created_at")
+    list_filter = ("type", "is_read")
+    search_fields = ("recipient__username", "sender__username")
+    autocomplete_fields = ["recipient", "sender", "video", "comment", "contest"]
+    readonly_fields = ("created_at",)
+
+
+@admin.register(Bracket)
+class BracketAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "status",
+        "max_participants",
+        "current_round",
+        "created_by",
+        "created_at",
+    ]
+    list_filter = ["status"]
+    search_fields = ["name"]
+    autocomplete_fields = ["created_by"]
+    readonly_fields = ["created_at"]
+    actions = ["start_bracket"]
+
+    @admin.action(description="Avvia torneo (genera matchup)")
+    def start_bracket(self, request, queryset):
+        from django.contrib import messages
+        from django.core.exceptions import ValidationError
+
+        from cs_clips.utils.bracket_logic import generate_bracket
+
+        started = 0
+        errors = []
+        for bracket in queryset.filter(status=Bracket.Status.REGISTRATION):
+            try:
+                generate_bracket(bracket)
+                started += 1
+            except ValidationError as e:
+                errors.append(f"{bracket.name}: {e.message}")
+        if started:
+            self.message_user(request, f"{started} tornei avviati.")
+        if errors:
+            self.message_user(
+                request,
+                "Errori: " + "; ".join(errors),
+                messages.ERROR,
+            )
+
+
+@admin.register(ContestEntry)
+class ContestEntryAdmin(admin.ModelAdmin):
+    list_display = ["bracket", "user", "video", "created_at"]
+    list_filter = ["bracket"]
+    autocomplete_fields = ["bracket", "user", "video"]
+
+
+@admin.register(Matchup)
+class MatchupAdmin(admin.ModelAdmin):
+    list_display = [
+        "bracket",
+        "round_number",
+        "position",
+        "entry_1",
+        "entry_2",
+        "winner",
+        "is_completed",
+    ]
+    list_filter = ["bracket", "round_number", "is_completed"]
 
 
 @admin.register(Contest)

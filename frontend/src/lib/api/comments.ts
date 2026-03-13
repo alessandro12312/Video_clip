@@ -13,4 +13,10 @@ export const commentsApi = {
     apiClient.post<Comment>("/comments/", data).then((r) => r.data),
 
   delete: (id: number) => apiClient.delete(`/comments/${id}/`),
+
+  like: (id: number) =>
+    apiClient.post(`/comments/${id}/like/`).then((r) => r.data),
+
+  unlike: (id: number) =>
+    apiClient.delete(`/comments/${id}/like/`).then((r) => r.data),
 };

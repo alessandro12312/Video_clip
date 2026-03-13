@@ -1,10 +1,15 @@
 # classe utility per gestire le date dei contest settimanali
 
 import datetime
+import logging
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.utils import timezone
 
 from cs_clips.models import Contest
+
+logger = logging.getLogger("utils")
 
 # Lista dei mesi
 MESI_ITALIANO = [
@@ -78,4 +83,27 @@ def get_or_create_current_contest(tag):
     contest = Contest.objects.create(
         start_date=start_of_week, end_date=end_of_week, name=nome_contest, tag=tag
     )
+
+    # Notifica contest_opened a tutti gli utenti del gruppo 'user'
+    from cs_clips.models import Notification
+
+    try:
+        user_group = Group.objects.get(name="user")
+        User = get_user_model()
+        users = User.objects.filter(groups=user_group)
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    recipient=u,
+                    type=Notification.Type.CONTEST_OPENED,
+                    contest=contest,
+                )
+                for u in users
+            ]
+        )
+    except Group.DoesNotExist:
+        logger.warning(
+            "Gruppo 'user' non trovato: notifiche contest_opened non create."
+        )
+
     return contest

@@ -124,8 +124,8 @@ export function CommentForm({
           type="text"
           value={mmssValue}
           onChange={(e) => handleMmssChange(e.target.value)}
-          placeholder="Àncora al video (MM:SS)"
-          className="w-48 font-mono text-xs h-8"
+          placeholder="Timestamp (MM:SS)"
+          className="w-40 font-mono text-xs h-8"
           maxLength={5}
         />
         {mmssError && (

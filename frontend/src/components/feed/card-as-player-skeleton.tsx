@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function CardAsPlayerSkeleton() {
   return (
-    <Card className="overflow-hidden">
+    <Card data-snap-target className="overflow-hidden">
       <div className="flex flex-col lg:flex-row">
         <Skeleton className="aspect-video w-full lg:flex-1" />
         <div className="hidden lg:flex flex-col gap-2 w-72 shrink-0 border-l border-border/50 p-3">

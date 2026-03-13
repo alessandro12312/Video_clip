@@ -40,7 +40,7 @@ export default function ProfiloPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <ProfileHeader profileUser={profileUser} videoCount={totalVideoCount} />
 
       <div>

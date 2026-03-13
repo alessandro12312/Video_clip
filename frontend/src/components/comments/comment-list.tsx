@@ -5,11 +5,12 @@ interface CommentListProps {
   comments: Comment[];
   limit?: number;
   currentUsername?: string;
+  videoId: number;
   onTimestampClick?: (seconds: number) => void;
   onDelete?: (commentId: number) => void;
 }
 
-export function CommentList({ comments, limit, currentUsername, onTimestampClick, onDelete }: CommentListProps) {
+export function CommentList({ comments, limit, currentUsername, videoId, onTimestampClick, onDelete }: CommentListProps) {
   const sorted = [...comments].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
@@ -30,6 +31,7 @@ export function CommentList({ comments, limit, currentUsername, onTimestampClick
           key={comment.id}
           comment={comment}
           currentUsername={currentUsername}
+          videoId={videoId}
           onTimestampClick={onTimestampClick}
           onDelete={onDelete}
         />

@@ -1,6 +1,6 @@
 # Architettura — Frontend Video_clip
 
-> Generato automaticamente il 2026-02-28 | Deep Scan | Workflow: document-project v1.2.0
+> Aggiornato il 2026-03-08 | Deep Scan | Workflow: document-project v1.2.0
 
 ---
 
@@ -100,18 +100,39 @@ Pagina/Componente
 
 ## Architettura Componenti
 
-### 52 Componenti in 8 Categorie
+### 54 Componenti in 8 Categorie
 
 | Categoria | Count | Componenti chiave |
 |---|---|---|
 | **Layout** | 5 | LeftSidebar, Header, MobileBottomBar, DesktopNavbar, UserMenu |
-| **Feed** | 3 | ClipCard, ClipCardSkeleton, FeedGrid |
+| **Feed** | 5 | CardAsPlayer, CardAsPlayerSkeleton, FeedGrid, ClipCard (legacy), ClipCardSkeleton (legacy) |
 | **Video** | 5 | VideoPlayer, PlayerControls, ProgressBar, PopupOverlay, CommentMarker |
-| **Comments** | 5 | CommentSection, CommentForm, CommentList, CommentPopup, DynamicSidebar |
+| **Comments** | 5 | CommentSection, CommentForm, CommentList, CommentItem, CommentSidebar |
 | **Rating** | 1 | StarRating (interactive + readonly) |
 | **User** | 7 | UserAvatar, FollowButton, ProfileHeader, ProfileEditForm, UserSearchBar |
 | **Shared** | 8 | EmptyState, ErrorMessage, GradientSpinner, InfiniteScroll, LoginTransitionOverlay |
 | **UI (shadcn)** | 17 | Button, Card, Dialog, Input, Tabs, Tooltip, etc. |
+| **Alert** | 1 | AlertDialog (shadcn/ui) |
+
+### Feed UX — Snap Scroll
+
+Il feed (Home, Esplora) usa un sistema di **snap scroll card-by-card**:
+
+- Ogni card riempie il viewport (`h-[calc(100dvh-5.5rem)]`) con layout flex colonna
+- Hook `useSnapScroll()` intercetta wheel events su `<main>` e anima lo scroll con `requestAnimationFrame` + easing `easeOutCubic`
+- Posizionamento centrato con `getBoundingClientRect` (non `offsetTop`) rispetto al container di scroll
+- Anti-bounce: cooldown 600ms post-snap che blocca wheel nella direzione opposta
+- Soglia accumulazione delta: 80px per prevenire micro-scroll da trackpad
+- Attributo `data-snap-target` sulle card per il targeting JS
+
+### Clip Detail — View Modes
+
+La pagina dettaglio clip (`clip/[id]`) supporta due modalità di visualizzazione commenti:
+
+- **Popup** (default): commenti sovrapposti al video come overlay temporizzati
+- **Chat**: sidebar laterale con commenti in tempo reale (solo desktop)
+- Toggle via bottone Chat/Popup nella barra azioni
+- Bottone Like placeholder (disabilitato, in arrivo)
 
 ### Responsive Strategy
 
@@ -119,7 +140,7 @@ Pagina/Componente
 |---|---|
 | Mobile (<1024px) | Header (logo V + search + avatar) + MobileBottomBar |
 | Desktop (≥1024px) | LeftSidebar (240px, collapsible 64px) + DesktopNavbar |
-| Wide (≥1280px) | + DynamicSidebar (commenti laterali nella pagina clip) |
+| Wide (≥1024px) | + CommentSidebar (commenti laterali in modalità chat, pagina clip) |
 
 ---
 
@@ -127,7 +148,7 @@ Pagina/Componente
 
 ### React Query (Server State)
 
-- **21 hooks** in `src/lib/hooks/`
+- **22 hooks** in `src/lib/hooks/` (incluso `useSnapScroll`)
 - **Infinite Queries**: feed, top-rated, user videos
 - **Optimistic Updates**: follow/unfollow con rollback
 - **staleTime**: 30s default, 60s commenti, 5min utenti
@@ -160,10 +181,10 @@ Pagina/Componente
 | Gap | Severità | Note |
 |---|---|---|
 | `useUserVideos` filtra client-side | Alta | Manca endpoint `?uploader=` backend |
-| Nessun hook per delete (comment, rating, video) | Media | API esiste, hook mancanti |
 | `ApiError` tipo definito ma mai usato | Bassa | Error handling via toast inline |
 | Costanti inutilizzate (PAGE_SIZE, query keys) | Bassa | Dead code |
-| Endpoint `by-username` non esiste nel backend | Alta | Frontend lo chiama, 404 a runtime |
 | Dark mode hardcoded | Bassa | Nessun toggle, design intenzionale |
-| Nessun test | Media | Da implementare (Vitest + RTL) |
+| Nessun test frontend | Media | Da implementare (Vitest + RTL) |
 | SSR non sfruttato | Bassa | Tutti i dati fetch client-side via React Query |
+| VideoLike non implementato | Media | Bottone Like presente ma disabilitato |
+| ClipCard/ClipCardSkeleton legacy | Bassa | Non importati, sostituiti da CardAsPlayer |

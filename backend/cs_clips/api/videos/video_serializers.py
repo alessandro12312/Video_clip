@@ -32,6 +32,8 @@ class VideoOutputSerializer(serializers.ModelSerializer):
     my_rating_value = serializers.IntegerField(
         read_only=True, allow_null=True, default=None
     )
+    like_count = serializers.IntegerField(read_only=True, default=0)
+    is_liked_by_me = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Video
@@ -52,6 +54,8 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "allow_download",
             "my_rating_id",
             "my_rating_value",
+            "like_count",
+            "is_liked_by_me",
         )
         read_only_fields = (
             "id",
@@ -68,6 +72,8 @@ class VideoOutputSerializer(serializers.ModelSerializer):
             "allow_download",
             "my_rating_id",
             "my_rating_value",
+            "like_count",
+            "is_liked_by_me",
         )
 
     @extend_schema_field(serializers.FloatField)

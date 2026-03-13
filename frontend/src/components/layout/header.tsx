@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 import { UserAvatar } from "@/components/user/user-avatar";
 import { UserSearchBar } from "@/components/user/user-search-bar";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,9 @@ export function Header() {
       <div className="flex-1 max-w-xs mx-2">
         <UserSearchBar />
       </div>
+
+      {/* Campanella notifiche */}
+      <NotificationBell />
 
       {/* User avatar + dropdown */}
       {user ? (

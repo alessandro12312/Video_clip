@@ -27,7 +27,7 @@ export default function EsploraPage() {
   const videos = data?.pages.flatMap((page) => page.results) ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl p-4">
+    <div>
       <h1 className="mb-4 text-2xl font-bold">Esplora</h1>
 
       {/* Range filters */}

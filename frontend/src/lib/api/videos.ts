@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { Comment } from "@/types/comment";
 import type { PaginatedResponse, Video, TopRatedRange, DownloadResponse } from "@/types";
 
 // Normalize response: backend may return a plain array instead of paginated format
@@ -57,4 +58,15 @@ export const videosApi = {
     apiClient.get<DownloadResponse>(`/videos/${id}/download/`).then((r) => r.data),
 
   delete: (id: number) => apiClient.delete(`/videos/${id}/`),
+
+  like: (id: number) =>
+    apiClient.post(`/videos/${id}/like/`).then((r) => r.data),
+
+  unlike: (id: number) =>
+    apiClient.delete(`/videos/${id}/like/`).then((r) => r.data),
+
+  getPopupComments: (videoId: number) =>
+    apiClient
+      .get<Comment[]>(`/videos/${videoId}/popup-comments/`)
+      .then((r) => r.data),
 };

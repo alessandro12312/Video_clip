@@ -61,3 +61,8 @@ export function extractPageFromUrl(url: string | null): number | undefined {
   const match = url.match(/[?&]page=(\d+)/);
   return match ? parseInt(match[1], 10) : undefined;
 }
+
+export function formatShortDate(isoDate: string): string {
+  const d = new Date(isoDate + "T00:00:00");
+  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+}

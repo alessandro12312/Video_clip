@@ -8,7 +8,7 @@ interface CommentSectionProps {
   onTimestampClick?: (seconds: number) => void;
   onDelete?: (commentId: number) => void;
   limit?: number;
-  videoId?: number;
+  videoId: number;
 }
 
 export function CommentSection({ comments, currentUsername, onTimestampClick, onDelete, limit, videoId }: CommentSectionProps) {
@@ -18,7 +18,7 @@ export function CommentSection({ comments, currentUsername, onTimestampClick, on
         <h3 className="text-sm font-semibold text-muted-foreground">
           Commenti ({comments.length})
         </h3>
-        {videoId !== undefined && limit !== undefined && comments.length > limit && (
+        {limit !== undefined && comments.length > limit && (
           <Link
             href={`/clip/${videoId}`}
             className="text-xs text-primary hover:underline"
@@ -31,6 +31,7 @@ export function CommentSection({ comments, currentUsername, onTimestampClick, on
         comments={comments}
         limit={limit}
         currentUsername={currentUsername}
+        videoId={videoId}
         onTimestampClick={onTimestampClick}
         onDelete={onDelete}
       />

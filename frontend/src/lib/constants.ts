@@ -25,7 +25,7 @@ export const NAV_ITEMS = [
   { href: "/contest", label: "Contest", icon: "Trophy" },
 ] as const;
 
-export const POPUP_DISPLAY_DURATION_MS = 4000;
+export const POPUP_DISPLAY_DURATION_MS = 3000;
 export const VIEW_COUNT_DELAY_MS = 5000;
 export const COMMENT_MARKER_SIZE_PX = 6;
-export const COMMENT_SLOT_SECONDS = 3;
+
