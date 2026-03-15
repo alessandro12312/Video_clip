@@ -2,14 +2,17 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Trophy, Calendar, Film } from "lucide-react";
+import { Trophy, Calendar, Film, Swords } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TagBadge } from "@/components/shared/tag-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorMessage } from "@/components/shared/error-message";
 import { InfiniteScroll } from "@/components/shared/infinite-scroll";
+import { BracketListItem } from "@/components/brackets/bracket-list-item";
 import { useContests } from "@/lib/hooks/use-contests";
+import { useBrackets } from "@/lib/hooks/use-brackets";
 import { formatShortDate } from "@/lib/utils";
 import type { Contest } from "@/types";
 
@@ -113,21 +116,78 @@ function ContestSection({
   );
 }
 
+function BracketSection() {
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBrackets();
+
+  const brackets = useMemo(
+    () => data?.pages.flatMap((p) => p.results) ?? [],
+    [data]
+  );
+
+  if (isError) return <ErrorMessage onRetry={refetch} />;
+
+  if (isLoading) return <ContestListSkeleton />;
+
+  if (brackets.length === 0) {
+    return (
+      <EmptyState
+        icon={Swords}
+        title="Nessun bracket"
+        description="I tornei bracket appariranno qui."
+      />
+    );
+  }
+
+  return (
+    <>
+      <div className="grid gap-3">
+        {brackets.map((bracket) => (
+          <BracketListItem key={bracket.id} bracket={bracket} />
+        ))}
+      </div>
+      <InfiniteScroll
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
+      />
+    </>
+  );
+}
+
 export default function ContestPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Trophy className="h-6 w-6 text-yellow-400" />
           Contest
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Contest settimanali di Video_clip
+          Contest settimanali e tornei bracket di Video_clip
         </p>
       </div>
 
-      <ContestSection title="Contest Attivi" isClosed={false} />
-      <ContestSection title="Contest Chiusi" isClosed={true} />
+      <Tabs defaultValue="contest">
+        <TabsList>
+          <TabsTrigger value="contest">Contest Settimanali</TabsTrigger>
+          <TabsTrigger value="bracket">Bracket</TabsTrigger>
+        </TabsList>
+        <TabsContent value="contest" className="space-y-8 pt-4">
+          <ContestSection title="Contest Attivi" isClosed={false} />
+          <ContestSection title="Contest Chiusi" isClosed={true} />
+        </TabsContent>
+        <TabsContent value="bracket" className="pt-4">
+          <BracketSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

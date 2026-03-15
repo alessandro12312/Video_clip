@@ -9,6 +9,7 @@ from cs_clips.models import (
     Contest,
     ContestEntry,
     Matchup,
+    MatchupVote,
     Notification,
     Rating,
     User,
@@ -231,6 +232,7 @@ class BracketAdmin(admin.ModelAdmin):
 class ContestEntryAdmin(admin.ModelAdmin):
     list_display = ["bracket", "user", "video", "created_at"]
     list_filter = ["bracket"]
+    search_fields = ["user__username", "video__title"]
     autocomplete_fields = ["bracket", "user", "video"]
 
 
@@ -246,6 +248,16 @@ class MatchupAdmin(admin.ModelAdmin):
         "is_completed",
     ]
     list_filter = ["bracket", "round_number", "is_completed"]
+    search_fields = ["bracket__name"]
+
+
+@admin.register(MatchupVote)
+class MatchupVoteAdmin(admin.ModelAdmin):
+    list_display = ["matchup", "user", "entry", "value", "created_at"]
+    list_filter = ["value", "matchup__bracket"]
+    search_fields = ["user__username"]
+    autocomplete_fields = ["matchup", "user", "entry"]
+    readonly_fields = ["created_at"]
 
 
 @admin.register(Contest)
