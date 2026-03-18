@@ -4,6 +4,7 @@ from .comment_like import CommentLike
 from .contest import Contest
 from .contest_entry import ContestEntry
 from .matchup import Matchup
+from .matchup_vote import MatchupVote
 from .notification import Notification
 from .rating import Rating
 from .user import User
@@ -17,6 +18,7 @@ __all__ = [
     "Contest",
     "ContestEntry",
     "Matchup",
+    "MatchupVote",
     "Notification",
     "Rating",
     "User",

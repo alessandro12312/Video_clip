@@ -120,6 +120,6 @@ development_status:
   # Modelli Bracket/ContestEntry/Matchup, API /api/brackets/, votazione matchup, albero interattivo.
   epic-6: in-progress
   6-1-modelli-bracket-backend-e-logica-turni: done                              # D2 (modelli separati), eliminazione diretta, bye — reviewed + 6 fix
-  6-2-api-bracket-e-votazione-matchup: backlog                            # FR39c, FR42b-43b, FR44, dominio /api/brackets/
-  6-3-ui-bracket-albero-interattivo-e-pagina-torneo: backlog              # FR41b, FR44b, libreria React bracket, premio vincitore
+  6-2-api-bracket-e-votazione-matchup: done                      # FR39c, FR42b-43b, FR44, dominio /api/brackets/
+  6-3-ui-bracket-albero-interattivo-e-pagina-torneo: done           # FR41b, FR44b, albero interattivo CSS custom, premio vincitore — reviewed + 7 fix
   epic-6-retrospective: optional

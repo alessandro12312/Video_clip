@@ -39,4 +39,10 @@ export const queryKeys = {
     list: (page?: number) => ["notifications", "list", page] as const,
     unreadCount: ["notifications", "unread-count"] as const,
   },
+  brackets: {
+    all: ["brackets"] as const,
+    list: (params?: { status?: string }) =>
+      ["brackets", "list", params] as const,
+    detail: (id: number) => ["brackets", "detail", id] as const,
+  },
 } as const;
